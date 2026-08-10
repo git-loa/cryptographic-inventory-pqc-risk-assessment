@@ -1,0 +1,4 @@
+example.com
+github.com
+not_a_domain
+microsoft.com
