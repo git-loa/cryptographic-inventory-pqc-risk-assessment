@@ -9,7 +9,7 @@ from pathlib import Path
 DOMAIN_REGEX = re.compile(r"^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$")
 
 
-def load_domain_from_file(path: str | Path = "config/domains.txt") -> list[str]:
+def load_domains(path: str | Path = "config/domains.txt") -> list[str]:
     """
     Load domain names from a text file.
 
@@ -42,5 +42,5 @@ def load_domain_from_file(path: str | Path = "config/domains.txt") -> list[str]:
 
 if __name__ == "__main__":
     # Example usage
-    returned_domains = load_domain_from_file("config/domains.txt")
+    returned_domains = load_domains("config/domains.txt")
     print(f"Loaded domains: {returned_domains}")
