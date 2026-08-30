@@ -216,3 +216,29 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# -------------------------
+# Jinja2 Compiled Templates
+# -------------------------
+*.j2c
+
+# -------------------------
+# Pipeline Outputs
+# -------------------------
+data/processed/*.json
+reports/*.json
+reports/*.md
+
+# -------------------------
+# Logs
+# -------------------------
+logs/*.log
+
+# -------------------------
+# Temporary Files
+# -------------------------
+tmp/
+temp/
+*.tmp
+*.log

@@ -1,104 +1,87 @@
 """
 Run Scan Orchestrator
 Connects domain loader + TLS scanner
+
+This module orchestrates the TLS scanning process. It loads domains
+from a configuration file, executes TLS scans for each domain, and
+saves the results to JSON for downstream PQC scoring and reporting.
 """
 
 from __future__ import annotations
 
+import argparse
+import time
 from pathlib import Path
-from typing import Any
 
-from prettytable import PrettyTable
+from src.scanner.utils.logger import get_logger
+from src.scanner.domain_loader import load_domains
+from src.scanner.tls_scanner import scan_domain
+from src.scanner.models import TLSScanResult
+from src.scanner.json_io import save_tls_results
 
-from scanner.domain_loader import load_domains
-from scanner.tls_scanner import scan_domain
+logger = get_logger(__name__)
 
 
-def run_scan(domains_path: str | Path = "config/domains.txt") -> list[dict[str, Any]]:
+def run_scan(domains_path: str | Path = "config/domains.txt") -> list[TLSScanResult]:
     """
     Load domains and run TLS scans on each one.
     """
+    logger.info("Starting TLS scan orchestrator using domain file: %s", domains_path)
+
     domains = load_domains(domains_path)
-    scanned_domains_results: list[dict[str, Any]] = []
+    logger.info("Loaded %d domains for scanning.", len(domains))
+    logger.debug("Domains to scan: %s", domains)
+
+    scanned_domains_results: list[TLSScanResult] = []
 
     for domain in domains:
+        start_time = time.perf_counter()
+
+        logger.info("Scanning domain: %s", domain)
         scan_result = scan_domain(domain)
+
+        elapsed_time = time.perf_counter() - start_time
+        scan_result["scan_duration"] = round(elapsed_time, 2)
+
         scanned_domains_results.append(scan_result)
 
+        if "error" in scan_result:
+            logger.warning("Scan error for domain %s: %s", domain, scan_result["error"])
+        else:
+            logger.info(
+                "Scan successful for domain %s: TLS Version: %s, Cipher Suite: %s",
+                domain,
+                scan_result.get("tls_version"),
+                scan_result.get("cipher_suite"),
+            )
+
+        logger.debug("Scan result for domain %s: %s", domain, scan_result)
+
+    logger.info("Completed TLS scans for %d domains.", len(scanned_domains_results))
     return scanned_domains_results
 
 
-def print_results_verbose(results_param: list[dict[str, Any]]) -> None:
+def main() -> None:
     """
-    Verbose, detailed per-domain output.
+    CLI entrypoint for TLS scanning.
+    Loads domains, runs scans, and saves results to JSON.
+
+    This module is invoked by the pipeline as:
+        python -m src.run_scan --domains config/domains.txt
     """
-    for item in results_param:
-        print("-" * 60)
-        print(f"Domain: {item['domain']}")
-        print(f"Port: {item['port']}")
+    parser = argparse.ArgumentParser(description="TLS Scanner")
+    parser.add_argument(
+        "--domains",
+        default="config/domains.txt",
+        help="Path to the domain list file",
+    )
+    args = parser.parse_args()
 
-        if "error" in item:
-            print(f"Error: {item['error']}")
-            continue
+    tls_scan_results = run_scan(args.domains)
+    save_tls_results(tls_scan_results)
 
-        print(f"TLS Version: {item['tls_version']}")
-        print(f"Cipher Suite: {item['cipher_suite']}")
-        print(f"Cipher Strength: {item['cipher_strength']}")
-        print(f"Key Size: {item['key_size']}")
-        print(f"Valid From: {item['not_before']}")
-        print(f"Valid Until: {item['not_after']}")
-        print(f"Issuer: {item['certificate_issuer']}")
-        print(f"Subject: {item['certificate_subject']}")
-
-    print("-" * 60)
-
-
-def print_results_table(results_param: list[dict[str, Any]]) -> None:
-    """
-    PrettyTable summary output.
-    """
-    table = PrettyTable()
-    table.field_names = [
-        "Domain",
-        "TLS Version",
-        "Cipher Suite",
-        "Key Size",
-        "Valid Until",
-        "Error",
-    ]
-
-    for item in results_param:
-        if "error" in item:
-            table.add_row(
-                [
-                    item["domain"],
-                    "-",
-                    "-",
-                    "-",
-                    "-",
-                    item["error"],
-                ]
-            )
-        else:
-            table.add_row(
-                [
-                    item["domain"],
-                    item["tls_version"],
-                    item["cipher_suite"],
-                    item["key_size"],
-                    item["not_after"],
-                    "",
-                ]
-            )
-
-    print(table)
+    logger.info("Saved TLS results to data/processed/tls_results.json")
 
 
 if __name__ == "__main__":
-    results_to_print = run_scan()
-
-    print("\n=== SUMMARY TABLE ===\n")
-    print_results_table(results_to_print)
-
-    print("\n=== VERBOSE DETAILS ===\n")
-    print_results_verbose(results_to_print)
+    main()

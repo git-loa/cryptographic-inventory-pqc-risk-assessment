@@ -1,0 +1,62 @@
+# TLS + PQC Security Assessment Report
+
+**Author:** {{ author }}
+**Organization:** {{ organization }}
+**Generated:** {{ generated_at }}
+
+---
+
+## Executive Summary
+
+This report provides a combined analysis of TLS configuration, certificate metadata, and post‑quantum cryptography (PQC) readiness for the scanned domains.
+It includes negotiated TLS parameters, certificate validity, cryptographic strength, and PQC risk scoring.
+
+---
+
+{% for item in reports %}
+## {{ item.domain }}
+
+{% if item.tls.error %}
+### Scan Error
+**Error:** {{ item.tls.error }}
+
+---
+{% else %}
+
+### TLS Summary
+
+- **TLS Version:** {{ item.tls.tls_version }}
+- **Cipher Suite:** {{ item.tls.cipher_suite }}
+- **Cipher Strength:** {{ item.tls.cipher_strength }}
+- **Key Size:** {{ item.tls.key_size }}
+- **Valid From:** {{ item.tls.not_before }}
+- **Valid Until:** {{ item.tls.not_after }}
+- **Scan Time:** {{ item.tls.scan_time_seconds }} seconds
+
+### Certificate Metadata
+
+**Issuer**
+{% for k, v in item.tls.certificate_issuer.items() %}
+- {{ k }}: {{ v }}
+{% endfor %}
+
+**Subject**
+{% for k, v in item.tls.certificate_subject.items() %}
+- {{ k }}: {{ v }}
+{% endfor %}
+
+### PQC Assessment
+
+- **PQC Risk Level:** {{ item.pqc.pqc_risk }}
+- **TLS/PQC Score:** {{ item.pqc.tls_score }}/100
+
+**Reasons**
+{% for reason in item.pqc.reasons %}
+- {{ reason }}
+{% endfor %}
+
+---
+{% endif %}
+{% endfor %}
+
+## End of Report

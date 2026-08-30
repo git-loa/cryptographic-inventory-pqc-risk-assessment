@@ -21,3 +21,6 @@ exclude = ["__pycache__", ".venv"]
 
 [tool.mypy]
 strict = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
