@@ -4,6 +4,7 @@ TLS Scanner Module
 
 import socket
 import ssl
+import time
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -14,135 +15,207 @@ from src.scanner.models import TLSScanResult
 logger = get_logger(__name__)
 
 
+# ------------------------------------------------------------
+# Domain Validation
+# ------------------------------------------------------------
+
+
+def validate_domain_or_error(domain: str, port: int = 443) -> TLSScanResult | None:
+    """
+    Validate domain name and return error result if invalid.
+    Returns None if the domain is valid.
+
+    Parameters
+    ----------
+    domain : str
+        The domain name to validate.
+    port : int
+        The port number for the TLS scan (default is 443).
+
+    Returns
+    -------
+    TLSScanResult | None
+        Returns a TLSScanResult with an error message if the domain is invalid,
+        otherwise returns None.
+    """
+
+    if not domain or "." not in domain or len(domain) > 253:
+        return _error_result(domain, port, "Invalid domain name", 0.0)
+
+    labels = domain.split(".")
+
+    for label in labels:
+        if not label or len(label) > 63:
+            return _error_result(domain, port, "Invalid domain name", 0.0)
+        if label.startswith("-") or label.endswith("-"):
+            return _error_result(domain, port, "Invalid domain name", 0.0)
+        if any(not (c.isalnum() or c == "-") for c in label):
+            return _error_result(domain, port, "Invalid domain name", 0.0)
+
+    return None
+
+
+# ------------------------------------------------------------
+# Error Result Helper
+# ------------------------------------------------------------
+
+
+def _error_result(
+    domain: str, port: int, message: str, elapsed: float
+) -> TLSScanResult:
+    """Return a fully populated TLSScanResult error dict.
+
+    Parameters
+    ----------
+    domain : str
+        The domain name that was scanned.
+    port : int
+        The port number for the TLS scan (default is 443).
+    message : str
+        The error message to include in the result.
+    elapsed : float
+        The time elapsed during the scan.
+
+    Returns
+    -------
+    TLSScanResult
+        A dictionary containing the TLS scan result with an error message.
+    """
+    return {
+        "domain": domain,
+        "port": port,
+        "tls_version": None,
+        "cipher_suite": None,
+        "cipher_strength": None,
+        "certificate_subject": {},
+        "certificate_issuer": {},
+        "not_before": None,
+        "not_after": None,
+        "key_size": None,
+        "error": message,
+        "scan_time_seconds": elapsed,
+    }
+
+
+# ------------------------------------------------------------
+# Certificate Parsing
+# ------------------------------------------------------------
+
+
+def parse_certificate(cert_dict, der_cert) -> dict:
+    """Extract subject, issuer, validity, and key size
+    from certificate.
+
+    Parameters
+    ----------
+    cert_dict : dict
+        The dictionary containing certificate information.
+    der_cert : bytes
+        The DER-encoded certificate.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the parsed certificate information.
+    """
+    cert_obj = x509.load_der_x509_certificate(der_cert, default_backend())
+    public_key = cert_obj.public_key()
+
+    try:
+        key_size = public_key.key_size
+    except AttributeError:
+        key_size = None
+
+    return {
+        "certificate_subject": dict(x[0] for x in cert_dict.get("subject", [])),
+        "certificate_issuer": dict(x[0] for x in cert_dict.get("issuer", [])),
+        "not_before": cert_dict.get("notBefore"),
+        "not_after": cert_dict.get("notAfter"),
+        "key_size": key_size,
+    }
+
+
+# ------------------------------------------------------------
+# TLS Scanner
+# ------------------------------------------------------------
+
+
 def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult:
     """
-    Perform a real TLS handshake with the target domain and extract
-    connection and certificate metadata.
-
-    The function establishes a TCP connection, negotiates a TLS session,
-    and returns structured information including:
-
-    - negotiated TLS version
-    - cipher suite and key strength
-    - certificate subject and issuer fields
-    - certificate validity period (notBefore / notAfter)
-    - public‑key size extracted from the DER certificate
-
-    If the handshake fails (e.g., SSL error, DNS failure, timeout,
-    missing certificate, or no negotiated cipher), the function returns
-    a TLSScanResult containing an appropriate error message.
+    Perform TLS handshake and return structured TLS metadata.
 
     Parameters
     ----------
     domain : str
         The domain name to scan.
     port : int, optional
-        The TLS port to connect to (default: 443).
+        The port number for the TLS scan (default is 443).
     timeout : int, optional
-        Timeout in seconds for the TCP connection.
+        The timeout for the TLS scan (default is 5).
 
     Returns
     -------
     TLSScanResult
-        A dictionary-like object containing TLS metadata or an error
-        description if the handshake could not be completed.
+        A dictionary containing the TLS scan result.
     """
 
-    logger.info("Starting TLS scan for domain=%s port=%d", domain, port)
-    logger.debug("Creating TLS context using default settings")
+    # Fast-fail invalid domains
+    validation_error = validate_domain_or_error(domain, port)
+    if validation_error:
+        return validation_error
 
+    logger.info("Starting TLS scan for domain=%s port=%d", domain, port)
     context = ssl.create_default_context()
+    start = time.perf_counter()
 
     try:
-        logger.debug(
-            "Attempting to create TCP connection to %s:%d with timeout=%d",
-            domain,
-            port,
-            timeout,
-        )
         with socket.create_connection((domain, port), timeout=timeout) as sock:
-            logger.debug("Wrapping socket with TLS context for domain=%s", domain)
             with context.wrap_socket(sock, server_hostname=domain) as tls:
+
                 cipher = tls.cipher()
                 if cipher is None:
-                    logger.warning("No cipher suite negotiated for domain=%s", domain)
-                    return {
-                        "domain": domain,
-                        "port": port,
-                        "error": "No cipher suite negotiated",
-                    }
+                    return _error_result(
+                        domain,
+                        port,
+                        "No cipher suite negotiated",
+                        time.perf_counter() - start,
+                    )
 
                 cert_dict = tls.getpeercert()
-                logger.debug(
-                    "Certificate retrieved for domain=%s: %s", domain, cert_dict
-                )
-
                 if cert_dict is None:
-                    logger.warning(
-                        "No certificate returned by server for domain=%s", domain
-                    )
-                    return {
-                        "domain": domain,
-                        "port": port,
-                        "error": "No certificate returned by server",
-                    }
-
-                # Extract full DER certificate for real key-size parsing
-                logger.debug("Retrieving DER certificate for domain=%s", domain)
-                der_cert = tls.getpeercert(binary_form=True)
-                cert_obj = x509.load_der_x509_certificate(der_cert, default_backend())
-                public_key = cert_obj.public_key()
-
-                try:
-                    key_size = public_key.key_size
-                    logger.debug(
-                        "Extracted key size for domain=%s: %d bits", domain, key_size
-                    )
-                except AttributeError:
-                    key_size = None
-                    logger.debug(
-                        "Public key does not have a key_size attribute for domain=%s",
+                    return _error_result(
                         domain,
+                        port,
+                        "No certificate returned by server",
+                        time.perf_counter() - start,
                     )
 
-                scanned_result: TLSScanResult = {
+                der_cert = tls.getpeercert(binary_form=True)
+                cert_info = parse_certificate(cert_dict, der_cert)
+
+                elapsed = time.perf_counter() - start
+
+                return {
                     "domain": domain,
                     "port": port,
                     "tls_version": tls.version(),
                     "cipher_suite": cipher[0],
                     "cipher_strength": cipher[2],
-                    "certificate_subject": dict(
-                        x[0] for x in cert_dict.get("subject", [])
-                    ),
-                    "certificate_issuer": dict(
-                        x[0] for x in cert_dict.get("issuer", [])
-                    ),
-                    "not_before": cert_dict.get("notBefore"),
-                    "not_after": cert_dict.get("notAfter"),
-                    "key_size": key_size,
+                    **cert_info,
+                    "scan_time_seconds": elapsed,
                 }
 
-            logger.info(
-                "TLS scan completed for domain=%s (TLS=%s, cipher=%s)",
-                domain,
-                scanned_result["tls_version"],
-                scanned_result["cipher_suite"],
-            )
-            logger.debug(
-                "Full TLS scan result for domain=%s: %s", domain, scanned_result
-            )
-
-            return scanned_result
-
     except ssl.SSLError as e:
-        logger.error("SSL error during handshake with domain=%s: %s", domain, e)
-        return {"domain": domain, "port": port, "error": f"SSL error: {e}"}
+        return _error_result(
+            domain, port, f"SSL error: {e}", time.perf_counter() - start
+        )
     except socket.timeout as e:
-        logger.error("Timeout during connection to domain=%s:%d:  %s", domain, port, e)
-        return {"domain": domain, "port": port, "error": f"Timeout: {e}"}
+        return _error_result(domain, port, f"Timeout: {e}", time.perf_counter() - start)
     except socket.gaierror as e:
-        logger.error("DNS resolution error for domain=%s: %s", domain, e)
-        return {"domain": domain, "port": port, "error": f"DNS error: {e}"}
+        return _error_result(
+            domain, port, f"DNS error: {e}", time.perf_counter() - start
+        )
     except ConnectionError as e:
-        logger.error("Connection error for domain=%s:%d: %s", domain, port, e)
-        return {"domain": domain, "port": port, "error": f"Connection error: {e}"}
+        return _error_result(
+            domain, port, f"Connection error: {e}", time.perf_counter() - start
+        )
