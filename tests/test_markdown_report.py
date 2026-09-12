@@ -6,17 +6,17 @@ from pathlib import Path
 import tempfile
 
 from src.scanner.markdown_report import (
-    build_combined,
     render_markdown,
     save_markdown,
 )
+from src.scanner.utils.report_utils import build_combined_reports
 
 
 def test_build_combined_structure(tls_results, pqc_scores):
     """
     Ensure build_combined merges TLS + PQC entries correctly.
     """
-    combined = build_combined(tls_results, pqc_scores)
+    combined = build_combined_reports(tls_results, pqc_scores)
 
     assert isinstance(combined, list)
     assert len(combined) > 0

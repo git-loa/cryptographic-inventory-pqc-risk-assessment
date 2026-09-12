@@ -1,16 +1,43 @@
-[project]
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+package-mode = false
 name = "cryptographic-inventory-pqc-risk-assessment"
 version = "0.1.0"
 description = "TLS cryptographic inventory scanner with PQC/HNDL risk scoring."
-requires-python = ">=3.10"
+authors = ["Leonard"]
+readme = "README.md"
 
-dependencies = [
-    "cryptography",
-    "pyopenssl",
-    "requests",
-    "pydantic",
-    "rich"
-]
+[tool.poetry.dependencies]
+python = ">=3.10"
+cryptography = "*"
+pyopenssl = "*"
+requests = "*"
+pydantic = "*"
+rich = "*"
+jinja2 = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+flake8 = "*"
+black = "*"
+mypy = "*"
+hypothesis = "*"
+pre-commit = "*"
+
+[tool.poetry.group.lint.dependencies]
+flake8 = "*"
+black = "*"
+mypy = "*"
+
+[tool.poetry.group.test.dependencies]
+pytest = "*"
+hypothesis = "*"
+
+[tool.poetry.group.tools.dependencies]
+pre-commit = "*"
 
 [tool.black]
 line-length = 88

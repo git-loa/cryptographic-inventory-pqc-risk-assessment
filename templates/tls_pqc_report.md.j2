@@ -6,58 +6,155 @@
 
 ---
 
-## Executive Summary
+# Executive Summary
 
-This report provides a combined analysis of TLS configuration, certificate metadata, and post-quantum
-cryptography (PQC) readiness for the scanned domains.
-It includes negotiated TLS parameters, certificate validity, cryptographic strength, and PQC risk scoring.
+This report provides a combined analysis of TLS configuration, certificate metadata, and post‑quantum
+cryptography (PQC) readiness for the scanned domains. It highlights critical risks, deprecated
+cryptographic configurations, certificate issues, and PQC migration readiness.
 
 ---
 
+# Top Findings
+
+- **{{ findings.total_domains }} domains scanned**
+- **{{ findings.tls_successes }} TLS scans succeeded**
+- **{{ findings.pqc_successes }} PQC scores computed**
+- **{{ findings.tls_errors | length }} TLS scan errors**
+- **{{ findings.pqc_errors | length }} PQC scoring errors**
+- **{{ findings.high_risk | length }} domains at High PQC Risk**
+- **{{ findings.deprecated_tls | length }} domains using deprecated TLS versions**
+- **{{ findings.weak_keys | length }} domains with weak RSA/ECC keys**
+- **{{ findings.expiring_certs | length }} certificates expiring within 30 days**
+
+{% if findings.tls_errors %}
+### TLS Scan Errors
+{% for d in findings.tls_errors %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+{% if findings.pqc_errors %}
+### PQC Scoring Errors
+{% for d in findings.pqc_errors %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+{% if findings.high_risk %}
+### High PQC Risk Domains
+{% for d in findings.high_risk %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+{% if findings.deprecated_tls %}
+### Deprecated TLS Versions
+{% for d in findings.deprecated_tls %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+{% if findings.weak_keys %}
+### Weak Cryptographic Keys
+{% for d in findings.weak_keys %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+{% if findings.expiring_certs %}
+### Certificates Expiring Soon
+{% for d in findings.expiring_certs %}
+- {{ d }}
+{% endfor %}
+{% endif %}
+
+---
+
+# Summary Table
+
+{% set risk_badge = {
+    "High":   '<span style="color:red; font-weight:bold;">🟥 High</span>',
+    "high":   '<span style="color:red; font-weight:bold;">🟥 High</span>',
+    "Medium": '<span style="color:orange; font-weight:bold;">🟧 Medium</span>',
+    "medium": '<span style="color:orange; font-weight:bold;">🟧 Medium</span>',
+    "Low":    '<span style="color:green; font-weight:bold;">🟩 Low</span>',
+    "low":    '<span style="color:green; font-weight:bold;">🟩 Low</span>'
+} %}
+
+| Domain | TLS Version | Cipher Suite | Key Size | PQC Risk | Score |
+|--------|-------------|--------------|----------|----------|--------|
 {% for item in reports %}
-## {{ item.domain }}
+| {{ item.domain }} | {{ item.tls.tls_version or "—" }} | {{ item.tls.cipher_suite or "—" }} | {{ item.tls.key_size or "—" }} | {{ risk_badge[item.pqc.pqc_risk] | safe }} | {{ item.pqc.tls_score }}/100 |
+{% endfor %}
+
+---
+
+# Risk‑Sorted Lists
+
+## High Risk
+{% for item in reports if item.pqc.pqc_risk|lower == "high" %}
+- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
+{% endfor %}
+
+## Medium Risk
+{% for item in reports if item.pqc.pqc_risk|lower == "medium" %}
+- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
+{% endfor %}
+
+## Low Risk
+{% for item in reports if item.pqc.pqc_risk|lower == "low" %}
+- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
+{% endfor %}
+
+---
+
+# Detailed Results
+
+{% for item in reports %}
+<details>
+<summary><strong>{{ item.domain }}</strong></summary>
 
 {% if item.tls.error %}
 ### Scan Error
 **Error:** {{ item.tls.error }}
 
----
 {% else %}
 
 ### TLS Summary
-
-- **TLS Version:** {{ item.tls.tls_version }}
-- **Cipher Suite:** {{ item.tls.cipher_suite }}
-- **Cipher Strength:** {{ item.tls.cipher_strength }}
-- **Key Size:** {{ item.tls.key_size }}
-- **Valid From:** {{ item.tls.not_before }}
-- **Valid Until:** {{ item.tls.not_after }}
+- **TLS Version:** {{ item.tls.tls_version or "—" }}
+- **Cipher Suite:** {{ item.tls.cipher_suite or "—" }}
+- **Cipher Strength:** {{ item.tls.cipher_strength or "—" }}
+- **Key Size:** {{ item.tls.key_size or "—" }}
+- **Valid From:** {{ item.tls.not_before or "—" }}
+- **Valid Until:** {{ item.tls.not_after or "—" }}{% if item.tls.not_after %}{% set parts = item.tls.not_after.split() %}{% set month_map = {
+        "Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
+        "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12
+    } %}{% set exp_month = month_map[parts[0]] %}{% set exp_day = parts[1] | int %}{% set exp_year = parts[3] | int %}{% set gen_date = generated_at.split()[0].split('-') %}{% set now_year = gen_date[0] | int %}{% set now_month = gen_date[1] | int %}{% set now_day = gen_date[2] | int %}{% set expiry_key = exp_year * 10000 + exp_month * 100 + exp_day %}{% set today_key = now_year * 10000 + now_month * 100 + now_day %}{% set days_left = expiry_key - today_key %}{% if days_left < 0 %}<span style="color:red; font-weight:bold;"> (Expired)</span>{% elif days_left < 30 %}<span style="color:red; font-weight:bold;"> ({{ days_left }} days left)</span>{% elif days_left < 90 %}<span style="color:orange; font-weight:bold;"> ({{ days_left }} days left)</span>{% else %}<span style="color:green;"> ({{ days_left }} days left)</span>{% endif %}{% endif %}
 - **Scan Time:** {{ item.tls.scan_time_seconds }} seconds
 
-### Certificate Metadata
-
-**Issuer**
+### Certificate Issuer
 {% for k, v in item.tls.certificate_issuer.items() %}
 - {{ k }}: {{ v }}
 {% endfor %}
 
-**Subject**
+### Certificate Subject
 {% for k, v in item.tls.certificate_subject.items() %}
 - {{ k }}: {{ v }}
 {% endfor %}
 
 ### PQC Assessment
-
-- **PQC Risk Level:** {{ item.pqc.pqc_risk }}
-- **TLS/PQC Score:** {{ item.pqc.tls_score }}/100
+- **Risk Level:** {{ risk_badge[item.pqc.pqc_risk] | safe }}
+- **Score:** {{ item.pqc.tls_score }}/100
 
 **Reasons**
 {% for reason in item.pqc.reasons %}
 - {{ reason }}
 {% endfor %}
 
----
 {% endif %}
+</details>
+
+---
 {% endfor %}
 
-## End of Report
+# End of Report

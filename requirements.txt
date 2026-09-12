@@ -1,4 +1,6 @@
-black
-flake8
-mypy
-pre-commit
+cryptography==50.0.1
+hypothesis==6.167.1
+Jinja2==3.1.6
+prettytable==3.18.0
+pytest==9.1.1
+rich==15.0.0

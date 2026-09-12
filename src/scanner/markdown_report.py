@@ -11,17 +11,11 @@ from datetime import datetime
 from jinja2 import Template
 
 from src.scanner.json_io import load_tls_results, load_pqc_scores
-from src.scanner.models import TLSScanResult, PQCScore, CombinedTLSReport
-
-
-def build_combined(
-    tls: list[TLSScanResult], pqc: list[PQCScore]
-) -> list[CombinedTLSReport]:
-    """Merge TLS and PQC results into unified CombinedTLSReport objects."""
-    combined: list[CombinedTLSReport] = []
-    for t, p in zip(tls, pqc):
-        combined.append({"domain": t["domain"], "tls": t, "pqc": p})
-    return combined
+from src.scanner.models import CombinedTLSReport
+from src.scanner.utils.report_utils import (
+    build_combined_reports,
+    compute_top_findings,
+)
 
 
 def load_template(path: str | Path) -> str:
@@ -38,11 +32,15 @@ def render_markdown(
     template_text = load_template("templates/tls_pqc_report.md.j2")
     template = Template(template_text)
 
+    # Compute top findings for summary section
+    findings = compute_top_findings(reports)
+
     return template.render(
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         author=author,
         organization=organization,
         reports=reports,
+        findings=findings,
     )
 
 
@@ -67,7 +65,7 @@ def main() -> None:
 
     tls = load_tls_results()
     pqc = load_pqc_scores()
-    combined = build_combined(tls, pqc)
+    combined = build_combined_reports(tls, pqc)
 
     md = render_markdown(
         combined,

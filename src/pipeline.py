@@ -203,7 +203,15 @@ def main() -> None:
     if args.markdown:
         run_stage(
             "Markdown Report",
-            [PYTHON_EXECUTABLE, "-m", "src.scanner.markdown_report"],
+            [
+                PYTHON_EXECUTABLE,
+                "-m",
+                "src.scanner.markdown_report",
+                "--author",
+                args.author,
+                "--organization",
+                args.organization,
+            ],
             ["reports/combined_report.json"],
             debug=args.debug,
         )

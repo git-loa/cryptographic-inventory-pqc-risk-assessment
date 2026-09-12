@@ -14,29 +14,8 @@ import json
 from pathlib import Path
 
 from src.scanner.json_io import load_tls_results, load_pqc_scores
-from src.scanner.models import CombinedTLSReport, TLSScanResult, PQCScore
-
-
-def build_combined_reports(
-    tls_results: list[TLSScanResult],
-    pqc_scores: list[PQCScore],
-) -> list[CombinedTLSReport]:
-    """
-    Merge TLS and PQC results into unified CombinedTLSReport objects.
-    """
-    combined: list[CombinedTLSReport] = []
-
-    # We assume TLS and PQC lists align by domain order.
-    for tls, pqc in zip(tls_results, pqc_scores):
-        combined.append(
-            {
-                "domain": tls["domain"],
-                "tls": tls,
-                "pqc": pqc,
-            }
-        )
-
-    return combined
+from src.scanner.models import CombinedTLSReport
+from src.scanner.utils.report_utils import build_combined_reports
 
 
 def save_combined_reports(
