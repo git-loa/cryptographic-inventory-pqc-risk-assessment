@@ -67,6 +67,7 @@ def _validate_tls_entry(entry: dict[str, Any]) -> None:
             "cipher_suite",
             "cipher_strength",
             "key_size",
+            "public_key_algorithm",
             "not_before",
             "not_after",
             "certificate_issuer",
@@ -85,6 +86,11 @@ def _validate_tls_entry(entry: dict[str, Any]) -> None:
 
         if not isinstance(entry["certificate_issuer"], dict):
             raise ValueError("Invalid TLS entry: 'certificate_issuer' must be a dict")
+
+        if not isinstance(entry["public_key_algorithm"], str):
+            raise ValueError(
+                "Invalid TLS entry: 'public_key_algorithm' must be a string"
+            )
 
 
 def load_tls_results(
