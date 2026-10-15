@@ -44,15 +44,22 @@ def test_combined_report_tls_section(combined_report):
         assert "port" in tls
 
         if "error" in tls:
-            # Error entries must not contain TLS metadata
-            assert "tls_version" not in tls
-            assert "cipher_suite" not in tls
-            assert "key_size" not in tls
+            # Failed scans must not report successful TLS metadata.
+            assert tls["tls_version"] is None
+            assert tls["cipher_suite"] is None
+            assert tls["cipher_strength"] is None
+            assert tls["key_size"] is None
+            assert tls["public_key_algorithm"] is None
+            assert tls["certificate_subject"] == {}
+            assert tls["certificate_issuer"] == {}
+            assert tls["not_before"] is None
+            assert tls["not_after"] is None
         else:
             # Successful TLS entries must contain required fields
             assert "tls_version" in tls
             assert "cipher_suite" in tls
             assert "key_size" in tls
+            assert "public_key_algorithm" in tls
             assert "certificate_subject" in tls
             assert "certificate_issuer" in tls
             assert "not_before" in tls

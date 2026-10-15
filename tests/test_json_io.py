@@ -2,8 +2,10 @@
 Unit tests for the JSON IO module.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
 
 from src.scanner.json_io import (
     load_tls_results,
@@ -57,7 +59,8 @@ def test_save_and_load_tls_results_roundtrip():
             "tls_version": "TLSv1.3",
             "cipher_suite": "TLS_AES_128_GCM_SHA256",
             "cipher_strength": 128,
-            "key_size": 256,
+            "key_size": 2048,
+            "public_key_algorithm": "RSA",
             "not_before": "Jan  1 00:00:00 2026 GMT",
             "not_after": "Dec 31 23:59:59 2026 GMT",
             "certificate_subject": {"commonName": "github.com"},
@@ -103,3 +106,56 @@ def test_save_and_load_pqc_scores_roundtrip():
 
         assert isinstance(loaded, list)
         assert loaded == sample_scores
+
+
+def test_tls_result_rejects_missing_public_key_algorithm():
+    """Successful TLS results must include the public-key algorithm."""
+
+    sample_data = [
+        {
+            "domain": "example.com",
+            "port": 443,
+            "tls_version": "TLSv1.3",
+            "cipher_suite": "TLS_AES_128_GCM_SHA256",
+            "cipher_strength": 128,
+            "key_size": 2048,
+            "not_before": "Jan  1 00:00:00 2026 GMT",
+            "not_after": "Dec 31 23:59:59 2026 GMT",
+            "certificate_subject": {"commonName": "example.com"},
+            "certificate_issuer": {"commonName": "Example CA"},
+        }
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "tls_results.json"
+        save_tls_results(sample_data, path)
+
+        with pytest.raises(ValueError, match="public_key_algorithm"):
+            load_tls_results(path)
+
+
+def test_tls_result_rejects_non_string_public_key_algorithm():
+    """The public-key algorithm must be represented as a string."""
+
+    sample_data = [
+        {
+            "domain": "example.com",
+            "port": 443,
+            "tls_version": "TLSv1.3",
+            "cipher_suite": "TLS_AES_128_GCM_SHA256",
+            "cipher_strength": 128,
+            "key_size": 2048,
+            "public_key_algorithm": 2048,
+            "not_before": "Jan  1 00:00:00 2026 GMT",
+            "not_after": "Dec 31 23:59:59 2026 GMT",
+            "certificate_subject": {"commonName": "example.com"},
+            "certificate_issuer": {"commonName": "Example CA"},
+        }
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "tls_results.json"
+        save_tls_results(sample_data, path)
+
+        with pytest.raises(ValueError, match="public_key_algorithm"):
+            load_tls_results(path)
