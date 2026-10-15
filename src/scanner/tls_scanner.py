@@ -8,6 +8,7 @@ import time
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
 
 from src.scanner.utils.logger import get_logger
 from src.scanner.models import TLSScanResult
@@ -94,6 +95,7 @@ def _error_result(
         "key_size": None,
         "error": message,
         "scan_time_seconds": elapsed,
+        "public_key_algorithm": None,
     }
 
 
@@ -121,6 +123,19 @@ def parse_certificate(cert_dict, der_cert) -> dict:
     cert_obj = x509.load_der_x509_certificate(der_cert, default_backend())
     public_key = cert_obj.public_key()
 
+    if isinstance(public_key, rsa.RSAPublicKey):
+        public_key_algorithm = "RSA"
+    elif isinstance(public_key, ec.EllipticCurvePublicKey):
+        public_key_algorithm = "EC"
+    elif isinstance(public_key, dsa.DSAPublicKey):
+        public_key_algorithm = "DSA"
+    elif isinstance(public_key, ed25519.Ed25519PublicKey):
+        public_key_algorithm = "Ed25519"
+    elif isinstance(public_key, ed448.Ed448PublicKey):
+        public_key_algorithm = "Ed448"
+    else:
+        public_key_algorithm = type(public_key).__name__
+
     try:
         key_size = public_key.key_size
     except AttributeError:
@@ -132,6 +147,7 @@ def parse_certificate(cert_dict, der_cert) -> dict:
         "not_before": cert_dict.get("notBefore"),
         "not_after": cert_dict.get("notAfter"),
         "key_size": key_size,
+        "public_key_algorithm": public_key_algorithm,
     }
 
 

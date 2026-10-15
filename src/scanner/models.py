@@ -14,43 +14,27 @@ TypedDict is used because:
 from typing import TypedDict
 
 
-class TLSScanResult(TypedDict, total=False):
+class _TLSSscanResultRequired(TypedDict):
     """
-    Structured representation of a single TLS scan result.
-
-    All fields are optional (`total=False`) because servers may omit certain
-    metadata (e.g., no certificate, no negotiated cipher, missing key size).
-
-    Keys
-    ----
-    domain : str
-        The scanned domain name.
-    port : int
-        The port used for the TLS handshake.
-    tls_version : str | None
-        Negotiated TLS version (e.g., "TLSv1.3").
-    cipher_suite : str | None
-        The negotiated cipher suite.
-    cipher_strength : int | None
-        Strength value reported by Python's SSL API.
-    certificate_subject : dict[str, str]
-        Parsed certificate subject fields.
-    certificate_issuer : dict[str, str]
-        Parsed certificate issuer fields.
-    not_before : str | None
-        Certificate validity start time.
-    not_after : str | None
-        Certificate validity end time.
-    key_size : int | None
-        Public key size extracted from the certificate.
-    error : str
-        Error message if the scan failed.
-    scan_time_seconds : float
-        Duration of the TLS scan in seconds.
+    Fileds that every TLS scan result must idntify.
+    These fileds remain required even when the TLS scan fials.
     """
 
     domain: str
     port: int
+
+
+class TLSScanResult(_TLSSscanResultRequired, total=False):
+    """
+    Structured representation of a single TLS scan result.
+
+    The domain and port are always required. Other fields are
+    optional because a scan may fail or return incomplete metadata.
+
+    This TypedDict documents the expected structure for static
+    type checking. It does not perform runtime validation.
+    """
+
     tls_version: str | None
     cipher_suite: str | None
     cipher_strength: int | None
@@ -59,6 +43,7 @@ class TLSScanResult(TypedDict, total=False):
     not_before: str | None
     not_after: str | None
     key_size: int | None
+    public_key_algorithm: str | None
     error: str
     scan_time_seconds: float
 

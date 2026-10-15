@@ -101,6 +101,7 @@ def test_scan_domain_fuzz(domain):
         "not_before",
         "not_after",
         "key_size",
+        "public_key_algorithm",
         "error",
         "scan_time_seconds",
     }
