@@ -55,7 +55,7 @@ def collect_key_establishment_group(
     openssl_path = shutil.which("openssl")
 
     if openssl_path is None:
-        return "unavailable"
+        return None, "unavailable"
 
     command = [
         openssl_path,
