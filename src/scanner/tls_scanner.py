@@ -12,6 +12,9 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, r
 
 from src.scanner.utils.logger import get_logger
 from src.scanner.models import TLSScanResult
+from src.scanner.key_establishment import (
+    collect_key_establishment_group,
+)
 
 logger = get_logger(__name__)
 
@@ -96,6 +99,9 @@ def _error_result(
         "error": message,
         "scan_time_seconds": elapsed,
         "public_key_algorithm": None,
+        "key_establishment_group": None,
+        "key_establishment_evidence_status": "unavailable",
+        "key_establishment_source": None,
     }
 
 
@@ -208,6 +214,11 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
 
                 der_cert = tls.getpeercert(binary_form=True)
                 cert_info = parse_certificate(cert_dict, der_cert)
+                key_group, key_status = collect_key_establishment_group(
+                    domain,
+                    port=port,
+                    timeout=timeout,
+                )
 
                 elapsed = time.perf_counter() - start
 
@@ -219,6 +230,9 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
                     "cipher_strength": cipher[2],
                     **cert_info,
                     "scan_time_seconds": elapsed,
+                    "key_establishment_group": key_group,
+                    "key_establishment_evidence_status": key_status,
+                    "key_establishment_source": ("openssl_s_client_separate_handshake"),
                 }
 
     except ssl.SSLError as e:

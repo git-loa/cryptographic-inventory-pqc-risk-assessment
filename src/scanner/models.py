@@ -44,6 +44,9 @@ class TLSScanResult(_TLSSscanResultRequired, total=False):
     not_after: str | None
     key_size: int | None
     public_key_algorithm: str | None
+    key_establishment_group: str | None
+    key_establishment_evidence_status: str
+    key_establishment_source: str | None
     error: str
     scan_time_seconds: float
 

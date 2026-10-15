@@ -104,6 +104,9 @@ def test_scan_domain_fuzz(domain):
         "public_key_algorithm",
         "error",
         "scan_time_seconds",
+        "key_establishment_group",
+        "key_establishment_evidence_status",
+        "key_establishment_source",
     }
 
     # Single fast, correct check
