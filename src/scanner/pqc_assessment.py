@@ -25,7 +25,9 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
     error = tls_result.get("error")
 
     # Reject scan statuses that are present but not recognized.
-    if scan_status is not None and scan_status not in {"success", "failed"}:
+    if scan_status is not None and (
+        not isinstance(scan_status, str) or scan_status not in {"success", "failed"}
+    ):
         return {
             "key_establishment": {
                 "mechanism": None,

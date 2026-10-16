@@ -273,3 +273,20 @@ def test_success_status_with_error_does_not_trust_observed_group():
     assert key_establishment["mechanism"] is None
     assert key_establishment["classification"] == "unknown"
     assert key_establishment["evidence_status"] == "invalid"
+
+
+def test_non_string_scan_status_is_marked_invalid():
+    """A malformed scan status must not crash the assessment."""
+    result = make_tls_result(
+        scan_status=[],
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "invalid"
