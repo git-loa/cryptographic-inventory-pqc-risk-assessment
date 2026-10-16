@@ -238,3 +238,38 @@ def test_failed_scan_status_overrides_observed_group():
     assert key_establishment["classification"] == "unknown"
     assert key_establishment["evidence_status"] == "failed"
     assert "successful" in key_establishment["rationale"]
+
+
+def test_unrecognized_scan_status_does_not_trust_observed_group():
+    """An invalid scan status must not establish a reliable negotiation."""
+    result = make_tls_result(
+        scan_status="unexpected",
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "invalid"
+
+
+def test_success_status_with_error_does_not_trust_observed_group():
+    """A contradictory scan error must prevent trusting group evidence."""
+    result = make_tls_result(
+        scan_status="success",
+        error="TLS handshake failed",
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "invalid"

@@ -24,6 +24,38 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
     source = tls_result.get("key_establishment_source")
     error = tls_result.get("error")
 
+    # Reject scan statuses that are present but not recognized.
+    if scan_status is not None and scan_status not in {"success", "failed"}:
+        return {
+            "key_establishment": {
+                "mechanism": None,
+                "classification": "unknown",
+                "evidence_status": "invalid",
+                "source": source,
+                "rationale": (
+                    f"The TLS scan reported an unrecognized status "
+                    f"({scan_status!r}). Reliable negotiation evidence "
+                    "cannot be established."
+                ),
+            }
+        }
+
+    # A successful status and a reported error are contradictory.
+    if scan_status == "success" and error:
+        return {
+            "key_establishment": {
+                "mechanism": None,
+                "classification": "unknown",
+                "evidence_status": "invalid",
+                "source": source,
+                "rationale": (
+                    "The TLS scan reports success but also contains an "
+                    "error. The contradictory scan result cannot establish "
+                    "reliable negotiation evidence."
+                ),
+            }
+        }
+
     # A failed primary TLS scan cannot establish a successful negotiation.
     # Preserve compatibility with older results that lack scan_status.
     if scan_status == "failed" or (scan_status is None and error):
