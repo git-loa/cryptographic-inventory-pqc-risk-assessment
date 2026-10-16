@@ -11,7 +11,7 @@ TypedDict is used because:
 - It documents the expected fields clearly.
 """
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 class _TLSSscanResultRequired(TypedDict):
@@ -76,24 +76,36 @@ class PQCScore(TypedDict):
     reasons: list[str]
 
 
+class KeyEstablishmentAssessment(TypedDict):
+    """Assessment of observed TLS key-establishment evidence."""
+
+    mechanism: str | None
+    classification: Literal["classical", "post_quantum", "hybrid", "unknown"]
+    evidence_status: Literal["observed", "unavailable", "failed", "invalid"]
+    rationale: str
+
+
+class PQCExposureAssessment(TypedDict):
+    """
+    Evidence-based assessment of post-quantum exposure.
+
+    This assessment describes the observed key-establishment mechanism.
+    It does not independently establish the endpoint's overall
+    cryptographic security or PQC readiness.
+    """
+
+    key_establishment: KeyEstablishmentAssessment
+
+
 class CombinedTLSReport(TypedDict):
     """
-    Unified TLS + PQC report object.
+    Unified TLS and PQC assessment report.
 
-    This merges the raw TLS scan metadata with the PQC scoring output into a
-    single structure suitable for reporting, exporting, dashboards, or further
-    analysis.
-
-    Keys
-    ----
-    domain : str
-        The scanned domain name.
-    tls : TLSScanResult
-        Raw TLS metadata extracted from the handshake.
-    pqc : PQCScore
-        PQC scoring and risk classification.
+    Combines the original TLS scan evidence, the existing heuristic
+    score, and the separate evidence-based PQC exposure assessment.
     """
 
     domain: str
     tls: TLSScanResult
     pqc: PQCScore
+    pqc_exposure: PQCExposureAssessment

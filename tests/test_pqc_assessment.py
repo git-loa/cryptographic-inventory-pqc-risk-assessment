@@ -129,3 +129,47 @@ def test_assessment_includes_explanation():
     key_establishment = assessment["key_establishment"]
 
     assert key_establishment["rationale"]
+
+
+def test_group_is_not_trusted_when_evidence_status_is_unavailable():
+    result = make_tls_result(
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="unavailable",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "unavailable"
+    assert key_establishment["mechanism"] is None
+    assert "identifier was supplied" in key_establishment["rationale"]
+
+
+def test_unrecognized_evidence_status_is_marked_invalid():
+    result = make_tls_result(
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="confirmed",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "invalid"
+    assert key_establishment["mechanism"] is None
+
+
+def test_empty_group_with_observed_status_remains_unknown():
+    result = make_tls_result(
+        key_establishment_group="",
+        key_establishment_evidence_status="observed",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "observed"
+    assert key_establishment["mechanism"] == ""
+    assert key_establishment["rationale"]

@@ -11,6 +11,7 @@ from src.scanner.models import (
     TLSScanResult,
 )
 
+from src.scanner.pqc_assessment import assess_pqc_exposure
 from src.scanner.pqc_scoring import score_pqc
 
 
@@ -35,14 +36,20 @@ def assess_tls_results(
     combined_reports: list[CombinedTLSReport] = []
 
     for tls_result in tls_results:
+        # Preserve the existing heuristic scoring behavior.
         pqc_score = score_pqc(tls_result)
         pqc_scores.append(pqc_score)
 
+        # Assess key-establishment exposure independently.
+        pqc_exposure = assess_pqc_exposure(tls_result)
+
+        # Combine the original scan evidence and both assessments.
         combined_reports.append(
             {
                 "domain": tls_result["domain"],
                 "tls": tls_result,
                 "pqc": pqc_score,
+                "pqc_exposure": pqc_exposure,
             }
         )
 

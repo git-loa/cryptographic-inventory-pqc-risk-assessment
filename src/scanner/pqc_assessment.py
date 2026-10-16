@@ -36,18 +36,41 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
             }
         }
 
-    # Do not treat a group identifier as reliable evidence unless
-    # the scanner explicitly records the evidence as observed.
-    if evidence_status != "observed":
+    # Accept only evidence statuses defined by the scanner.
+    valid_evidence_statuses = {"observed", "unavailable"}
+
+    if evidence_status not in valid_evidence_statuses:
         return {
             "key_establishment": {
                 "mechanism": None,
                 "classification": "unknown",
-                "evidence_status": evidence_status or "unavailable",
+                "evidence_status": "invalid",
                 "rationale": (
-                    "Key-establishment evidence was not confirmed as observed. "
-                    "The mechanism cannot be classified from the available evidence."
+                    "The key-establishment evidence status is missing or "
+                    "unrecognized. The mechanism cannot be classified reliably."
                 ),
+            }
+        }
+
+    # A group identifier is not trustworthy unless its evidence
+    # status explicitly confirms that it was observed.
+    if evidence_status == "unavailable":
+        rationale = (
+            "Key-establishment evidence is unavailable. "
+            if not group
+            else (
+                "A key-establishment identifier was supplied, but its evidence "
+                "status is unavailable. The identifier cannot be trusted "
+                "as an observed negotiation."
+            )
+        )
+
+        return {
+            "key_establishment": {
+                "mechanism": None,
+                "classification": "unknown",
+                "evidence_status": "unavailable",
+                "rationale": rationale,
             }
         }
 

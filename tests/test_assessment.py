@@ -116,3 +116,54 @@ def test_assessment_handles_tls_scan_errors():
     assert combined_reports[0]["domain"] == "unavailable.example"
     assert combined_reports[0]["tls"]["error"] == ("Simulated connection failure")
     assert combined_reports[0]["pqc"] == pqc_scores[0]
+
+
+def test_assess_tls_results_includes_pqc_exposure():
+    tls_result = {
+        "domain": "example.com",
+        "port": 443,
+        "tls_version": "TLSv1.3",
+        "cipher_suite": "TLS_AES_256_GCM_SHA384",
+        "cipher_strength": 256,
+        "key_size": 2048,
+        "public_key_algorithm": "RSA",
+        "key_establishment_group": "X25519",
+        "key_establishment_evidence_status": "observed",
+        "key_establishment_source": "openssl_s_client_separate_handshake",
+    }
+
+    _, combined_reports = assess_tls_results([tls_result])
+
+    assert len(combined_reports) == 1
+
+    report = combined_reports[0]
+
+    assert report["domain"] == "example.com"
+    assert report["tls"] == tls_result
+    assert "pqc" in report
+    assert "pqc_exposure" in report
+
+    key_establishment = report["pqc_exposure"]["key_establishment"]
+
+    assert key_establishment["mechanism"] == "X25519"
+    assert key_establishment["classification"] == "classical"
+    assert key_establishment["evidence_status"] == "observed"
+    assert key_establishment["rationale"]
+
+
+def test_assess_tls_results_preserves_unknown_key_establishment():
+    tls_result = {
+        "domain": "example.org",
+        "port": 443,
+        "tls_version": "TLSv1.3",
+        "cipher_suite": "TLS_AES_256_GCM_SHA384",
+        "key_establishment_group": None,
+        "key_establishment_evidence_status": "unavailable",
+    }
+
+    _, combined_reports = assess_tls_results([tls_result])
+
+    key_establishment = combined_reports[0]["pqc_exposure"]["key_establishment"]
+
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "unavailable"
