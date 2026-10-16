@@ -10,12 +10,9 @@ from datetime import datetime
 
 from jinja2 import Template
 
-from src.scanner.json_io import load_tls_results, load_pqc_scores
+from src.scanner.json_io import load_combined_reports
 from src.scanner.models import CombinedTLSReport
-from src.scanner.utils.report_utils import (
-    build_combined_reports,
-    compute_top_findings,
-)
+from src.scanner.utils.report_utils import compute_top_findings
 
 
 def load_template(path: str | Path) -> str:
@@ -63,9 +60,7 @@ def main() -> None:
     parser.add_argument("--organization", default="Independent Researcher")
     args = parser.parse_args()
 
-    tls = load_tls_results()
-    pqc = load_pqc_scores()
-    combined = build_combined_reports(tls, pqc)
+    combined = load_combined_reports()
 
     md = render_markdown(
         combined,

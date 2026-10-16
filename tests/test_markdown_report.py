@@ -9,22 +9,22 @@ from src.scanner.markdown_report import (
     render_markdown,
     save_markdown,
 )
-from src.scanner.utils.report_utils import build_combined_reports
+from src.scanner.assessment import assess_tls_results
 
 
-def test_build_combined_structure(tls_results, pqc_scores):
-    """
-    Ensure build_combined merges TLS + PQC entries correctly.
-    """
-    combined = build_combined_reports(tls_results, pqc_scores)
+def test_assessment_combined_structure(tls_results):
+    """Ensure assessment produces correctly structured combined reports."""
+    _, combined = assess_tls_results(tls_results)
 
     assert isinstance(combined, list)
-    assert len(combined) > 0
+    assert len(combined) == len(tls_results)
 
-    first = combined[0]
-    assert "domain" in first
-    assert "tls" in first
-    assert "pqc" in first
+    for report in combined:
+        assert "domain" in report
+        assert "tls" in report
+        assert "pqc" in report
+        assert report["domain"] == report["tls"]["domain"]
+        assert report["domain"] == report["pqc"]["domain"]
 
 
 def test_render_markdown_basic(monkeypatch):

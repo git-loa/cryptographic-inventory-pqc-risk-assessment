@@ -12,7 +12,7 @@ import pytest
 
 from src.scanner.domain_loader import load_domains
 from src.scanner.json_io import load_tls_results, load_pqc_scores
-from src.scanner.combined_report import build_combined_reports
+from src.scanner.assessment import assess_tls_results
 
 # ---------------------------------------------------------
 # DOMAIN FIXTURES
@@ -70,9 +70,10 @@ def pqc_scores():
 
 
 @pytest.fixture
-def combined_report(tls_results, pqc_scores):
+def combined_report(tls_results):
     """Combined TLS + PQC report used by multiple modules."""
-    return build_combined_reports(tls_results, pqc_scores)
+    _, combined_reports = assess_tls_results(tls_results)
+    return combined_reports
 
 
 # ---------------------------------------------------------

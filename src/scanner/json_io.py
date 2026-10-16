@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from src.scanner.utils.logger import get_logger
-from src.scanner.models import TLSScanResult, PQCScore
+from src.scanner.models import TLSScanResult, PQCScore, CombinedTLSReport
 
 logger = get_logger(__name__)
 
@@ -227,4 +227,41 @@ def load_pqc_scores(
         _validate_pqc_entry(entry)
 
     logger.info("PQC scores loaded and validated successfully.")
+    return data
+
+
+def load_combined_reports(
+    path: str | Path = "reports/combined_report.json",
+) -> list[CombinedTLSReport]:
+    """Load combined TLS and PQC reports from JSON."""
+    logger.info("Loading combined reports from %s", path)
+
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Combined report file not found: {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, list):
+        raise ValueError("Combined report JSON must be a list")
+
+    for entry in data:
+        if not isinstance(entry, dict):
+            raise ValueError("Combined reports must contain dictionaries")
+
+        for field in ("domain", "tls", "pqc"):
+            if field not in entry:
+                raise ValueError(
+                    f"Invalid combined report: missing required field '{field}'"
+                )
+        if not isinstance(entry["domain"], str):
+            raise ValueError("Combined report 'domain' field must be a string")
+
+        if not isinstance(entry["tls"], dict):
+            raise ValueError("Combined report 'tls' field must be a dictionary")
+
+        if not isinstance(entry["pqc"], dict):
+            raise ValueError("Combined report 'pqc' field must be a dictionary")
+
+    logger.info("Combined reports loaded successfully.")
     return data

@@ -1,8 +1,6 @@
-"""
-Unit tests for the combined TLS + PQC report builder.
-"""
+"""Ensure assessment produces deterministic output."""
 
-from src.scanner.combined_report import build_combined_reports
+from src.scanner.assessment import assess_tls_results
 
 
 def test_combined_report_structure(combined_report):
@@ -19,18 +17,16 @@ def test_combined_report_structure(combined_report):
     assert "pqc" in first
 
 
-def test_combined_report_domain_alignment(tls_results, pqc_scores):
-    """
-    Ensure each combined entry aligns TLS and PQC data by domain.
-    """
-    combined = build_combined_reports(tls_results, pqc_scores)
+def test_combined_report_domain_alignment(tls_results):
+    """Ensure each combined entry preserves its TLS result and score association."""
+    pqc_scores, combined = assess_tls_results(tls_results)
 
-    tls_domains = [entry["domain"] for entry in tls_results]
-    pqc_domains = [entry["domain"] for entry in pqc_scores]
-
-    for entry in combined:
-        assert entry["domain"] in tls_domains
-        assert entry["domain"] in pqc_domains
+    assert len(combined) == len(tls_results)
+    assert len(pqc_scores) == len(tls_results)
+    for tls, score, report in zip(tls_results, pqc_scores, combined):
+        assert report["domain"] == tls["domain"]
+        assert report["tls"] == tls
+        assert report["pqc"] == score
 
 
 def test_combined_report_tls_section(combined_report):
@@ -81,11 +77,11 @@ def test_combined_report_pqc_section(combined_report):
         assert isinstance(pqc["reasons"], list)
 
 
-def test_combined_report_roundtrip(tls_results, pqc_scores):
+def test_combined_report_roundtrip(tls_results):
     """
     Ensure build_combined_reports produces deterministic output.
     """
-    combined_1 = build_combined_reports(tls_results, pqc_scores)
-    combined_2 = build_combined_reports(tls_results, pqc_scores)
+    _, combined_1 = assess_tls_results(tls_results)
+    _, combined_2 = assess_tls_results(tls_results)
 
     assert combined_1 == combined_2

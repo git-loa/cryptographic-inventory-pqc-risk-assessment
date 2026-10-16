@@ -4,7 +4,7 @@ Utility functions for building combined security reports.
 
 from datetime import datetime, timedelta
 
-from src.scanner.models import TLSScanResult, PQCScore, CombinedTLSReport
+from src.scanner.models import CombinedTLSReport
 
 
 def _safe_is_expiring(date_str: str, soon: datetime) -> bool:
@@ -13,36 +13,6 @@ def _safe_is_expiring(date_str: str, soon: datetime) -> bool:
         return datetime.fromisoformat(date_str) < soon
     except (TypeError, ValueError):
         return False
-
-
-def build_combined_reports(
-    tls_results: list[TLSScanResult],
-    pqc_scores: list[PQCScore],
-) -> list[CombinedTLSReport]:
-    """
-    Merge TLS and PQC results into unified CombinedTLSReport objects.
-    Parameters:
-        tls_results: List of TLSScanResult dictionaries.
-        pqc_scores: List of PQCScore dictionaries.
-    Returns:
-        List of CombinedTLSReport dictionaries, each containing:
-        - domain: The scanned domain.
-        - tls: The TLS scan result.
-        - pqc: The PQC score.
-    """
-    combined: list[CombinedTLSReport] = []
-
-    # We assume TLS and PQC lists align by domain order.
-    for tls, pqc in zip(tls_results, pqc_scores):
-        combined.append(
-            {
-                "domain": tls["domain"],
-                "tls": tls,
-                "pqc": pqc,
-            }
-        )
-
-    return combined
 
 
 def compute_top_findings(
