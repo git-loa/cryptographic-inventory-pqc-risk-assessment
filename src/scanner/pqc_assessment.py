@@ -18,19 +18,23 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
     It does not infer PQC readiness from the TLS version, cipher suite,
     or certificate public-key algorithm.
     """
+    scan_status = tls_result.get("scan_status")
     group = tls_result.get("key_establishment_group")
     evidence_status = tls_result.get("key_establishment_evidence_status")
+    source = tls_result.get("key_establishment_source")
     error = tls_result.get("error")
 
     # A failed primary TLS scan cannot establish a successful negotiation.
-    if error:
+    # Preserve compatibility with older results that lack scan_status.
+    if scan_status == "failed" or (scan_status is None and error):
         return {
             "key_establishment": {
                 "mechanism": None,
                 "classification": "unknown",
                 "evidence_status": "failed",
+                "source": source,
                 "rationale": (
-                    "The TLS scan reported an error. A successful "
+                    "The TLS scan reported a failure. A successful "
                     "key-establishment negotiation has not been established."
                 ),
             }
@@ -45,6 +49,7 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
                 "mechanism": None,
                 "classification": "unknown",
                 "evidence_status": "invalid",
+                "source": source,
                 "rationale": (
                     "The key-establishment evidence status is missing or "
                     "unrecognized. The mechanism cannot be classified reliably."
@@ -70,6 +75,7 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
                 "mechanism": None,
                 "classification": "unknown",
                 "evidence_status": "unavailable",
+                "source": source,
                 "rationale": rationale,
             }
         }
@@ -81,6 +87,7 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
                 "mechanism": group,
                 "classification": "unknown",
                 "evidence_status": "observed",
+                "source": source,
                 "rationale": (
                     "The evidence is marked as observed, but no usable "
                     "key-establishment group identifier is available."
@@ -107,6 +114,7 @@ def assess_pqc_exposure(tls_result: dict[str, Any]) -> dict[str, Any]:
             "mechanism": group,
             "classification": classification,
             "evidence_status": "observed",
+            "source": source,
             "rationale": rationale,
         }
     }

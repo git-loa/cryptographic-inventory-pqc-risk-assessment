@@ -93,6 +93,7 @@ def test_scan_domain_fuzz(domain):
     allowed_keys = {
         "domain",
         "port",
+        "scan_status",
         "tls_version",
         "cipher_suite",
         "cipher_strength",

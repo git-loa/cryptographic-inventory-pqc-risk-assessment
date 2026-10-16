@@ -173,3 +173,68 @@ def test_empty_group_with_observed_status_remains_unknown():
     assert key_establishment["evidence_status"] == "observed"
     assert key_establishment["mechanism"] == ""
     assert key_establishment["rationale"]
+
+
+def test_assessment_preserves_key_establishment_source():
+    result = make_tls_result(
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["source"] == "openssl_s_client_separate_handshake"
+
+
+def test_unavailable_evidence_does_not_claim_an_observed_mechanism():
+    result = make_tls_result(
+        key_establishment_group=None,
+        key_establishment_evidence_status="unavailable",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "unavailable"
+    assert key_establishment["source"] == "openssl_s_client_separate_handshake"
+
+
+def test_failed_primary_scan_overrides_observed_group():
+    result = make_tls_result(
+        error="TLS handshake failed",
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "failed"
+    assert key_establishment["source"] == "openssl_s_client_separate_handshake"
+    assert "successful" in key_establishment["rationale"]
+
+
+def test_failed_scan_status_overrides_observed_group():
+    """A failed primary scan must override contradictory group evidence."""
+    result = make_tls_result(
+        scan_status="failed",
+        key_establishment_group="X25519",
+        key_establishment_evidence_status="observed",
+        key_establishment_source="openssl_s_client_separate_handshake",
+    )
+
+    assessment = assess_pqc_exposure(result)
+    key_establishment = assessment["key_establishment"]
+
+    assert key_establishment["mechanism"] is None
+    assert key_establishment["classification"] == "unknown"
+    assert key_establishment["evidence_status"] == "failed"
+    assert "successful" in key_establishment["rationale"]

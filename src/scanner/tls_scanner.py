@@ -88,6 +88,7 @@ def _error_result(
     return {
         "domain": domain,
         "port": port,
+        "scan_status": "failed",
         "tls_version": None,
         "cipher_suite": None,
         "cipher_strength": None,
@@ -225,6 +226,7 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
                 return {
                     "domain": domain,
                     "port": port,
+                    "scan_status": "success",
                     "tls_version": tls.version(),
                     "cipher_suite": cipher[0],
                     "cipher_strength": cipher[2],

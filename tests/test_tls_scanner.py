@@ -3,6 +3,7 @@ Unit tests for the TLS scanner module.
 """
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -117,3 +118,79 @@ def test_parse_certificate_identifies_ec_key():
 
     assert result["public_key_algorithm"] == "EC"
     assert result["key_size"] == 256
+
+
+def test_successful_tls_scan_has_success_status():
+    """A successful TLS handshake should report a success status."""
+
+    fake_tls = MagicMock()
+    fake_tls.cipher.return_value = (
+        "TLS_AES_256_GCM_SHA384",
+        "TLSv1.3",
+        256,
+    )
+    fake_tls.version.return_value = "TLSv1.3"
+    fake_tls.getpeercert.side_effect = [
+        {
+            "subject": (),
+            "issuer": (),
+            "notBefore": "Jan  1 00:00:00 2026 GMT",
+            "notAfter": "Jan  1 00:00:00 2027 GMT",
+        },
+        b"fake-certificate-der",
+    ]
+
+    fake_context = MagicMock()
+    fake_context.wrap_socket.return_value.__enter__.return_value = fake_tls
+
+    with (
+        patch(
+            "src.scanner.tls_scanner.validate_domain_or_error",
+            return_value=None,
+        ),
+        patch(
+            "src.scanner.tls_scanner.ssl.create_default_context",
+            return_value=fake_context,
+        ),
+        patch("src.scanner.tls_scanner.socket.create_connection") as mock_connect,
+        patch(
+            "src.scanner.tls_scanner.parse_certificate",
+            return_value={
+                "certificate_subject": {},
+                "certificate_issuer": {},
+                "not_before": None,
+                "not_after": None,
+                "key_size": 2048,
+                "public_key_algorithm": "RSA",
+            },
+        ),
+        patch(
+            "src.scanner.tls_scanner.collect_key_establishment_group",
+            return_value=("X25519", "observed"),
+        ),
+    ):
+        mock_connect.return_value.__enter__.return_value = MagicMock()
+
+        result = scan_domain("example.com")
+
+    assert result["scan_status"] == "success"
+    assert "error" not in result
+
+
+def test_failed_tls_scan_has_failed_status():
+    """A failed TLS connection should report a failed status."""
+
+    with (
+        patch(
+            "src.scanner.tls_scanner.validate_domain_or_error",
+            return_value=None,
+        ),
+        patch(
+            "src.scanner.tls_scanner.socket.create_connection",
+            side_effect=ConnectionError("Connection refused"),
+        ),
+    ):
+        result = scan_domain("example.com")
+
+    assert result["scan_status"] == "failed"
+    assert result["error"]

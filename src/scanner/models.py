@@ -49,6 +49,7 @@ class TLSScanResult(_TLSSscanResultRequired, total=False):
     key_establishment_source: str | None
     error: str
     scan_time_seconds: float
+    scan_status: Literal["success", "failed"]
 
 
 class PQCScore(TypedDict):
@@ -82,6 +83,7 @@ class KeyEstablishmentAssessment(TypedDict):
     mechanism: str | None
     classification: Literal["classical", "post_quantum", "hybrid", "unknown"]
     evidence_status: Literal["observed", "unavailable", "failed", "invalid"]
+    source: str | None
     rationale: str
 
 
