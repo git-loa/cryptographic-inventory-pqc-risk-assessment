@@ -37,80 +37,69 @@ def test_classify_tls_version(version, expected):
 
 
 @pytest.mark.parametrize(
-    ("suite", "version", "strength", "expected"),
+    ("suite", "version", "expected"),
     [
         (
             "TLS_AES_256_GCM_SHA384",
             "TLSv1.3",
-            256,
             "acceptable",
         ),
         (
             "TLS_CHACHA20_POLY1305_SHA256",
             "TLSv1.3",
-            256,
             "acceptable",
         ),
         (
             "ECDHE-RSA-AES128-GCM-SHA256",
             "TLSv1.2",
-            128,
             "acceptable",
         ),
         (
             "ECDHE-RSA-AES128-SHA",
             "TLSv1.2",
-            128,
             "unknown",
         ),
         (
             "RSA_WITH_RC4_128_SHA",
             "TLSv1.2",
-            128,
             "unacceptable",
         ),
         (
             "NULL_WITH_NULL_NULL",
             "TLSv1.2",
-            0,
             "unacceptable",
         ),
         (
             "TLS_AES_128_CCM_SHA256",
             "TLSv1.3",
-            128,
             "acceptable",
         ),
         (
             "TLS_AES_128_CCM_8_SHA256",
             "TLSv1.3",
-            128,
             "acceptable_with_review",
         ),
         (
             "ECDHE-RSA-AES128-CBC-SHA256",
             "TLSv1.2",
-            128,
             "acceptable_with_review",
         ),
         (
             "UNRECOGNIZED_SUITE",
             "TLSv1.2",
-            128,
             "unknown",
         ),
         (
             None,
             "TLSv1.2",
-            None,
             "unknown",
         ),
     ],
 )
-def test_classify_cipher_suite(suite, version, strength, expected):
+def test_classify_cipher_suite(suite, version, expected):
     """Cipher-suite classification follows the initial A1.2 policy."""
 
-    result = classify_cipher_suite(suite, version, strength)
+    result = classify_cipher_suite(suite, version)
 
     assert result["classification"] == expected
     assert result["dimension"] == "cipher_suite"

@@ -43,7 +43,6 @@ def classify_tls_version(
 def classify_cipher_suite(
     cipher_suite: str | None,
     tls_version: str | None,
-    cipher_strength: int | None = None,
 ) -> dict[str, str]:
     """Classify a negotiated cipher suite using the A1 policy."""
 
@@ -98,11 +97,18 @@ def classify_cipher_suite(
                     "key agreement and authenticated encryption."
                 )
 
-            elif "CBC" in suite or "3DES" in suite:
+            elif "3DES" in suite:
+                classification = "unacceptable"
+                reason = (
+                    "The cipher suite uses 3DES, which has a 64-bit block size "
+                    "and is not suitable for the project's acceptable baseline."
+                )
+
+            elif "CBC" in suite:
                 classification = "acceptable_with_review"
                 reason = (
-                    "The cipher suite uses CBC or 3DES and requires "
-                    "additional review against RFC 9325."
+                    "The cipher suite uses CBC mode and requires additional "
+                    "review against the project's TLS security policy."
                 )
 
             else:
