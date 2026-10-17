@@ -39,6 +39,7 @@ def test_classify_tls_version(version, expected):
 @pytest.mark.parametrize(
     ("suite", "version", "expected"),
     [
+        # TLS 1.3 AEAD suites
         (
             "TLS_AES_256_GCM_SHA384",
             "TLSv1.3",
@@ -50,15 +51,38 @@ def test_classify_tls_version(version, expected):
             "acceptable",
         ),
         (
+            "TLS_AES_128_CCM_SHA256",
+            "TLSv1.3",
+            "acceptable",
+        ),
+        (
+            "TLS_AES_128_CCM_8_SHA256",
+            "TLSv1.3",
+            "acceptable_with_review",
+        ),
+        # TLS 1.2 ECDHE AEAD suites
+        (
             "ECDHE-RSA-AES128-GCM-SHA256",
             "TLSv1.2",
             "acceptable",
         ),
         (
+            "ECDHE-ECDSA-AES256-GCM-SHA384",
+            "TLSv1.2",
+            "acceptable",
+        ),
+        # TLS 1.2 CBC suites
+        (
             "ECDHE-RSA-AES128-SHA",
             "TLSv1.2",
-            "unknown",
+            "acceptable_with_review",
         ),
+        (
+            "ECDHE-RSA-AES128-CBC-SHA256",
+            "TLSv1.2",
+            "acceptable_with_review",
+        ),
+        # Unacceptable suites
         (
             "RSA_WITH_RC4_128_SHA",
             "TLSv1.2",
@@ -70,28 +94,62 @@ def test_classify_tls_version(version, expected):
             "unacceptable",
         ),
         (
-            "TLS_AES_128_CCM_SHA256",
-            "TLSv1.3",
-            "acceptable",
+            "ECDHE-RSA-3DES-CBC-SHA",
+            "TLSv1.2",
+            "unacceptable",
         ),
         (
-            "TLS_AES_128_CCM_8_SHA256",
-            "TLSv1.3",
-            "acceptable_with_review",
+            "ECDHE-RSA-DES-CBC3-SHA",
+            "TLSv1.2",
+            "unacceptable",
         ),
+        # Static RSA key-transport suites
         (
-            "ECDHE-RSA-AES128-CBC-SHA256",
+            "AES128-GCM-SHA256",
             "TLSv1.2",
             "acceptable_with_review",
         ),
+        (
+            "TLS_RSA_WITH_AES_128_GCM_SHA256",
+            "TLSv1.2",
+            "acceptable_with_review",
+        ),
+        # Unknown or unsupported suites
         (
             "UNRECOGNIZED_SUITE",
             "TLSv1.2",
             "unknown",
         ),
         (
+            "UNRECOGNIZED-CBC-SUITE",
+            "TLSv1.2",
+            "unknown",
+        ),
+        # TLS version and cipher suite mismatch
+        (
+            "TLS_AES_128_GCM_SHA256",
+            "TLSv1.2",
+            "unknown",
+        ),
+        (
+            "ECDHE-RSA-AES128-GCM-SHA256",
+            "TLSv1.3",
+            "unknown",
+        ),
+        # Missing evidence
+        (
             None,
             "TLSv1.2",
+            "unknown",
+        ),
+        (
+            "",
+            "TLSv1.2",
+            "unknown",
+        ),
+        (
+            "TLS_AES_128_GCM_SHA256",
+            "",
             "unknown",
         ),
     ],

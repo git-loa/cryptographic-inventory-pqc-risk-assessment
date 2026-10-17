@@ -40,90 +40,12 @@ def classify_tls_version(
     }
 
 
-def classify_cipher_suite(
+def _cipher_suite_result(
     cipher_suite: str | None,
-    tls_version: str | None,
+    classification: str,
+    reason: str,
 ) -> dict[str, str]:
-    """Classify a negotiated cipher suite using the A1 policy."""
-
-    if not cipher_suite or not tls_version:
-        classification = "unknown"
-        reason = "Cipher-suite or TLS-version evidence is missing."
-
-    else:
-        suite = cipher_suite.upper()
-
-        if "NULL" in suite or "RC4" in suite or "EXPORT" in suite:
-            classification = "unacceptable"
-            reason = (
-                "The cipher suite uses NULL encryption, RC4, "
-                "or export-grade cryptography."
-            )
-
-        elif tls_version == "TLSv1.3":
-            if suite == "TLS_AES_128_CCM_8_SHA256":
-                classification = "acceptable_with_review"
-                reason = (
-                    "The TLS 1.3 CCM_8 suite uses a truncated authentication "
-                    "tag and requires additional security review."
-                )
-
-            elif suite in {
-                "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384",
-                "TLS_CHACHA20_POLY1305_SHA256",
-                "TLS_AES_128_CCM_SHA256",
-            }:
-                classification = "acceptable"
-                reason = (
-                    "The TLS 1.3 cipher suite uses a recognized AEAD "
-                    "authenticated-encryption construction."
-                )
-
-            else:
-                classification = "unknown"
-                reason = (
-                    "The TLS 1.3 cipher suite is not in "
-                    "the currently recognized suite list."
-                )
-
-        elif tls_version == "TLSv1.2":
-            if ("ECDHE-RSA-" in suite or "ECDHE-ECDSA-" in suite) and (
-                "GCM" in suite or "CHACHA20-POLY1305" in suite
-            ):
-                classification = "acceptable"
-                reason = (
-                    "The recognized TLS 1.2 suite uses ephemeral "
-                    "key agreement and authenticated encryption."
-                )
-
-            elif "3DES" in suite:
-                classification = "unacceptable"
-                reason = (
-                    "The cipher suite uses 3DES, which has a 64-bit block size "
-                    "and is not suitable for the project's acceptable baseline."
-                )
-
-            elif "CBC" in suite:
-                classification = "acceptable_with_review"
-                reason = (
-                    "The cipher suite uses CBC mode and requires additional "
-                    "review against the project's TLS security policy."
-                )
-
-            else:
-                classification = "unknown"
-                reason = (
-                    "The TLS 1.2 cipher suite is not covered "
-                    "by the current classification rules."
-                )
-
-        else:
-            classification = "unknown"
-            reason = (
-                "The TLS version is unrecognized; "
-                "the cipher suite cannot be classified reliably."
-            )
+    """Build a consistent cipher-suite assessment result."""
 
     return {
         "dimension": "cipher_suite",
@@ -131,6 +53,184 @@ def classify_cipher_suite(
         "classification": classification,
         "reason": reason,
     }
+
+
+def _is_unacceptable_cipher_suite(cipher_suite: str) -> bool:
+    """Identify cipher suites excluded from the project baseline."""
+
+    return (
+        any(marker in cipher_suite for marker in ("NULL", "RC4", "EXPORT"))
+        or "3DES" in cipher_suite
+        or "DES-CBC3" in cipher_suite
+    )
+
+
+def _classify_tls13_cipher_suite(
+    cipher_suite: str,
+) -> tuple[str, str]:
+    """Apply the initial TLS 1.3 cipher-suite policy."""
+
+    acceptable_suites = {
+        "TLS_AES_128_GCM_SHA256",
+        "TLS_AES_256_GCM_SHA384",
+        "TLS_CHACHA20_POLY1305_SHA256",
+        "TLS_AES_128_CCM_SHA256",
+    }
+
+    if cipher_suite == "TLS_AES_128_CCM_8_SHA256":
+        return (
+            "acceptable_with_review",
+            "The TLS 1.3 CCM_8 suite uses a truncated authentication "
+            "tag and requires additional security review.",
+        )
+
+    if cipher_suite in acceptable_suites:
+        return (
+            "acceptable",
+            "The TLS 1.3 cipher suite is in the project's recognized "
+            "AEAD allowlist.",
+        )
+
+    return (
+        "unknown",
+        "The TLS 1.3 cipher suite is not covered by the current "
+        "classification rules.",
+    )
+
+
+def _classify_tls12_cipher_suite(
+    cipher_suite: str,
+) -> tuple[str, str]:
+    """Apply the initial TLS 1.2 cipher-suite policy."""
+
+    ecdhe_aead_suites = {
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-CHACHA20-POLY1305",
+        "ECDHE-ECDSA-CHACHA20-POLY1305",
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+    }
+
+    static_rsa_suites = {
+        "AES128-GCM-SHA256",
+        "AES256-GCM-SHA384",
+        "AES128-SHA",
+        "AES256-SHA",
+        "AES128-SHA256",
+        "AES256-SHA256",
+        "AES256-SHA384",
+        "TLS_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_RSA_WITH_AES_128_CBC_SHA",
+        "TLS_RSA_WITH_AES_256_CBC_SHA",
+        "TLS_RSA_WITH_AES_128_CBC_SHA256",
+        "TLS_RSA_WITH_AES_256_CBC_SHA256",
+    }
+
+    ecdhe_cbc_suites = {
+        "ECDHE-RSA-AES128-SHA",
+        "ECDHE-RSA-AES256-SHA",
+        "ECDHE-ECDSA-AES128-SHA",
+        "ECDHE-ECDSA-AES256-SHA",
+        "ECDHE-RSA-AES128-SHA256",
+        "ECDHE-RSA-AES256-SHA384",
+        "ECDHE-ECDSA-AES128-SHA256",
+        "ECDHE-ECDSA-AES256-SHA384",
+        "ECDHE-RSA-AES128-CBC-SHA",
+        "ECDHE-RSA-AES256-CBC-SHA",
+        "ECDHE-ECDSA-AES128-CBC-SHA",
+        "ECDHE-ECDSA-AES256-CBC-SHA",
+        "ECDHE-RSA-AES128-CBC-SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
+    }
+
+    if cipher_suite in ecdhe_aead_suites:
+        return (
+            "acceptable",
+            "The recognized TLS 1.2 suite uses ephemeral key agreement "
+            "and authenticated encryption.",
+        )
+
+    if cipher_suite in static_rsa_suites:
+        return (
+            "acceptable_with_review",
+            "The recognized TLS 1.2 suite uses static RSA key transport "
+            "and lacks forward secrecy.",
+        )
+
+    if cipher_suite in ecdhe_cbc_suites:
+        return (
+            "acceptable_with_review",
+            "The recognized TLS 1.2 suite uses CBC mode and requires "
+            "additional review against the project's TLS policy.",
+        )
+
+    return (
+        "unknown",
+        "The TLS 1.2 cipher suite is not covered by the current "
+        "classification rules.",
+    )
+
+
+def classify_cipher_suite(
+    cipher_suite: str | None,
+    tls_version: str | None,
+) -> dict[str, str]:
+    """Classify a negotiated cipher suite using the A1.2 policy."""
+
+    if not cipher_suite or not cipher_suite.strip():
+        return _cipher_suite_result(
+            cipher_suite,
+            "unknown",
+            "Cipher-suite evidence is missing.",
+        )
+
+    if not tls_version or not tls_version.strip():
+        return _cipher_suite_result(
+            cipher_suite,
+            "unknown",
+            "TLS-version evidence is missing.",
+        )
+
+    suite = cipher_suite.strip().upper()
+    version = tls_version.strip().upper()
+
+    if _is_unacceptable_cipher_suite(suite):
+        return _cipher_suite_result(
+            cipher_suite,
+            "unacceptable",
+            "The cipher suite uses NULL encryption, RC4, export-grade "
+            "cryptography, or 3DES.",
+        )
+
+    if version == "TLSV1.3":
+        classification, reason = _classify_tls13_cipher_suite(suite)
+
+    elif version == "TLSV1.2":
+        classification, reason = _classify_tls12_cipher_suite(suite)
+
+    else:
+        classification = "unknown"
+        reason = (
+            "The TLS version is unrecognized; the cipher suite "
+            "cannot be classified reliably."
+        )
+
+    return _cipher_suite_result(cipher_suite, classification, reason)
 
 
 def classify_public_key_algorithm(
