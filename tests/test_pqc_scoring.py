@@ -76,6 +76,18 @@ def test_classify_tls_version(version, expected):
             "unacceptable",
         ),
         (
+            "TLS_AES_128_CCM_SHA256",
+            "TLSv1.3",
+            128,
+            "acceptable",
+        ),
+        (
+            "TLS_AES_128_CCM_8_SHA256",
+            "TLSv1.3",
+            128,
+            "acceptable_with_review",
+        ),
+        (
             "ECDHE-RSA-AES128-CBC-SHA256",
             "TLSv1.2",
             128,

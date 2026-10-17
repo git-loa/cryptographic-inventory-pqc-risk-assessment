@@ -62,13 +62,25 @@ def classify_cipher_suite(
             )
 
         elif tls_version == "TLSv1.3":
-            if suite in {
+            if suite == "TLS_AES_128_CCM_8_SHA256":
+                classification = "acceptable_with_review"
+                reason = (
+                    "The TLS 1.3 CCM_8 suite uses a truncated authentication "
+                    "tag and requires additional security review."
+                )
+
+            elif suite in {
                 "TLS_AES_128_GCM_SHA256",
                 "TLS_AES_256_GCM_SHA384",
                 "TLS_CHACHA20_POLY1305_SHA256",
+                "TLS_AES_128_CCM_SHA256",
             }:
                 classification = "acceptable"
-                reason = "The TLS 1.3 cipher suite uses a recognized AEAD construction."
+                reason = (
+                    "The TLS 1.3 cipher suite uses a recognized AEAD "
+                    "authenticated-encryption construction."
+                )
+
             else:
                 classification = "unknown"
                 reason = (

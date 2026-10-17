@@ -119,6 +119,7 @@ def test_scan_domain_fuzz(domain):
         "public_key_curve",
         "san_dns_names",
         "san_ip_addresses",
+        "public_key_algorithm_oid",
     }
 
     # Single fast, correct check
