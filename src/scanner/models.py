@@ -35,18 +35,44 @@ class TLSScanResult(_TLSSscanResultRequired, total=False):
     type checking. It does not perform runtime validation.
     """
 
+    # TLS connection information
     tls_version: str | None
     cipher_suite: str | None
     cipher_strength: int | None
+
+    # Certificate identity and validity
+    certificate_version: str | None
+    certificate_serial_number: str | None
     certificate_subject: dict[str, str]
     certificate_issuer: dict[str, str]
     not_before: str | None
     not_after: str | None
-    key_size: int | None
+
+    # Certificate public-key information
     public_key_algorithm: str | None
+    key_size: int | None
+    public_key_curve: str | None
+    rsa_public_exponent: int | None
+
+    # Certificate signature information
+    certificate_signature_algorithm_oid: str | None
+    certificate_signature_hash_algorithm: str | None
+
+    # Certificate identity extensions
+    san_dns_names: list[str]
+    san_ip_addresses: list[str]
+
+    # Certificate usage extensions
+    key_usage: dict[str, bool] | None
+    extended_key_usage: list[str] | None
+    basic_constraints: dict[str, bool | int | None] | None
+
+    # Key-establishment evidence
     key_establishment_group: str | None
     key_establishment_evidence_status: str
     key_establishment_source: str | None
+
+    # Scan outcome and diagnostics
     error: str
     scan_time_seconds: float
     scan_status: Literal["success", "failed"]

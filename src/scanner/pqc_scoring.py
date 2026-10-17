@@ -20,15 +20,45 @@ def _score_tls_version(tls_version: str | None) -> tuple[int, list[str]]:
     return 5, [f"Weak TLS version: {tls_version}"]
 
 
-def _score_key_size(key_size: int | None) -> tuple[int, list[str]]:
+def _score_key_size(
+    key_size: int | None,
+    public_key_algorithm: str | None,
+) -> tuple[int, list[str]]:
+    """Score key size only when the public-key algorithm is recognized."""
     if key_size is None:
         return 0, ["Unknown key size"]
 
-    if key_size >= 4096:
-        return 30, []
-    if key_size >= 2048:
-        return 20, ["2048-bit RSA is borderline for long-term PQC safety"]
-    return 5, [f"Weak key size: {key_size} bits"]
+    if not public_key_algorithm:
+        return 0, [
+            "Public-key algorithm is unavailable;"
+            "key size cannot be interpreted reliably."
+        ]
+
+    algorithm = public_key_algorithm.upper()
+
+    # Apply these thresholds only to RSA keys.
+    if algorithm == "RSA":
+        if key_size >= 4096:
+            return 30, []
+        if key_size >= 2048:
+            return 20, [
+                "2048-bit RSA key: review classical security requirements "
+                "and post-quantum migration needs"
+            ]
+        return 5, [f"Weak RSA key size: {key_size} bits"]
+
+    # A key-size value alone is insufficient to assess EC key strength.
+    if algorithm in {"EC", "ECDSA"}:
+        return 0, [
+            "EC key strength cannot be assessed from key size alone; "
+            "curve information is needed"
+        ]
+
+    # Do not apply RSA thresholds to other or unrecognized algorithms.
+    return 0, [
+        f"No key-size scoring rule is defined for "
+        f"public-key algorithm {public_key_algorithm!r}"
+    ]
 
 
 def _score_cipher_suite(cipher_suite: str | None) -> tuple[int, list[str]]:
@@ -58,6 +88,7 @@ def score_pqc(result: TLSScanResult) -> PQCScore:
     """
     tls_version = result.get("tls_version")
     key_size = result.get("key_size")
+    public_key_algorithm = result.get("public_key_algorithm")
     cipher_suite = result.get("cipher_suite")
 
     total_score = 0
@@ -67,7 +98,7 @@ def score_pqc(result: TLSScanResult) -> PQCScore:
     total_score += v_score
     reasons.extend(v_reasons)
 
-    k_score, k_reasons = _score_key_size(key_size)
+    k_score, k_reasons = _score_key_size(key_size, public_key_algorithm)
     total_score += k_score
     reasons.extend(k_reasons)
 

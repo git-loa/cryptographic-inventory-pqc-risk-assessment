@@ -102,7 +102,7 @@ def test_parse_certificate_identifies_rsa_key():
     )
 
     der_certificate = make_test_certificate(private_key)
-    result = parse_certificate({}, der_certificate)
+    result = parse_certificate(der_certificate)
 
     assert result["public_key_algorithm"] == "RSA"
     assert result["key_size"] == 2048
@@ -114,7 +114,7 @@ def test_parse_certificate_identifies_ec_key():
     private_key = ec.generate_private_key(ec.SECP256R1())
 
     der_certificate = make_test_certificate(private_key)
-    result = parse_certificate({}, der_certificate)
+    result = parse_certificate(der_certificate)
 
     assert result["public_key_algorithm"] == "EC"
     assert result["key_size"] == 256

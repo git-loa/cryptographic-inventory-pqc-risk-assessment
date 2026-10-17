@@ -6,9 +6,8 @@ import socket
 import ssl
 import time
 
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+
+from src.scanner.certificate_parser import parse_certificate
 
 from src.scanner.utils.logger import get_logger
 from src.scanner.models import TLSScanResult
@@ -103,99 +102,61 @@ def _error_result(
         "key_establishment_group": None,
         "key_establishment_evidence_status": "unavailable",
         "key_establishment_source": None,
+        "certificate_version": None,
+        "certificate_serial_number": None,
+        "public_key_curve": None,
+        "rsa_public_exponent": None,
+        "certificate_signature_algorithm_oid": None,
+        "certificate_signature_hash_algorithm": None,
+        "san_dns_names": [],
+        "san_ip_addresses": [],
+        "key_usage": None,
+        "extended_key_usage": None,
+        "basic_constraints": None,
     }
 
 
-# ------------------------------------------------------------
-# Certificate Parsing
-# ------------------------------------------------------------
+def _handle_scan_error(
+    error: Exception,
+    domain: str,
+    port: int,
+    start: float,
+) -> TLSScanResult:
+    """Convert a supported connection exception into a scan result."""
 
-
-def parse_certificate(cert_dict, der_cert) -> dict:
-    """Extract subject, issuer, validity, and key size
-    from certificate.
-
-    Parameters
-    ----------
-    cert_dict : dict
-        The dictionary containing certificate information.
-    der_cert : bytes
-        The DER-encoded certificate.
-
-    Returns
-    -------
-    dict
-        A dictionary containing the parsed certificate information.
-    """
-    cert_obj = x509.load_der_x509_certificate(der_cert, default_backend())
-    public_key = cert_obj.public_key()
-
-    if isinstance(public_key, rsa.RSAPublicKey):
-        public_key_algorithm = "RSA"
-    elif isinstance(public_key, ec.EllipticCurvePublicKey):
-        public_key_algorithm = "EC"
-    elif isinstance(public_key, dsa.DSAPublicKey):
-        public_key_algorithm = "DSA"
-    elif isinstance(public_key, ed25519.Ed25519PublicKey):
-        public_key_algorithm = "Ed25519"
-    elif isinstance(public_key, ed448.Ed448PublicKey):
-        public_key_algorithm = "Ed448"
+    if isinstance(error, ssl.SSLError):
+        message = f"SSL error: {error}"
+    elif isinstance(error, socket.timeout):
+        message = f"Timeout: {error}"
+    elif isinstance(error, socket.gaierror):
+        message = f"DNS error: {error}"
     else:
-        public_key_algorithm = type(public_key).__name__
+        message = f"Connection error: {error}"
 
-    try:
-        key_size = public_key.key_size
-    except AttributeError:
-        key_size = None
-
-    return {
-        "certificate_subject": dict(x[0] for x in cert_dict.get("subject", [])),
-        "certificate_issuer": dict(x[0] for x in cert_dict.get("issuer", [])),
-        "not_before": cert_dict.get("notBefore"),
-        "not_after": cert_dict.get("notAfter"),
-        "key_size": key_size,
-        "public_key_algorithm": public_key_algorithm,
-    }
+    return _error_result(
+        domain,
+        port,
+        message,
+        time.perf_counter() - start,
+    )
 
 
-# ------------------------------------------------------------
-# TLS Scanner
-# ------------------------------------------------------------
+def _scan_tls_connection(
+    domain: str,
+    port: int,
+    timeout: int,
+    start: float,
+) -> TLSScanResult:
+    """Establish a TLS connection and collect certificate metadata."""
 
-
-def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult:
-    """
-    Perform TLS handshake and return structured TLS metadata.
-
-    Parameters
-    ----------
-    domain : str
-        The domain name to scan.
-    port : int, optional
-        The port number for the TLS scan (default is 443).
-    timeout : int, optional
-        The timeout for the TLS scan (default is 5).
-
-    Returns
-    -------
-    TLSScanResult
-        A dictionary containing the TLS scan result.
-    """
-
-    # Fast-fail invalid domains
-    validation_error = validate_domain_or_error(domain, port)
-    if validation_error:
-        return validation_error
-
-    logger.info("Starting TLS scan for domain=%s port=%d", domain, port)
     context = ssl.create_default_context()
-    start = time.perf_counter()
 
     try:
         with socket.create_connection((domain, port), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as tls:
 
                 cipher = tls.cipher()
+
                 if cipher is None:
                     return _error_result(
                         domain,
@@ -204,8 +165,9 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
                         time.perf_counter() - start,
                     )
 
-                cert_dict = tls.getpeercert()
-                if cert_dict is None:
+                der_cert = tls.getpeercert(binary_form=True)
+
+                if not der_cert:
                     return _error_result(
                         domain,
                         port,
@@ -213,15 +175,13 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
                         time.perf_counter() - start,
                     )
 
-                der_cert = tls.getpeercert(binary_form=True)
-                cert_info = parse_certificate(cert_dict, der_cert)
+                cert_info = parse_certificate(der_cert)
+
                 key_group, key_status = collect_key_establishment_group(
                     domain,
                     port=port,
                     timeout=timeout,
                 )
-
-                elapsed = time.perf_counter() - start
 
                 return {
                     "domain": domain,
@@ -231,23 +191,34 @@ def scan_domain(domain: str, port: int = 443, timeout: int = 5) -> TLSScanResult
                     "cipher_suite": cipher[0],
                     "cipher_strength": cipher[2],
                     **cert_info,
-                    "scan_time_seconds": elapsed,
+                    "scan_time_seconds": time.perf_counter() - start,
                     "key_establishment_group": key_group,
                     "key_establishment_evidence_status": key_status,
                     "key_establishment_source": ("openssl_s_client_separate_handshake"),
                 }
+    except (
+        ssl.SSLError,
+        socket.timeout,
+        socket.gaierror,
+        ConnectionError,
+    ) as error:
+        return _handle_scan_error(error, domain, port, start)
 
-    except ssl.SSLError as e:
-        return _error_result(
-            domain, port, f"SSL error: {e}", time.perf_counter() - start
-        )
-    except socket.timeout as e:
-        return _error_result(domain, port, f"Timeout: {e}", time.perf_counter() - start)
-    except socket.gaierror as e:
-        return _error_result(
-            domain, port, f"DNS error: {e}", time.perf_counter() - start
-        )
-    except ConnectionError as e:
-        return _error_result(
-            domain, port, f"Connection error: {e}", time.perf_counter() - start
-        )
+
+def scan_domain(
+    domain: str,
+    port: int = 443,
+    timeout: int = 5,
+) -> TLSScanResult:
+    """Validate a domain and collect its TLS configuration and certificate."""
+
+    validation_error = validate_domain_or_error(domain, port)
+
+    if validation_error:
+        return validation_error
+
+    logger.info("Starting TLS scan for domain=%s port=%d", domain, port)
+
+    start = time.perf_counter()
+
+    return _scan_tls_connection(domain, port, timeout, start)

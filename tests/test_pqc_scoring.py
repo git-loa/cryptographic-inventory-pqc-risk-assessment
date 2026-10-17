@@ -15,6 +15,7 @@ def test_pqc_scoring_low_risk():
         "cipher_suite": "TLS_AES_256_GCM_SHA384",
         "cipher_strength": 256,
         "key_size": 4096,
+        "public_key_algorithm": "RSA",
     }
 
     result = score_pqc(tls_entry)
@@ -73,6 +74,7 @@ def test_pqc_scoring_high_risk_weak_values():
         "cipher_suite": "RSA_WITH_3DES_EDE_CBC_SHA",
         "cipher_strength": 56,
         "key_size": 512,
+        "public_key_algorithm": "RSA",
     }
 
     result = score_pqc(tls_entry)
@@ -82,5 +84,25 @@ def test_pqc_scoring_high_risk_weak_values():
     assert result["pqc_risk"] == "high"
     assert isinstance(result["reasons"], list)
     assert any("Weak TLS version" in r for r in result["reasons"])
-    assert any("Weak key size" in r for r in result["reasons"])
+    assert any("Weak RSA key size" in r for r in result["reasons"])
     assert any("RSA key exchange" in r for r in result["reasons"])
+
+
+# ----------
+# New tests
+# ----------
+
+
+def test_256_bit_ec_key_is_not_flagged_as_weak_key_size():
+    """A 256-bit EC key must not use RSA key-size thresholds."""
+    tls_entry = {
+        "domain": "example.com",
+        "tls_version": "TLSv1.3",
+        "cipher_suite": "TLS_AES_128_GCM_SHA256",
+        "key_size": 256,
+        "public_key_algorithm": "EC",
+    }
+
+    result = score_pqc(tls_entry)
+
+    assert not any("Weak key size: 256 bits" in reason for reason in result["reasons"])
