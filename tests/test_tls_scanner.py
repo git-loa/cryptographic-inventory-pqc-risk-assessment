@@ -169,6 +169,25 @@ def test_successful_tls_scan_has_success_status():
     assert "error" not in result
 
 
+def test_unexpected_os_error_returns_failed_status():
+    """An unexpected OSError should produce a structured failure result."""
+    with (
+        patch(
+            "src.scanner.tls_scanner.validate_domain_or_error",
+            return_value=None,
+        ),
+        patch(
+            "src.scanner.tls_scanner.socket.create_connection",
+            side_effect=OSError("Unexpected socket failure"),
+        ),
+    ):
+        result = scan_domain("example.com")
+
+    assert result["scan_status"] == "failed"
+    assert "error" in result
+    assert "Unexpected socket failure" in result["error"]
+
+
 def test_failed_tls_scan_has_failed_status():
     """A failed TLS connection should report a failed status."""
 

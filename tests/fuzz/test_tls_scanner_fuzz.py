@@ -108,6 +108,17 @@ def test_scan_domain_fuzz(domain):
         "key_establishment_group",
         "key_establishment_evidence_status",
         "key_establishment_source",
+        "rsa_public_exponent",
+        "certificate_version",
+        "certificate_signature_hash_algorithm",
+        "key_usage",
+        "extended_key_usage",
+        "certificate_serial_number",
+        "certificate_signature_algorithm_oid",
+        "basic_constraints",
+        "public_key_curve",
+        "san_dns_names",
+        "san_ip_addresses",
     }
 
     # Single fast, correct check
