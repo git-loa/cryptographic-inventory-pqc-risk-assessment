@@ -53,6 +53,7 @@ class TLSScanResult(_TLSSscanResultRequired, total=False):
     key_size: int | None
     public_key_curve: str | None
     rsa_public_exponent: int | None
+    public_key_algorithm_oid: str | None
 
     # Certificate signature information
     certificate_signature_algorithm_oid: str | None

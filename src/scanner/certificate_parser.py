@@ -144,6 +144,9 @@ def parse_certificate(der_cert: bytes) -> dict[str, Any]:
     """
     cert = x509.load_der_x509_certificate(der_cert)
     public_key_info = _extract_public_key_info(cert.public_key())
+    public_key_info["public_key_algorithm_oid"] = (
+        cert.public_key_algorithm_oid.dotted_string
+    )
 
     result = {
         "certificate_version": cert.version.name,

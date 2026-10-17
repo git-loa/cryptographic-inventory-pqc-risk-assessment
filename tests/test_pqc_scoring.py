@@ -2,7 +2,186 @@
 Unit tests for the PQC scoring module.
 """
 
+import pytest
+
+from src.scanner.pqc_scoring import (
+    classify_tls_version,
+    classify_cipher_suite,
+    classify_public_key_algorithm,
+    classify_certificate_signature,
+)
 from src.scanner.pqc_scoring import score_pqc
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [
+        ("TLSv1.3", "acceptable"),
+        ("TLSv1.2", "acceptable_with_review"),
+        ("TLSv1.1", "unacceptable"),
+        ("TLSv1.0", "unacceptable"),
+        ("SSLv2", "unacceptable"),
+        ("SSLv3", "unacceptable"),
+        (None, "unknown"),
+        ("TLSv9.0", "unknown"),
+    ],
+)
+def test_classify_tls_version(version, expected):
+    """TLS version classification follows the A1.1 policy."""
+
+    result = classify_tls_version(version)
+
+    assert result["classification"] == expected
+    assert result["dimension"] == "tls_version"
+    assert result["reason"]
+
+
+@pytest.mark.parametrize(
+    ("suite", "version", "strength", "expected"),
+    [
+        (
+            "TLS_AES_256_GCM_SHA384",
+            "TLSv1.3",
+            256,
+            "acceptable",
+        ),
+        (
+            "TLS_CHACHA20_POLY1305_SHA256",
+            "TLSv1.3",
+            256,
+            "acceptable",
+        ),
+        (
+            "ECDHE-RSA-AES128-GCM-SHA256",
+            "TLSv1.2",
+            128,
+            "acceptable",
+        ),
+        (
+            "ECDHE-RSA-AES128-SHA",
+            "TLSv1.2",
+            128,
+            "unknown",
+        ),
+        (
+            "RSA_WITH_RC4_128_SHA",
+            "TLSv1.2",
+            128,
+            "unacceptable",
+        ),
+        (
+            "NULL_WITH_NULL_NULL",
+            "TLSv1.2",
+            0,
+            "unacceptable",
+        ),
+        (
+            "ECDHE-RSA-AES128-CBC-SHA256",
+            "TLSv1.2",
+            128,
+            "acceptable_with_review",
+        ),
+        (
+            "UNRECOGNIZED_SUITE",
+            "TLSv1.2",
+            128,
+            "unknown",
+        ),
+        (
+            None,
+            "TLSv1.2",
+            None,
+            "unknown",
+        ),
+    ],
+)
+def test_classify_cipher_suite(suite, version, strength, expected):
+    """Cipher-suite classification follows the initial A1.2 policy."""
+
+    result = classify_cipher_suite(suite, version, strength)
+
+    assert result["classification"] == expected
+    assert result["dimension"] == "cipher_suite"
+    assert result["reason"]
+
+
+@pytest.mark.parametrize(
+    ("algorithm", "expected"),
+    [
+        ("RSA", "acceptable_with_review"),
+        ("EC", "acceptable_with_review"),
+        ("Ed25519", "acceptable_with_review"),
+        ("Ed448", "acceptable_with_review"),
+        ("DSA", "unacceptable"),
+        ("ML-DSA", "acceptable"),
+        (None, "unknown"),
+        ("", "unknown"),
+        ("UnknownKeyType", "unknown"),
+    ],
+)
+def test_classify_public_key_algorithm(algorithm, expected):
+    """Public-key algorithm classification follows the initial A1.3 policy."""
+    result = classify_public_key_algorithm(algorithm)
+
+    assert result["dimension"] == "public_key_algorithm"
+    assert result["classification"] == expected
+    assert result["reason"]
+
+
+@pytest.mark.parametrize(
+    ("oid", "hash_name", "expected"),
+    [
+        (
+            "1.2.840.113549.1.1.11",
+            "sha256",
+            "acceptable_with_review",
+        ),
+        (
+            "1.2.840.10045.4.3.2",
+            "sha256",
+            "acceptable_with_review",
+        ),
+        (
+            "1.3.101.112",
+            None,
+            "acceptable_with_review",
+        ),
+        (
+            "1.2.840.113549.1.1.5",
+            "sha1",
+            "unacceptable",
+        ),
+        (
+            "1.2.840.113549.1.1.10",
+            "sha384",
+            "acceptable_with_review",
+        ),
+        (
+            "1.2.840.113549.1.1.10",
+            None,
+            "unknown",
+        ),
+        (
+            "2.16.840.1.101.3.4.3.18",
+            None,
+            "acceptable",
+        ),
+        (None, None, "unknown"),
+        ("1.2.3.4.5", None, "unknown"),
+    ],
+)
+def test_classify_certificate_signature(oid, hash_name, expected):
+    """Certificate signature classification follows the A1.4 policy."""
+
+    result = classify_certificate_signature(oid, hash_name)
+
+    assert result["dimension"] == "certificate_signature"
+    assert result["classification"] == expected
+    assert result["reason"]
+
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------------
 
 
 def test_pqc_scoring_low_risk():

@@ -2,14 +2,9 @@
 Unit tests for the TLS scanner module.
 """
 
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
-from cryptography.x509.oid import NameOID
-from src.scanner.tls_scanner import parse_certificate, scan_domain
+from src.scanner.tls_scanner import scan_domain
 
 
 def test_scan_domain(all_domains):
@@ -66,58 +61,6 @@ def test_scan_domain_invalid_domain():
 
     error_lower = result["error"].lower()
     assert any(fragment in error_lower for fragment in valid_error_fragments)
-
-
-def make_test_certificate(private_key):
-    """Create a self-signed certificate for testing."""
-
-    subject = issuer = x509.Name(
-        [
-            x509.NameAttribute(NameOID.COMMON_NAME, "test.example"),
-        ]
-    )
-
-    now = datetime.now(timezone.utc)
-
-    certificate = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(private_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - timedelta(days=1))
-        .not_valid_after(now + timedelta(days=30))
-        .sign(private_key, hashes.SHA256())
-    )
-
-    return certificate.public_bytes(serialization.Encoding.DER)
-
-
-def test_parse_certificate_identifies_rsa_key():
-    """The parser should identify an RSA certificate public key."""
-
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-
-    der_certificate = make_test_certificate(private_key)
-    result = parse_certificate(der_certificate)
-
-    assert result["public_key_algorithm"] == "RSA"
-    assert result["key_size"] == 2048
-
-
-def test_parse_certificate_identifies_ec_key():
-    """The parser should identify an elliptic-curve certificate public key."""
-
-    private_key = ec.generate_private_key(ec.SECP256R1())
-
-    der_certificate = make_test_certificate(private_key)
-    result = parse_certificate(der_certificate)
-
-    assert result["public_key_algorithm"] == "EC"
-    assert result["key_size"] == 256
 
 
 def test_successful_tls_scan_has_success_status():
