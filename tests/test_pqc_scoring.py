@@ -180,6 +180,15 @@ def test_classify_certificate_signature(oid, hash_name, expected):
     assert result["reason"]
 
 
+def test_tls12_ecdhe_ecdsa_gcm_is_acceptable():
+    result = classify_cipher_suite(
+        cipher_suite="ECDHE-ECDSA-AES128-GCM-SHA256",
+        tls_version="TLSv1.2",
+    )
+
+    assert result["classification"] == "acceptable"
+
+
 # ---------------------------------------------------------------
 # ---------------------------------------------------------------------
 

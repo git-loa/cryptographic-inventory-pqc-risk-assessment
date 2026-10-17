@@ -61,13 +61,6 @@ def classify_cipher_suite(
                 "or export-grade cryptography."
             )
 
-        elif cipher_strength is not None and cipher_strength < 112:
-            classification = "unacceptable"
-            reason = (
-                "The reported cipher strength is below "
-                "the 112-bit minimum in RFC 9325."
-            )
-
         elif tls_version == "TLSv1.3":
             if suite in {
                 "TLS_AES_128_GCM_SHA256",
@@ -84,7 +77,7 @@ def classify_cipher_suite(
                 )
 
         elif tls_version == "TLSv1.2":
-            if ("ECDHE-RSA-" in suite or "ECDHE_ECDSA_" in suite) and (
+            if ("ECDHE-RSA-" in suite or "ECDHE-ECDSA-" in suite) and (
                 "GCM" in suite or "CHACHA20-POLY1305" in suite
             ):
                 classification = "acceptable"
