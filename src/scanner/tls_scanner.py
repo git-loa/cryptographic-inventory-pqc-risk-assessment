@@ -196,12 +196,7 @@ def _scan_tls_connection(
                     "key_establishment_evidence_status": key_status,
                     "key_establishment_source": ("openssl_s_client_separate_handshake"),
                 }
-    except (
-        ssl.SSLError,
-        socket.timeout,
-        socket.gaierror,
-        ConnectionError,
-    ) as error:
+    except OSError as error:
         return _handle_scan_error(error, domain, port, start)
 
 

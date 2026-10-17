@@ -130,15 +130,7 @@ def test_successful_tls_scan_has_success_status():
         256,
     )
     fake_tls.version.return_value = "TLSv1.3"
-    fake_tls.getpeercert.side_effect = [
-        {
-            "subject": (),
-            "issuer": (),
-            "notBefore": "Jan  1 00:00:00 2026 GMT",
-            "notAfter": "Jan  1 00:00:00 2027 GMT",
-        },
-        b"fake-certificate-der",
-    ]
+    fake_tls.getpeercert.return_value = b"fake-certificate-der"
 
     fake_context = MagicMock()
     fake_context.wrap_socket.return_value.__enter__.return_value = fake_tls
