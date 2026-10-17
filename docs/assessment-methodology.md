@@ -11,7 +11,7 @@ The current A1 assessment evaluates four dimensions over time:
 - A1.3 — Certificate public-key algorithm
 - A1.4 — Certificate signature algorithm
 
-This document currently defines A1.1 and A1.2. The classifications are rule-based findings about observed configuration evidence. They are not, by themselves, a complete security audit, a proof of exploitability, or a determination that a system is post-quantum secure.
+This document currently defines A1.1, A1.2, and A1.3. The classifications are rule-based findings about observed configuration evidence. They are not, by themselves, a complete security audit, a proof of exploitability, or a determination that a system is post-quantum secure.
 
 The project uses the following classification labels:
 
@@ -113,7 +113,32 @@ The classifier returns `unknown` when:
 
 The classifier does not infer security properties for values outside its rules. In particular, `unknown` is not interchangeable with `unacceptable`.
 
-## 4. Standards and references
+## 4. A1.3 — Certificate public-key algorithm assessment
+
+A1.3 classifies the public-key algorithm identified in certificate metadata. Its primary purpose is to flag classical public-key algorithms for post-quantum migration review. It does not, by itself, assess key size, elliptic-curve strength, certificate trust, hostname validity, or whether a deployed TLS connection successfully uses post-quantum authentication.
+
+The current implementation in `classify_public_key_algorithm()` applies these rules:
+
+| Observed algorithm name | Classification | Rationale |
+|---|---|---|
+| `ML-DSA` | `acceptable` | Recognized by the project as a standardized post-quantum digital-signature algorithm. |
+| `RSA` | `acceptable_with_review` | Classical public-key algorithm requiring post-quantum migration review. |
+| `EC` | `acceptable_with_review` | Classical elliptic-curve public-key algorithm requiring post-quantum migration review. |
+| `Ed25519` | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review. |
+| `Ed448` | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review. |
+| `DSA` | `unacceptable` | Explicitly excluded from the project's initial acceptable baseline. |
+| Missing or blank value | `unknown` | The public-key algorithm is unavailable. |
+| Other or unrecognized name | `unknown` | No classification rule exists for the observed value. |
+
+### Interpretation and limitations
+
+- `acceptable_with_review` for RSA, EC, Ed25519, and Ed448 means that the algorithm is classical and should be considered in post-quantum migration planning. It does **not** mean the algorithm is currently broken or that the certificate is otherwise invalid.
+- The `acceptable` result for `ML-DSA` is an algorithm-level policy result. It does not prove that the certificate chain, TLS implementation, clients, or deployment support post-quantum certificates end to end.
+- The current classifier evaluates the algorithm name only. It does not use RSA key size, elliptic curve, certificate usage, or certificate-chain context to refine this classification. Those properties require separate checks.
+- The classifier expects the normalized algorithm name `ML-DSA`. Certificate parsing and algorithm-name normalization must be checked independently to ensure a real certificate's parsed metadata reaches this rule consistently.
+- `DSA` is excluded by the project's initial policy. This is a project classification decision and should not be interpreted as a complete assessment of every possible DSA deployment or parameter set.
+
+## 5. Standards and references
 
 The policy is informed by the following standards:
 
@@ -126,11 +151,11 @@ The policy is informed by the following standards:
 
 Standards language such as **MUST**, **MUST NOT**, **SHOULD**, and **SHOULD NOT** retains its meaning in the referenced RFCs. The project's four classification labels are its own reporting model and are not labels defined by those RFCs.
 
-## 5. Limitations and future work
+## 6. Limitations and future work
 
-- A1.1 and A1.2 are individual dimensions; neither is a complete TLS security assessment.
+- A1.1, A1.2, and A1.3 are individual dimensions; none is a complete TLS security assessment.
 - A1.2 relies on explicit name allowlists and does not yet classify every standardized cipher suite.
 - The current A1.2 evidence does not include whether `encrypt_then_mac` was negotiated.
-- A TLS cipher-suite classification alone does not establish post-quantum readiness. Key-establishment exposure and certificate authentication are assessed separately.
+- A TLS version, cipher-suite, or certificate public-key classification alone does not establish post-quantum readiness. Key-establishment exposure and certificate authentication are assessed separately.
 - The existing numeric PQC heuristic is separate from these A1 classification results and should not be treated as equivalent to this rule-based methodology.
 - The policy and allowlists should be reviewed when standards, implementation evidence, or project scope changes.
