@@ -104,6 +104,26 @@ class PQCScore(TypedDict):
     reasons: list[str]
 
 
+class A1Finding(TypedDict):
+    """One evidence-linked TLS configuration classification."""
+
+    dimension: str
+    observed: str
+    classification: Literal[
+        "acceptable", "acceptable_with_review", "unacceptable", "unknown"
+    ]
+    reason: str
+
+
+class A1Assessment(TypedDict):
+    """Structured A1 findings; no composite score is implied."""
+
+    tls_version: A1Finding
+    cipher_suite: A1Finding
+    public_key_algorithm: A1Finding
+    certificate_signature: A1Finding
+
+
 class KeyEstablishmentAssessment(TypedDict):
     """Assessment of observed TLS key-establishment evidence."""
 
@@ -130,11 +150,12 @@ class CombinedTLSReport(TypedDict):
     """
     Unified TLS and PQC assessment report.
 
-    Combines the original TLS scan evidence, the existing heuristic
-    score, and the separate evidence-based PQC exposure assessment.
+    Combines original TLS scan evidence, structured A1 findings, the legacy
+    heuristic score, and the separate evidence-based PQC exposure assessment.
     """
 
     domain: str
     tls: TLSScanResult
+    a1: A1Assessment
     pqc: PQCScore
     pqc_exposure: PQCExposureAssessment
