@@ -14,6 +14,7 @@ def test_combined_report_structure(combined_report):
     assert isinstance(first, dict)
     assert "domain" in first
     assert "tls" in first
+    assert "a1" in first
     assert "pqc" in first
 
 
