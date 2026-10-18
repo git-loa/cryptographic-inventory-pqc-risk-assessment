@@ -18,7 +18,7 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
 
 - **{{ findings.total_domains }} domains scanned**
 - **{{ findings.tls_successes }} TLS scans succeeded**
-- **{{ findings.pqc_successes }} PQC scores computed**
+- **{{ findings.pqc_successes }} legacy heuristic scores computed**
 - **{{ findings.tls_errors | length }} TLS scan errors**
 - **{{ findings.pqc_errors | length }} PQC scoring errors**
 - **{{ findings.high_risk | length }} domains at High PQC Risk**
@@ -34,14 +34,14 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
 {% endif %}
 
 {% if findings.pqc_errors %}
-### PQC Scoring Errors
+### Legacy Heuristic Scoring Errors
 {% for d in findings.pqc_errors %}
 - {{ d }}
 {% endfor %}
 {% endif %}
 
 {% if findings.high_risk %}
-### High PQC Risk Domains
+### Domains Labeled High by the Legacy Heuristic
 {% for d in findings.high_risk %}
 - {{ d }}
 {% endfor %}
@@ -81,7 +81,7 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
     "low":    '<span style="color:green; font-weight:bold;">🟩 Low</span>'
 } %}
 
-| Domain | TLS Version | Cipher Suite | Key Size | PQC Risk | Score |
+| Domain | TLS Version | Cipher Suite | Key Size | Legacy Heuristic Label | Legacy Score |
 |--------|-------------|--------------|----------|----------|--------|
 {% for item in reports %}
 | {{ item.domain }} | {{ item.tls.tls_version or "—" }} | {{ item.tls.cipher_suite or "—" }} | {{ item.tls.key_size or "—" }} | {{ risk_badge[item.pqc.pqc_risk] | safe }} | {{ item.pqc.tls_score }}/100 |
@@ -91,17 +91,17 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
 
 # Risk‑Sorted Lists
 
-## High Risk
+## Legacy Heuristic: High Label
 {% for item in reports if item.pqc.pqc_risk|lower == "high" %}
 - {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
 {% endfor %}
 
-## Medium Risk
+## Legacy Heuristic: Medium Label
 {% for item in reports if item.pqc.pqc_risk|lower == "medium" %}
 - {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
 {% endfor %}
 
-## Low Risk
+## Legacy Heuristic: Low Label
 {% for item in reports if item.pqc.pqc_risk|lower == "low" %}
 - {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
 {% endfor %}
@@ -142,7 +142,7 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
 - {{ k }}: {{ v }}
 {% endfor %}
 
-### PQC Assessment
+### Legacy Heuristic Output (Compatibility Only)
 - **Risk Level:** {{ risk_badge[item.pqc.pqc_risk] | safe }}
 - **Score:** {{ item.pqc.tls_score }}/100
 
