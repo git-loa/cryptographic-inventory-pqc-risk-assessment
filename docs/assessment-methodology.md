@@ -11,7 +11,7 @@ The current A1 assessment evaluates four dimensions over time:
 - A1.3 — Certificate public-key algorithm
 - A1.4 — Certificate signature algorithm
 
-This document currently defines A1.1, A1.2, and A1.3. The classifications are rule-based findings about observed configuration evidence. They are not, by themselves, a complete security audit, a proof of exploitability, or a determination that a system is post-quantum secure.
+This document defines A1.1, A1.2, A1.3, and A1.4. The classifications are rule-based findings about observed configuration evidence. They are not, by themselves, a complete security audit, a proof of exploitability, or a determination that a system is post-quantum secure.
 
 The project uses the following classification labels:
 
@@ -156,3 +156,44 @@ Integration tests exercise certificate generation, DER encoding, certificate par
 * The parser preserves the ML-DSA parameter set and public-key algorithm OID, but A1.3 currently assigns the same classification to all three variants.
 * The public-key algorithm OID identifies the certificate's subject public key. It is distinct from the certificate's own signature algorithm identifier, which is represented separately in the parsed metadata.
 * `DSA` is excluded by the project's initial policy. This is a project classification decision and should not be interpreted as a complete assessment of every possible DSA deployment or parameter set.
+
+## 5. A1.4 — Certificate signature algorithm assessment
+
+A1.4 classifies the signature algorithm identified in an X.509 certificate's signature algorithm field. This is distinct from the subject public-key algorithm assessed by A1.3. For example, a certificate can contain an ML-DSA subject public key while its issuer signs the certificate using a classical algorithm. Assessing both fields helps distinguish the subject's key type from the algorithm used to sign the certificate.
+
+The implementation uses `parse_certificate()` to extract `certificate_signature_algorithm_oid` and `certificate_signature_hash_algorithm`, then passes those values to `classify_certificate_signature()`. The signature OID is the primary input to the classification rules. Hash-algorithm metadata is additionally used for RSA-PSS.
+
+### Classification policy
+
+| Observed certificate signature algorithm | Classification | Rationale |
+|---|---|---|
+| RSA with SHA-256, SHA-384, or SHA-512 | `acceptable_with_review` | Recognized classical signature algorithm requiring post-quantum migration review. |
+| ECDSA with SHA-256, SHA-384, or SHA-512 | `acceptable_with_review` | Recognized classical signature algorithm requiring post-quantum migration review. |
+| Ed25519 or Ed448 | `acceptable_with_review` | Recognized classical signature algorithm requiring post-quantum migration review. |
+| RSA with SHA-1 | `unacceptable` | SHA-1 certificate signatures are excluded by the project's initial policy. |
+| ECDSA with SHA-1 | `unacceptable` | SHA-1 certificate signatures are excluded by the project's initial policy. |
+| RSA-PSS with SHA-256, SHA-384, or SHA-512 metadata | `acceptable_with_review` | The hash is recognized, but RSA-PSS remains a classical signature scheme requiring post-quantum migration review. |
+| ML-DSA-44, ML-DSA-65, or ML-DSA-87 signature OID | `acceptable` | Recognized standardized post-quantum signature algorithm under the project's current baseline. |
+| Missing or blank signature OID | `unknown` | The certificate signature algorithm identifier is unavailable. |
+| Unrecognized signature OID | `unknown` | No classification rule exists for the observed identifier. |
+
+The recognized OIDs for the ML-DSA variants are:
+
+| Signature algorithm | Signature algorithm OID |
+|---|---|
+| ML-DSA-44 | `2.16.840.1.101.3.4.3.17` |
+| ML-DSA-65 | `2.16.840.1.101.3.4.3.18` |
+| ML-DSA-87 | `2.16.840.1.101.3.4.3.19` |
+
+### Interpretation and limitations
+
+- `acceptable_with_review` for RSA, ECDSA, Ed25519, Ed448, and RSA-PSS indicates that the certificate signature algorithm is recognized but remains a classical signature scheme requiring post-quantum migration review. It does not, by itself, mean the certificate is invalid or currently exploitable.
+- The `unacceptable` classification for SHA-1 is an explicit project policy. It reflects the project's exclusion of SHA-1 certificate signatures rather than a complete evaluation of the certificate or its trust chain.
+- The `acceptable` classification for an ML-DSA signature OID is an algorithm-level policy result. It does not establish that the certificate chain, relying parties, TLS stack, or deployment support post-quantum signatures end to end.
+- RSA-PSS classification uses the signature OID and the hash-algorithm metadata exposed by the parser. When the hash metadata is SHA-256, SHA-384, or SHA-512, the result is `acceptable_with_review`; otherwise, the result is `unknown`. The current classifier does not fully validate all RSA-PSS parameters, including the mask generation function, salt length, or parameter encoding. A recognized hash value alone is not proof that every RSA-PSS parameter is valid or compliant.
+- The classifier uses the signature OID as the primary algorithm identifier. It does not verify the certificate's cryptographic signature, validate the complete certificate chain, assess issuer trust, or determine whether the signature was negotiated or used in a TLS handshake.
+- The certificate signature algorithm is also distinct from TLS handshake signature algorithms. This assessment concerns the signature on the certificate itself, not the signature scheme selected for a particular TLS handshake.
+- Missing or unrecognized evidence returns `unknown`. This means the current classifier cannot make a supported classification; it does not, by itself, prove that the signature algorithm is insecure.
+
+Integration tests exercise certificate generation, DER encoding, parsing, and classification using the metadata extracted by the certificate parser. Unit tests cover recognized classical algorithms, SHA-1 exclusions, RSA-PSS hash evidence, ML-DSA OIDs, and missing or unrecognized inputs. These tests verify the implemented rules and data flow; they do not constitute a complete cryptographic validation of certificates or signature parameters.
+
