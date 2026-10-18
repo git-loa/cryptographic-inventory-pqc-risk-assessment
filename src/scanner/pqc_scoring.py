@@ -11,20 +11,29 @@ from src.scanner.models import PQCScore
 def classify_tls_version(
     tls_version: str | None,
 ) -> dict[str, str]:
-    """Classify a negotiated TLS version using the A1 policy."""
+    """Classify a negotiated TLS version using the A1.1 policy.
 
-    if tls_version == "TLSv1.3":
+    Comparison is case-insensitive and ignores surrounding whitespace.
+    Missing, empty, non-string, or unrecognized evidence remains unknown.
+    """
+    normalized = (
+        tls_version.strip().upper()
+        if isinstance(tls_version, str)
+        else ""
+    )
+
+    if normalized == "TLSV1.3":
         classification = "acceptable"
         reason = "TLS 1.3 is the preferred modern TLS version."
 
-    elif tls_version == "TLSv1.2":
+    elif normalized == "TLSV1.2":
         classification = "acceptable_with_review"
         reason = (
             "TLS 1.2 is supported, but other TLS configuration "
             "settings require review."
         )
 
-    elif tls_version in {"TLSv1.0", "TLSv1.1", "SSLv2", "SSLv3"}:
+    elif normalized in {"TLSV1.0", "TLSV1.1", "SSLV2", "SSLV3"}:
         classification = "unacceptable"
         reason = "The negotiated protocol version is deprecated or insecure."
 
@@ -34,12 +43,10 @@ def classify_tls_version(
 
     return {
         "dimension": "tls_version",
-        "observed": tls_version or "unknown",
+        "observed": tls_version.strip() if isinstance(tls_version, str) and tls_version.strip() else "unknown",
         "classification": classification,
         "reason": reason,
     }
-
-
 def _cipher_suite_result(
     cipher_suite: str | None,
     classification: str,
@@ -192,14 +199,14 @@ def classify_cipher_suite(
 ) -> dict[str, str]:
     """Classify a negotiated cipher suite using the A1.2 policy."""
 
-    if not cipher_suite or not cipher_suite.strip():
+    if not isinstance(cipher_suite, str) or not cipher_suite.strip():
         return _cipher_suite_result(
             cipher_suite,
             "unknown",
             "Cipher-suite evidence is missing.",
         )
 
-    if not tls_version or not tls_version.strip():
+    if not isinstance(tls_version, str) or not tls_version.strip():
         return _cipher_suite_result(
             cipher_suite,
             "unknown",
@@ -238,7 +245,7 @@ def classify_public_key_algorithm(
 ) -> dict[str, str]:
     """Classify a certificate public-key algorithm under the A1.3 policy."""
 
-    if not public_key_algorithm or not public_key_algorithm.strip():
+    if not isinstance(public_key_algorithm, str) or not public_key_algorithm.strip():
         classification = "unknown"
         reason = "The certificate public-key algorithm is unavailable."
 
@@ -286,7 +293,7 @@ def classify_certificate_signature(
 ) -> dict[str, str]:
     """Classify a certificate signature under the initial A1.4 policy."""
 
-    normalized_oid = signature_oid.strip() if signature_oid else ""
+    normalized_oid = signature_oid.strip() if isinstance(signature_oid, str) else ""
 
     if not normalized_oid:
         classification = "unknown"
@@ -318,7 +325,7 @@ def classify_certificate_signature(
     elif normalized_oid == "1.2.840.113549.1.1.10":  # RSASSA-PSS
         normalized_hash = (
             hash_algorithm.strip().lower()
-            if hash_algorithm and hash_algorithm.strip()
+            if isinstance(hash_algorithm, str) and hash_algorithm.strip()
             else None
         )
 
