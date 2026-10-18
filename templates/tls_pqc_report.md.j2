@@ -152,6 +152,16 @@ cryptographic configurations, certificate issues, and PQC migration readiness.
 {% endfor %}
 
 {% endif %}
+
+### A1 TLS Configuration Assessment
+
+| Dimension | Observed Evidence | Classification | Rationale |
+|-----------|------------------|----------------|-----------|
+| TLS version | {{ item.a1.tls_version.observed }} | {{ item.a1.tls_version.classification }} | {{ item.a1.tls_version.reason }} |
+| Cipher suite | {{ item.a1.cipher_suite.observed }} | {{ item.a1.cipher_suite.classification }} | {{ item.a1.cipher_suite.reason }} |
+| Certificate public-key algorithm | {{ item.a1.public_key_algorithm.observed }} | {{ item.a1.public_key_algorithm.classification }} | {{ item.a1.public_key_algorithm.reason }} |
+| Certificate signature | {{ item.a1.certificate_signature.observed }} | {{ item.a1.certificate_signature.classification }} | {{ item.a1.certificate_signature.reason }} |
+
 </details>
 
 ---
