@@ -11,6 +11,7 @@ from src.scanner.models import (
     TLSScanResult,
 )
 
+from src.scanner.a1_assessment import assess_a1_configuration
 from src.scanner.pqc_assessment import assess_pqc_exposure
 from src.scanner.pqc_scoring import score_pqc
 
@@ -36,7 +37,10 @@ def assess_tls_results(
     combined_reports: list[CombinedTLSReport] = []
 
     for tls_result in tls_results:
-        # Preserve the existing heuristic scoring behavior.
+        # Assess A1 dimensions independently; do not collapse them into a score.
+        a1_assessment = assess_a1_configuration(tls_result)
+
+        # Preserve the legacy score temporarily for backward compatibility.
         pqc_score = score_pqc(tls_result)
         pqc_scores.append(pqc_score)
 
@@ -48,6 +52,7 @@ def assess_tls_results(
             {
                 "domain": tls_result["domain"],
                 "tls": tls_result,
+                "a1": a1_assessment,
                 "pqc": pqc_score,
                 "pqc_exposure": pqc_exposure,
             }
