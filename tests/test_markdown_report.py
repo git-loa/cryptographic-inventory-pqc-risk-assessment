@@ -22,6 +22,7 @@ def test_assessment_combined_structure(tls_results):
     for report in combined:
         assert "domain" in report
         assert "tls" in report
+        assert "a1" in report
         assert "pqc" in report
         assert report["domain"] == report["tls"]["domain"]
         assert report["domain"] == report["pqc"]["domain"]
@@ -99,3 +100,22 @@ def test_save_markdown_writes_file():
 
         assert path.exists()
         assert path.read_text(encoding="utf-8") == content
+
+
+
+def test_render_markdown_includes_a1_findings_for_failed_scan():
+    """A1 evidence gaps remain visible even when the TLS scan fails."""
+    _, reports = assess_tls_results(
+        [{"domain": "unavailable.example", "port": 443, "error": "connect failed"}]
+    )
+
+    markdown = render_markdown(
+        reports,
+        author="Test",
+        organization="Test Organization",
+    )
+
+    assert "A1 TLS Configuration Assessment" in markdown
+    assert "TLS version" in markdown
+    assert "cipher_suite" in markdown
+    assert "unknown" in markdown
