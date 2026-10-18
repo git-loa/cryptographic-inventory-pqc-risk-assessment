@@ -8,9 +8,9 @@ The project is under active development. Its current assessment rules are delibe
 
 - **TLS inventory:** Scans configured domains and collects negotiated TLS details.
 - **Certificate metadata:** Extracts X.509 identity, validity, public-key, signature, SAN, and usage fields.
-- **A1 — TLS configuration quality:** Rule-based classifiers exist for TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm.
-- **A2 — Key-establishment exposure:** Collects negotiated-group evidence through a separate OpenSSL handshake and recognizes a limited set of classical groups.
-- **Integration:** The existing CLI pipeline still uses the legacy numerical PQC heuristic. The A1 classifiers are not yet integrated into a replacement assessment pipeline; A3–A8 are not implemented as complete assessment stages.
+- **A1 — TLS configuration quality:** Four rule-based findings are produced from each TLS scan and included in combined JSON and Markdown reports.
+- **A2 — Key-establishment exposure:** Evidence collection and assessment are included in combined reports, but the recognized mechanism registry remains limited.
+- **Integration:** The legacy numerical PQC heuristic is still emitted for backward compatibility; it is not a standards-based or complete risk measure. A1 findings are separate and are not collapsed into an arbitrary aggregate score. A3–A8 are not implemented as complete assessment stages.
 
 See [Assessment Methodology](docs/assessment-methodology.md) for the current rules, limitations, and implementation status.
 
@@ -28,6 +28,7 @@ src/
     key_establishment.py
     pqc_assessment.py   A2 key-establishment assessment
     pqc_scoring.py      A1 classifiers and legacy scoring
+    a1_assessment.py    Structured A1 assessment
     assessment.py       Assessment orchestration
     json_io.py          JSON input/output
     combined_report.py  Combined JSON report
@@ -73,7 +74,7 @@ The tests validate implemented behavior and data flow; they do not constitute a 
 
 ## Planned work
 
-1. Integrate the A1 rule-based findings and A2 evidence assessment into the canonical pipeline.
-2. Define and test explicit assessment aggregation without arbitrary score weights.
-3. Implement and document A3–A8 incrementally.
-4. Replace the legacy heuristic and update report schemas once the replacement is tested.
+1. Complete A2 mechanism classification, evidence validation, and tests.
+2. Strengthen report-schema validation and verify the integrated A1/A2 output end to end.
+3. Define any overall assessment policy explicitly, without arbitrary score weights.
+4. Retire the legacy heuristic only after the replacement assessment is tested; then implement A3–A8 incrementally.
