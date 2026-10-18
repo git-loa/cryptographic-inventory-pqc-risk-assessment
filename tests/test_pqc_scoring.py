@@ -346,3 +346,57 @@ def test_256_bit_ec_key_is_not_flagged_as_weak_key_size():
     result = score_pqc(tls_entry)
 
     assert not any("Weak key size: 256 bits" in reason for reason in result["reasons"])
+
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [
+        (" tlsv1.3 ", "acceptable"),
+        ("TLSV1.2", "acceptable_with_review"),
+        (" tlsv1.1 ", "unacceptable"),
+        ("   ", "unknown"),
+        (123, "unknown"),
+    ],
+)
+def test_tls_version_classifier_normalizes_and_validates_input(version, expected):
+    """TLS version matching tolerates representation differences safely."""
+    result = classify_tls_version(version)
+    assert result["classification"] == expected
+    assert result["reason"]
+
+
+@pytest.mark.parametrize(
+    ("suite", "version"),
+    [
+        (123, "TLSv1.3"),
+        ("TLS_AES_128_GCM_SHA256", None),
+        ("TLS_AES_128_GCM_SHA256", 13),
+    ],
+)
+def test_cipher_suite_classifier_handles_malformed_input(suite, version):
+    """Malformed evidence must not raise during classification."""
+    result = classify_cipher_suite(suite, version)
+    assert result["classification"] == "unknown"
+    assert result["reason"]
+
+
+@pytest.mark.parametrize("algorithm", [123, "   ", None])
+def test_public_key_classifier_handles_missing_or_malformed_input(algorithm):
+    result = classify_public_key_algorithm(algorithm)
+    assert result["classification"] == "unknown"
+    assert result["reason"]
+
+
+@pytest.mark.parametrize(
+    ("oid", "hash_name"),
+    [
+        (123, "sha256"),
+        ("1.2.840.113549.1.1.10", 256),
+        ("   ", None),
+    ],
+)
+def test_signature_classifier_handles_malformed_input(oid, hash_name):
+    result = classify_certificate_signature(oid, hash_name)
+    assert result["classification"] == "unknown"
+    assert result["reason"]
