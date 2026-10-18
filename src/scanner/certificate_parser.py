@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import (
     ec,
     ed25519,
     ed448,
+    mldsa,
     rsa,
 )
 
@@ -16,6 +17,7 @@ def _extract_public_key_info(public_key: Any) -> dict[str, Any]:
     """Extract the public-key algorithm and algorithm-specific parameters."""
     info: dict[str, Any] = {
         "public_key_algorithm": type(public_key).__name__,
+        "public_key_variant": None,
         "key_size": getattr(public_key, "key_size", None),
         "public_key_curve": None,
         "rsa_public_exponent": None,
@@ -38,6 +40,21 @@ def _extract_public_key_info(public_key: Any) -> dict[str, Any]:
 
     elif isinstance(public_key, ed448.Ed448PublicKey):
         info["public_key_algorithm"] = "Ed448"
+        info["key_size"] = None
+
+    elif isinstance(public_key, mldsa.MLDSA44PublicKey):
+        info["public_key_algorithm"] = "ML-DSA"
+        info["public_key_variant"] = "ML-DSA-44"
+        info["key_size"] = None
+
+    elif isinstance(public_key, mldsa.MLDSA65PublicKey):
+        info["public_key_algorithm"] = "ML-DSA"
+        info["public_key_variant"] = "ML-DSA-65"
+        info["key_size"] = None
+
+    elif isinstance(public_key, mldsa.MLDSA87PublicKey):
+        info["public_key_algorithm"] = "ML-DSA"
+        info["public_key_variant"] = "ML-DSA-87"
         info["key_size"] = None
 
     return info

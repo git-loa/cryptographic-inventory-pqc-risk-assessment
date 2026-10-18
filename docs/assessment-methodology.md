@@ -117,45 +117,42 @@ The classifier does not infer security properties for values outside its rules. 
 
 A1.3 classifies the public-key algorithm identified in certificate metadata. Its primary purpose is to flag classical public-key algorithms for post-quantum migration review. It does not, by itself, assess key size, elliptic-curve strength, certificate trust, hostname validity, or whether a deployed TLS connection successfully uses post-quantum authentication.
 
-The current implementation in `classify_public_key_algorithm()` applies these rules:
+The implementation uses `parse_certificate()` to extract public-key metadata from X.509 certificates and `classify_public_key_algorithm()` to classify the normalized algorithm name.
 
-| Observed algorithm name | Classification | Rationale |
-|---|---|---|
-| `ML-DSA` | `acceptable` | Recognized by the project as a standardized post-quantum digital-signature algorithm. |
-| `RSA` | `acceptable_with_review` | Classical public-key algorithm requiring post-quantum migration review. |
-| `EC` | `acceptable_with_review` | Classical elliptic-curve public-key algorithm requiring post-quantum migration review. |
-| `Ed25519` | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review. |
-| `Ed448` | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review. |
-| `DSA` | `unacceptable` | Explicitly excluded from the project's initial acceptable baseline. |
-| Missing or blank value | `unknown` | The public-key algorithm is unavailable. |
-| Other or unrecognized name | `unknown` | No classification rule exists for the observed value. |
+### Classification policy
+
+| Observed algorithm name    | Classification           | Rationale                                                                              |
+| -------------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| `ML-DSA`                   | `acceptable`             | Recognized by the project as a standardized post-quantum digital-signature algorithm.  |
+| `RSA`                      | `acceptable_with_review` | Classical public-key algorithm requiring post-quantum migration review.                |
+| `EC`                       | `acceptable_with_review` | Classical elliptic-curve public-key algorithm requiring post-quantum migration review. |
+| `Ed25519`                  | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review.      |
+| `Ed448`                    | `acceptable_with_review` | Classical public-key/signature algorithm requiring post-quantum migration review.      |
+| `DSA`                      | `unacceptable`           | Explicitly excluded from the project's initial acceptable baseline.                    |
+| Missing or blank value     | `unknown`                | The public-key algorithm is unavailable.                                               |
+| Other or unrecognized name | `unknown`                | No classification rule exists for the observed value.                                  |
+
+### ML-DSA recognition and metadata
+
+The certificate parser explicitly recognizes the three ML-DSA parameter sets:
+
+| Public-key algorithm | Normalized algorithm name | `public_key_variant` | Public-key algorithm OID  |
+| -------------------- | ------------------------- | -------------------- | ------------------------- |
+| ML-DSA-44            | `ML-DSA`                  | `ML-DSA-44`          | `2.16.840.1.101.3.4.3.17` |
+| ML-DSA-65            | `ML-DSA`                  | `ML-DSA-65`          | `2.16.840.1.101.3.4.3.18` |
+| ML-DSA-87            | `ML-DSA`                  | `ML-DSA-87`          | `2.16.840.1.101.3.4.3.19` |
+
+The parser normalizes these variants to the common algorithm name `ML-DSA` for classification. It preserves the specific parameter set separately in `public_key_variant` and extracts the public-key algorithm identifier into `public_key_algorithm_oid`.
+
+The parameter-set identifiers and OIDs follow RFC 9881, which specifies the use of ML-DSA public keys in X.509 certificates.
+
+Integration tests exercise certificate generation, DER encoding, certificate parsing, and A1.3 classification for all three variants. These tests verify that the extracted metadata reaches the classifier consistently.
 
 ### Interpretation and limitations
 
-- `acceptable_with_review` for RSA, EC, Ed25519, and Ed448 means that the algorithm is classical and should be considered in post-quantum migration planning. It does **not** mean the algorithm is currently broken or that the certificate is otherwise invalid.
-- The `acceptable` result for `ML-DSA` is an algorithm-level policy result. It does not prove that the certificate chain, TLS implementation, clients, or deployment support post-quantum certificates end to end.
-- The current classifier evaluates the algorithm name only. It does not use RSA key size, elliptic curve, certificate usage, or certificate-chain context to refine this classification. Those properties require separate checks.
-- The classifier expects the normalized algorithm name `ML-DSA`. Certificate parsing and algorithm-name normalization must be checked independently to ensure a real certificate's parsed metadata reaches this rule consistently.
-- `DSA` is excluded by the project's initial policy. This is a project classification decision and should not be interpreted as a complete assessment of every possible DSA deployment or parameter set.
-
-## 5. Standards and references
-
-The policy is informed by the following standards:
-
-1. **RFC 9325 — Recommendations for Secure Use of Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS):** https://www.rfc-editor.org/rfc/rfc9325.html
-   - Provides current guidance on TLS configuration, cipher suites, static RSA key transport, and CBC-based suites.
-2. **RFC 8446 — The Transport Layer Security (TLS) Protocol Version 1.3:** https://www.rfc-editor.org/rfc/rfc8446.html
-   - Defines TLS 1.3 and its cipher-suite model.
-3. **IANA TLS Parameters:** https://www.iana.org/assignments/tls-parameters
-   - Registry of TLS-related parameters, including cipher-suite identifiers.
-
-Standards language such as **MUST**, **MUST NOT**, **SHOULD**, and **SHOULD NOT** retains its meaning in the referenced RFCs. The project's four classification labels are its own reporting model and are not labels defined by those RFCs.
-
-## 6. Limitations and future work
-
-- A1.1, A1.2, and A1.3 are individual dimensions; none is a complete TLS security assessment.
-- A1.2 relies on explicit name allowlists and does not yet classify every standardized cipher suite.
-- The current A1.2 evidence does not include whether `encrypt_then_mac` was negotiated.
-- A TLS version, cipher-suite, or certificate public-key classification alone does not establish post-quantum readiness. Key-establishment exposure and certificate authentication are assessed separately.
-- The existing numeric PQC heuristic is separate from these A1 classification results and should not be treated as equivalent to this rule-based methodology.
-- The policy and allowlists should be reviewed when standards, implementation evidence, or project scope changes.
+* `acceptable_with_review` for RSA, EC, Ed25519, and Ed448 means that the algorithm is classical and should be considered in post-quantum migration planning. It does **not** mean the algorithm is currently broken or that the certificate is otherwise invalid.
+* The `acceptable` result for `ML-DSA` is an algorithm-level policy result. It does not prove that the certificate chain, TLS implementation, clients, or deployment support post-quantum certificates end to end.
+* The classifier evaluates the normalized algorithm name only. It does not use RSA key size, elliptic curve, certificate usage, or certificate-chain context to refine this classification. Those properties require separate checks.
+* The parser preserves the ML-DSA parameter set and public-key algorithm OID, but A1.3 currently assigns the same classification to all three variants.
+* The public-key algorithm OID identifies the certificate's subject public key. It is distinct from the certificate's own signature algorithm identifier, which is represented separately in the parsed metadata.
+* `DSA` is excluded by the project's initial policy. This is a project classification decision and should not be interpreted as a complete assessment of every possible DSA deployment or parameter set.
