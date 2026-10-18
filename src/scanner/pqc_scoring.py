@@ -56,7 +56,11 @@ def _cipher_suite_result(
 
     return {
         "dimension": "cipher_suite",
-        "observed": cipher_suite or "unknown",
+        "observed": (
+            cipher_suite.strip()
+            if isinstance(cipher_suite, str) and cipher_suite.strip()
+            else "unknown"
+        ),
         "classification": classification,
         "reason": reason,
     }
@@ -281,7 +285,11 @@ def classify_public_key_algorithm(
 
     return {
         "dimension": "public_key_algorithm",
-        "observed": public_key_algorithm or "unknown",
+        "observed": (
+            public_key_algorithm.strip()
+            if isinstance(public_key_algorithm, str) and public_key_algorithm.strip()
+            else "unknown"
+        ),
         "classification": classification,
         "reason": reason,
     }
