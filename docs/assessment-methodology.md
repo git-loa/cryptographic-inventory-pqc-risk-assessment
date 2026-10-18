@@ -21,7 +21,7 @@ These are project-policy labels, not universal security ratings. A result in one
 
 | Area | Scope | Current status |
 |---|---|---|
-| **A1 — TLS configuration quality** | Negotiated TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm. | Implemented rule-based classifiers; see Section 4. |
+| **A1 — TLS configuration quality** | Negotiated TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm. | Implemented and integrated as four structured findings in combined JSON and Markdown reports; see Section 4. |
 | **A2 — Key-establishment exposure** | Observed TLS key-establishment group and the quality of its evidence. | Partial: collection and classical-group recognition exist; unrecognized groups remain unknown. |
 | **A3 — Authentication exposure** | Assessment of authentication mechanisms in the context of quantum threats. | Not yet integrated as a separate assessment. |
 | **A4 — Evidence quality and coverage** | Completeness and reliability of evidence supporting findings. | Partially handled by A2 validation; no framework-wide assessment yet. |
@@ -30,11 +30,11 @@ These are project-policy labels, not universal security ratings. A result in one
 | **A7 — Mitigations and residual risk** | Existing mitigations and risk remaining after their consideration. | Not implemented. |
 | **A8 — Recommendations and governance** | Actionable remediation and migration guidance. | Not implemented as a framework-wide assessment. |
 
-The status describes the current code, not the intended end state. A1 and A2 findings must remain distinct until an explicit, tested aggregation policy is implemented.
+The status describes the current code, not the intended end state. A1 and A2 findings remain separate; the legacy numerical heuristic is still emitted for compatibility and is not a framework-wide risk assessment.
 
 ## 4. A1 — TLS configuration quality
 
-A1 evaluates four separate evidence dimensions. It does not estimate an overall PQC risk score.
+A1 evaluates four separate evidence dimensions. Its findings are included in each combined assessment report under `a1`. It does not estimate an overall PQC risk score.
 
 ### A1.1 — Negotiated TLS version
 
