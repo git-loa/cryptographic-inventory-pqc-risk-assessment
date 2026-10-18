@@ -1,137 +1,79 @@
-
 # TLS Inventory Scanner & PQC Risk Assessment
 
-A lightweight Python project for analyzing the cryptographic posture of TLS‑enabled domains
-and generating a combined TLS + PQC report. The pipeline scans domains, scores post‑quantum
-readiness, merges results, and produces a Markdown summary using a Jinja2 template.
+A Python project for collecting TLS configuration and certificate metadata, then assessing selected cryptographic properties relevant to post-quantum migration. It produces structured JSON data and a Markdown report.
 
-Built for learning, experimentation, and practical problem‑solving in applied cryptography
-and early post‑quantum security.
+The project is under active development. Its current assessment rules are deliberately scoped and should not be treated as a complete security audit or a production-ready PQC readiness determination.
 
----
+## Current status
 
-## Project Structure
+- **TLS inventory:** Scans configured domains and collects negotiated TLS details.
+- **Certificate metadata:** Extracts X.509 identity, validity, public-key, signature, SAN, and usage fields.
+- **A1 — TLS configuration quality:** Rule-based classifiers exist for TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm.
+- **A2 — Key-establishment exposure:** Collects negotiated-group evidence through a separate OpenSSL handshake and recognizes a limited set of classical groups.
+- **Integration:** The existing CLI pipeline still uses the legacy numerical PQC heuristic. The A1 classifiers are not yet integrated into a replacement assessment pipeline; A3–A8 are not implemented as complete assessment stages.
 
+See [Assessment Methodology](docs/assessment-methodology.md) for the current rules, limitations, and implementation status.
+
+## Project layout
+
+```text
+config/                 Domain input
+docs/                   Assessment methodology
+src/
+  pipeline.py           CLI pipeline orchestration
+  run_scan.py           TLS scanning entry point
+  scanner/
+    tls_scanner.py      TLS inventory collection
+    certificate_parser.py
+    key_establishment.py
+    pqc_assessment.py   A2 key-establishment assessment
+    pqc_scoring.py      A1 classifiers and legacy scoring
+    assessment.py       Assessment orchestration
+    json_io.py          JSON input/output
+    combined_report.py  Combined JSON report
+    markdown_report.py  Markdown report generation
+tests/                  Unit and fuzz tests
+templates/              Report template
 ```
-.
-├── config/                     # Domain lists and configuration files
-├── data/
-│   ├── raw/                    # Raw scan outputs
-│   └── processed/              # Normalized TLS + PQC JSON data
-├── logs/                       # Runtime logs
-├── reports/                    # Combined JSON + Markdown reports
-├── src/
-│   ├── run_scan.py             # TLS scanning entrypoint
-│   ├── scanner/
-│   │   ├── score_pqc_from_json.py   # PQC scoring module
-│   │   ├── combined_report.py        # Merge TLS + PQC results
-│   │   ├── markdown_report.py        # Markdown generator
-│   │   ├── json_io.py                # Load/save TLS + PQC JSON
-│   │   ├── domain_loader.py          # Domain list loader
-│   │   ├── print_tls_results.py      # CLI printing utilities
-│   │   ├── tls_scanner.py            # TLS scanning engine
-│   │   ├── models.py                 # TypedDict models
-│   │   ├── utils/                    # Helpers, logger, parsing utilities
-│   │   └── testing/                  # Internal testing helpers
-├── templates/                  # Jinja2 Markdown template
-├── tests/                      # Unit tests + fuzz tests
-└── pipeline.py                 # Unified pipeline orchestrator
-```
 
----
+## Run
 
-## Development Notes
+Install the project's dependencies in your Python environment, then view the available options:
 
-This project is built for:
-
-- clear, readable code
-- small, testable components
-- deterministic pipeline behavior
-- early exploration of PQC‑related risk modeling
-- practical cryptographic engineering learning
-
-It is not intended as a production‑grade scanner.
-
----
-
-## Usage
-
-View all available commands:
-
-```
+```powershell
 python -m src.pipeline --help
 ```
 
-Which displays:
+Run the full existing pipeline against the configured domain list:
 
-```
-usage: pipeline.py [-h] [--runscanner] [--scorepqc] [--combined] [--markdown]
-                   [--author AUTHOR] [--organization ORGANIZATION] [--all]
-                   [--print-tls-results] [-s] [-v] [--domains DOMAINS] [--debug]
-
-TLS + PQC Pipeline Runner
-
-options:
-  -h, --help            show this help message and exit
-  --runscanner          Run TLS scanner
-  --scorepqc            Run PQC scoring
-  --combined            Generate combined TLS+PQC JSON
-  --markdown            Generate Markdown report
-  --author AUTHOR       Name of the report author
-  --organization ORGANIZATION
-                        Organization or affiliation
-  --all                 Run all stages in order
-  --print-tls-results   Print saved TLS results
-  -s, --summary         Print summary table
-  -v, --verbose         Print detailed results
-  --domains DOMAINS     Path to domains file
-  --debug               Enable debug logging
-```
-
-### Examples
-
-```
+```powershell
 python -m src.pipeline --all --domains config/domains.txt
-python -m src.pipeline --markdown --author "Leonard Afeke"
 ```
 
----
+The current pipeline writes:
 
-## Output Files
-
-The pipeline writes fixed, predictable files:
-
-```
+```text
 data/processed/tls_results.json
 data/processed/pqc_scores.json
 reports/combined_report.json
 reports/tls_pqc_report.md
 ```
 
----
+The output named `pqc_scores.json` currently contains results from the legacy heuristic. Do not interpret its numerical score as a standards-based or fully validated PQC risk measure.
 
-## Purpose
+## Development and testing
 
-This project explores:
+Run the test suite from the repository root:
 
-- TLS cryptographic inventory
-- simple PQC‑related scoring ideas
-- reproducible pipeline design
-- clear reporting using Jinja2
-- early cryptographic engineering and automation practice
+```powershell
+pytest
+```
 
-It is not intended as a production‑grade scanner.
+The tests validate implemented behavior and data flow; they do not constitute a complete security audit.
 
----
+## Planned work
 
-## Future Improvements
-
-- Per‑domain Markdown reports
-- Optional timestamped output for historical tracking
-- Certificate Transparency (CT) log integration
-- OCSP/CRL certificate health checks
-- Expanded PQC scoring heuristics
-- Parallel domain scanning
-- HTML report generation
-- Rust‑based PQC modules for performance comparison
-- Configurable output paths and templates
+1. Integrate the A1 rule-based findings and A2 evidence assessment into the canonical pipeline.
+2. Define and test explicit assessment aggregation without arbitrary score weights.
+3. Implement and document A3–A8 incrementally.
+4. Replace the legacy heuristic and update report schemas once the replacement is tested.
