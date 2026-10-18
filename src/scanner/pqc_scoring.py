@@ -47,6 +47,8 @@ def classify_tls_version(
         "classification": classification,
         "reason": reason,
     }
+
+
 def _cipher_suite_result(
     cipher_suite: str | None,
     classification: str,
