@@ -16,7 +16,10 @@ from src.scanner.certificate_parser import (
     parse_certificate,
     _extract_public_key_info,
 )
-from src.scanner.pqc_scoring import classify_public_key_algorithm
+from src.scanner.pqc_scoring import (
+    classify_public_key_algorithm,
+    classify_certificate_signature,
+)
 
 
 def make_test_certificate(private_key):
@@ -24,7 +27,10 @@ def make_test_certificate(private_key):
 
     subject = issuer = x509.Name(
         [
-            x509.NameAttribute(NameOID.COMMON_NAME, "test.example"),
+            x509.NameAttribute(
+                NameOID.COMMON_NAME,
+                "test.example",
+            ),
         ]
     )
 
@@ -100,6 +106,28 @@ def test_parse_certificate_identifies_ec_key():
     assert result["public_key_algorithm"] == "EC"
     assert result["key_size"] == 256
     assert result["public_key_algorithm_oid"] == "1.2.840.10045.2.1"
+
+
+def test_parse_certificate_signature_assessment():
+    """Assess a certificate signature using metadata from the parser."""
+
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+
+    der_certificate = make_test_certificate(private_key)
+    result = parse_certificate(der_certificate)
+
+    assessment = classify_certificate_signature(
+        result["certificate_signature_algorithm_oid"],
+        result["certificate_signature_hash_algorithm"],
+    )
+
+    assert assessment["dimension"] == "certificate_signature"
+    assert assessment["classification"] == "acceptable_with_review"
+    assert assessment["observed"] == "1.2.840.113549.1.1.11"
+    assert assessment["reason"]
 
 
 def test_extract_mldsa44_public_info():

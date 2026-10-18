@@ -286,18 +286,20 @@ def classify_certificate_signature(
 ) -> dict[str, str]:
     """Classify a certificate signature under the initial A1.4 policy."""
 
-    if not signature_oid:
+    normalized_oid = signature_oid.strip() if signature_oid else ""
+
+    if not normalized_oid:
         classification = "unknown"
         reason = "The certificate signature algorithm OID is unavailable."
 
-    elif signature_oid in {
+    elif normalized_oid in {
         "1.2.840.113549.1.1.5",  # sha1WithRSAEncryption
         "1.2.840.10045.4.1",  # ecdsa-with-SHA1
     }:
         classification = "unacceptable"
         reason = "The certificate uses a deprecated SHA-1 signature algorithm."
 
-    elif signature_oid in {
+    elif normalized_oid in {
         "1.2.840.113549.1.1.11",  # sha256WithRSAEncryption
         "1.2.840.113549.1.1.12",  # sha384WithRSAEncryption
         "1.2.840.113549.1.1.13",  # sha512WithRSAEncryption
@@ -313,8 +315,12 @@ def classify_certificate_signature(
             "algorithm requiring post-quantum migration review."
         )
 
-    elif signature_oid == "1.2.840.113549.1.1.10":  # RSASSA-PSS
-        normalized_hash = hash_algorithm.lower() if hash_algorithm else None
+    elif normalized_oid == "1.2.840.113549.1.1.10":  # RSASSA-PSS
+        normalized_hash = (
+            hash_algorithm.strip().lower()
+            if hash_algorithm and hash_algorithm.strip()
+            else None
+        )
 
         if normalized_hash in {"sha256", "sha384", "sha512"}:
             classification = "acceptable_with_review"
@@ -329,7 +335,7 @@ def classify_certificate_signature(
                 "for classification."
             )
 
-    elif signature_oid in {
+    elif normalized_oid in {
         "2.16.840.1.101.3.4.3.17",  # ML-DSA-44
         "2.16.840.1.101.3.4.3.18",  # ML-DSA-65
         "2.16.840.1.101.3.4.3.19",  # ML-DSA-87
@@ -343,12 +349,12 @@ def classify_certificate_signature(
     else:
         classification = "unknown"
         reason = (
-            f"No classification rule exists for signature OID " f"{signature_oid!r}."
+            f"No classification rule exists for signature OID " f"{normalized_oid!r}."
         )
 
     return {
         "dimension": "certificate_signature",
-        "observed": signature_oid or "unknown",
+        "observed": normalized_oid or "unknown",
         "classification": classification,
         "reason": reason,
     }

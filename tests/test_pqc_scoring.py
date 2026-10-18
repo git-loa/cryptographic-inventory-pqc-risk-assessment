@@ -190,42 +190,35 @@ def test_classify_public_key_algorithm(algorithm, expected):
 @pytest.mark.parametrize(
     ("oid", "hash_name", "expected"),
     [
-        (
-            "1.2.840.113549.1.1.11",
-            "sha256",
-            "acceptable_with_review",
-        ),
-        (
-            "1.2.840.10045.4.3.2",
-            "sha256",
-            "acceptable_with_review",
-        ),
-        (
-            "1.3.101.112",
-            None,
-            "acceptable_with_review",
-        ),
-        (
-            "1.2.840.113549.1.1.5",
-            "sha1",
-            "unacceptable",
-        ),
-        (
-            "1.2.840.113549.1.1.10",
-            "sha384",
-            "acceptable_with_review",
-        ),
-        (
-            "1.2.840.113549.1.1.10",
-            None,
-            "unknown",
-        ),
-        (
-            "2.16.840.1.101.3.4.3.18",
-            None,
-            "acceptable",
-        ),
+        # Classical RSA signatures
+        ("1.2.840.113549.1.1.11", "sha256", "acceptable_with_review"),
+        ("1.2.840.113549.1.1.12", "sha384", "acceptable_with_review"),
+        ("1.2.840.113549.1.1.13", "sha512", "acceptable_with_review"),
+        # Classical ECDSA signatures
+        ("1.2.840.10045.4.3.2", "sha256", "acceptable_with_review"),
+        ("1.2.840.10045.4.3.3", "sha384", "acceptable_with_review"),
+        ("1.2.840.10045.4.3.4", "sha512", "acceptable_with_review"),
+        # EdDSA signatures
+        ("1.3.101.112", None, "acceptable_with_review"),  # Ed25519
+        ("1.3.101.113", None, "acceptable_with_review"),  # Ed448
+        # SHA-1 signatures excluded by project policy
+        ("1.2.840.113549.1.1.5", "sha1", "unacceptable"),
+        ("1.2.840.10045.4.1", "sha1", "unacceptable"),
+        # RSA-PSS signatures
+        ("1.2.840.113549.1.1.10", "sha256", "acceptable_with_review"),
+        ("1.2.840.113549.1.1.10", "sha384", "acceptable_with_review"),
+        ("1.2.840.113549.1.1.10", "sha512", "acceptable_with_review"),
+        ("1.2.840.113549.1.1.10", None, "unknown"),
+        ("1.2.840.113549.1.1.10", "sha224", "unknown"),
+        ("1.2.840.113549.1.1.10", " SHA256 ", "acceptable_with_review"),
+        # Standardized ML-DSA signature algorithms
+        ("2.16.840.1.101.3.4.3.17", None, "acceptable"),  # ML-DSA-44
+        ("2.16.840.1.101.3.4.3.18", None, "acceptable"),  # ML-DSA-65
+        ("2.16.840.1.101.3.4.3.19", None, "acceptable"),  # ML-DSA-87
+        # Missing or unrecognized evidence
         (None, None, "unknown"),
+        ("", None, "unknown"),
+        ("   ", None, "unknown"),
         ("1.2.3.4.5", None, "unknown"),
     ],
 )
