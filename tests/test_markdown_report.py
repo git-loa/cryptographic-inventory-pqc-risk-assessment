@@ -102,7 +102,6 @@ def test_save_markdown_writes_file():
         assert path.read_text(encoding="utf-8") == content
 
 
-
 def test_render_markdown_includes_a1_findings_for_failed_scan():
     """A1 evidence gaps remain visible even when the TLS scan fails."""
     _, reports = assess_tls_results(
@@ -117,5 +116,5 @@ def test_render_markdown_includes_a1_findings_for_failed_scan():
 
     assert "A1 TLS Configuration Assessment" in markdown
     assert "TLS version" in markdown
-    assert "cipher_suite" in markdown
+    assert "Cipher suite" in markdown
     assert "unknown" in markdown
