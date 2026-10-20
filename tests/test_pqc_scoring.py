@@ -103,6 +103,11 @@ def test_classify_tls_version(version, expected):
             "TLSv1.2",
             "unacceptable",
         ),
+        (
+            "RSA_WITH_RC4_128_SHA",
+            None,
+            "unacceptable",
+        ),
         # Static RSA key-transport suites
         (
             "AES128-GCM-SHA256",
@@ -348,22 +353,38 @@ def test_256_bit_ec_key_is_not_flagged_as_weak_key_size():
     assert not any("Weak key size: 256 bits" in reason for reason in result["reasons"])
 
 
-
 @pytest.mark.parametrize(
-    ("version", "expected"),
+    ("version", "expected_classification", "expected_reason"),
     [
-        (" tlsv1.3 ", "acceptable"),
-        ("TLSV1.2", "acceptable_with_review"),
-        (" tlsv1.1 ", "unacceptable"),
-        ("   ", "unknown"),
-        (123, "unknown"),
+        (" tlsv1.3 ", "acceptable", "TLS 1.3 is the preferred modern TLS version."),
+        (
+            "TLSV1.2",
+            "acceptable_with_review",
+            (
+                "TLS 1.2 is supported, but other TLS configuration "
+                "settings require review."
+            ),
+        ),
+        (
+            " tlsv1.1 ",
+            "unacceptable",
+            "The negotiated protocol version is deprecated or insecure.",
+        ),
+        (None, "unknown", "TLS-version evidence is missing."),
+        ("", "unknown", "TLS-version evidence is empty."),
+        ("   ", "unknown", "TLS-version evidence is empty."),
+        (123, "unknown", "TLS-version evidence has an invalid type."),
+        ("TLSv1.4", "unknown", "The TLS version is unrecognized."),
     ],
 )
-def test_tls_version_classifier_normalizes_and_validates_input(version, expected):
-    """TLS version matching tolerates representation differences safely."""
+def test_tls_version_classifier_normalizes_and_validates_input(
+    version, expected_classification, expected_reason
+):
+    """TLS version classification provides precise explanations."""
     result = classify_tls_version(version)
-    assert result["classification"] == expected
-    assert result["reason"]
+
+    assert result["classification"] == expected_classification
+    assert result["reason"] == expected_reason
 
 
 @pytest.mark.parametrize(

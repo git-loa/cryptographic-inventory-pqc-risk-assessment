@@ -16,13 +16,21 @@ def classify_tls_version(
     Comparison is case-insensitive and ignores surrounding whitespace.
     Missing, empty, non-string, or unrecognized evidence remains unknown.
     """
-    normalized = (
-        tls_version.strip().upper()
-        if isinstance(tls_version, str)
-        else ""
-    )
+    normalized = tls_version.strip().upper() if isinstance(tls_version, str) else ""
 
-    if normalized == "TLSV1.3":
+    if tls_version is None:
+        classification = "unknown"
+        reason = "TLS-version evidence is missing."
+
+    elif not isinstance(tls_version, str):
+        classification = "unknown"
+        reason = "TLS-version evidence has an invalid type."
+
+    elif not tls_version.strip():
+        classification = "unknown"
+        reason = "TLS-version evidence is empty."
+
+    elif normalized == "TLSV1.3":
         classification = "acceptable"
         reason = "TLS 1.3 is the preferred modern TLS version."
 
@@ -39,11 +47,15 @@ def classify_tls_version(
 
     else:
         classification = "unknown"
-        reason = "The TLS version is missing or unrecognized."
+        reason = "The TLS version is unrecognized."
 
     return {
         "dimension": "tls_version",
-        "observed": tls_version.strip() if isinstance(tls_version, str) and tls_version.strip() else "unknown",
+        "observed": (
+            tls_version.strip()
+            if isinstance(tls_version, str) and tls_version.strip()
+            else "unknown"
+        ),
         "classification": classification,
         "reason": reason,
     }
@@ -212,23 +224,24 @@ def classify_cipher_suite(
             "Cipher-suite evidence is missing.",
         )
 
-    if not isinstance(tls_version, str) or not tls_version.strip():
-        return _cipher_suite_result(
-            cipher_suite,
-            "unknown",
-            "TLS-version evidence is missing.",
-        )
-
     suite = cipher_suite.strip().upper()
-    version = tls_version.strip().upper()
 
     if _is_unacceptable_cipher_suite(suite):
         return _cipher_suite_result(
             cipher_suite,
             "unacceptable",
-            "The cipher suite uses NULL encryption, RC4, export-grade "
-            "cryptography, or 3DES.",
+            "The observed cipher-suite name matches an explicitly "
+            "excluded pattern: NULL, RC4, EXPORT, or 3DES.",
         )
+
+    if not isinstance(tls_version, str) or not tls_version.strip():
+        return _cipher_suite_result(
+            cipher_suite,
+            "unknown",
+            "TLS-version evidence is missing or invalid.",
+        )
+
+    version = tls_version.strip().upper()
 
     if version == "TLSV1.3":
         classification, reason = _classify_tls13_cipher_suite(suite)

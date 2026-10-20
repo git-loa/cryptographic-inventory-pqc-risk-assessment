@@ -110,7 +110,10 @@ class A1Finding(TypedDict):
     dimension: str
     observed: str
     classification: Literal[
-        "acceptable", "acceptable_with_review", "unacceptable", "unknown"
+        "acceptable",
+        "acceptable_with_review",
+        "unacceptable",
+        "unknown",
     ]
     reason: str
 
