@@ -1,78 +1,89 @@
 """
-Utility functions for building combined security reports.
+Utilities for summarizing TLS inventory and A1 assessment findings.
 """
 
-from datetime import datetime, timedelta
+from collections import Counter
+from typing import Any
 
 from src.scanner.models import CombinedTLSReport
 
+A1_CLASSIFICATIONS = (
+    "acceptable",
+    "acceptable_with_review",
+    "unacceptable",
+    "unknown",
+)
 
-def _safe_is_expiring(date_str: str, soon: datetime) -> bool:
-
-    try:
-        return datetime.fromisoformat(date_str) < soon
-    except (TypeError, ValueError):
-        return False
+A1_DIMENSION_LABELS = {
+    "tls_version": "TLS version",
+    "cipher_suite": "Cipher suite",
+    "public_key_algorithm": "Certificate public-key algorithm",
+    "certificate_signature": "Certificate signature algorithm",
+}
 
 
 def compute_top_findings(
     reports: list[CombinedTLSReport],
-) -> dict[str, list[str] | int]:
+) -> dict[str, Any]:
     """
-    Compute top findings from combined TLS + PQC reports.
-    Returns a dictionary summarizing the findings.
+    Summarize scan outcomes and A1 findings without producing a risk score.
 
-    The findings include:
-    - Total domains scanned
-    - Domains with TLS errors
-    - Domains with PQC errors
-    - Domains with high PQC risk
-    - Domains using deprecated TLS versions
-    - Domains with weak RSA/ECC keys
-    - Domains with certificates expiring within 30 days
+    Counts are calculated per assessment finding, not per domain.
+    A single domain can therefore contribute multiple findings.
 
-    Parameters:
-        reports: List of CombinedTLSReport dictionaries.
+    Args:
+        reports: Combined TLS evidence and A1 assessment reports.
+
     Returns:
-        Dictionary summarizing the top findings.
+        Summary statistics and lists of findings grouped by classification.
     """
-    findings: dict[str, list[str] | int] = {}
+    classification_counts: Counter[str] = Counter(
+        {classification: 0 for classification in A1_CLASSIFICATIONS}
+    )
 
-    findings["total_domains"] = len(reports)
+    findings_by_classification: dict[str, list[dict[str, str]]] = {
+        classification: [] for classification in A1_CLASSIFICATIONS
+    }
 
-    # TLS errors
-    findings["tls_errors"] = [r["domain"] for r in reports if r["tls"].get("error")]
+    tls_errors: list[dict[str, str]] = []
 
-    # PQC errors
-    findings["pqc_errors"] = [r["domain"] for r in reports if r["pqc"].get("error")]
+    for report in reports:
+        domain = report["domain"]
+        tls_result = report["tls"]
 
-    findings["tls_successes"] = findings["total_domains"] - len(findings["tls_errors"])
-    findings["pqc_successes"] = findings["total_domains"] - len(findings["pqc_errors"])
+        if tls_result.get("error"):
+            tls_errors.append(
+                {
+                    "domain": domain,
+                    "error": str(tls_result["error"]),
+                }
+            )
 
-    # High PQC risk
-    findings["high_risk"] = [
-        r["domain"] for r in reports if r["pqc"]["pqc_risk"] == "High"
-    ]
+        for dimension, finding in report["a1"].items():
+            classification = finding["classification"]
 
-    # Deprecated TLS versions
-    deprecated = {"TLSv1", "TLSv1.1", "SSLv3", "SSLv2"}
-    findings["deprecated_tls"] = [
-        r["domain"] for r in reports if r["tls"].get("tls_version") in deprecated
-    ]
+            classification_counts[classification] += 1
 
-    # Weak RSA/ECC keys
-    findings["weak_keys"] = [
-        r["domain"]
-        for r in reports
-        if r["tls"].get("key_size") and r["tls"].get("key_size") < 2048
-    ]
+            finding_summary = {
+                "domain": domain,
+                "dimension": A1_DIMENSION_LABELS.get(dimension, dimension),
+                "observed": finding["observed"],
+                "classification": classification,
+                "reason": finding["reason"],
+            }
 
-    # Certificates expiring soon
-    soon = datetime.now() + timedelta(days=30)
-    findings["expiring_certs"] = [
-        r["domain"]
-        for r in reports
-        if r["tls"].get("not_after") and _safe_is_expiring(r["tls"]["not_after"], soon)
-    ]
+            findings_by_classification[classification].append(finding_summary)
 
-    return findings
+    total_findings = sum(classification_counts.values())
+    tls_error_count = len(tls_errors)
+
+    return {
+        "total_domains": len(reports),
+        "tls_successes": len(reports) - tls_error_count,
+        "tls_errors": tls_errors,
+        "total_findings": total_findings,
+        "classification_counts": dict(classification_counts),
+        "unacceptable_findings": findings_by_classification["unacceptable"],
+        "review_findings": findings_by_classification["acceptable_with_review"],
+        "unknown_findings": findings_by_classification["unknown"],
+    }

@@ -1,14 +1,8 @@
 """
-Data Models for TLS Scanning and PQC Scoring
+Data models for TLS scanning and cryptographic assessment.
 
-This module defines the structured data types used throughout the TLS scanner
-pipeline. These TypedDict classes describe the shape of dictionaries returned
-by the TLS scanning engine and the PQC scoring engine.
-
-TypedDict is used because:
-- It preserves normal dict behavior at runtime (no breaking changes).
-- It provides strong static typing for mypy and IDEs.
-- It documents the expected fields clearly.
+TypedDict defines the expected structures used by the scanner,
+A1 assessment engine, and reporting pipeline.
 """
 
 from typing import Literal, TypedDict
@@ -79,31 +73,6 @@ class TLSScanResult(_TLSSscanResultRequired, total=False):
     scan_status: Literal["success", "failed"]
 
 
-class PQCScore(TypedDict):
-    """
-    Post-Quantum Cryptography (PQC) risk assessment for a scanned domain.
-
-    This structure is always complete (`total=True` by default) because the
-    scoring engine guarantees all fields are present.
-
-    Keys
-    ----
-    domain : str
-        The domain being evaluated.
-    tls_score : int
-        Composite TLS/PQC score between 0 and 100.
-    pqc_risk : str
-        Risk classification: "low", "medium", or "high".
-    reasons : list[str]
-        Human-readable explanations for the assigned score.
-    """
-
-    domain: str
-    tls_score: int
-    pqc_risk: str
-    reasons: list[str]
-
-
 class A1Finding(TypedDict):
     """One evidence-linked TLS configuration classification."""
 
@@ -160,5 +129,3 @@ class CombinedTLSReport(TypedDict):
     domain: str
     tls: TLSScanResult
     a1: A1Assessment
-    pqc: PQCScore
-    pqc_exposure: PQCExposureAssessment

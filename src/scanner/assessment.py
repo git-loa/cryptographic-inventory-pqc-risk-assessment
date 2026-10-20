@@ -1,61 +1,49 @@
 """
-TLS and PQC Assessment Orchestration.
+Assessment orchestration for the TLS inventory pipeline.
 
-Calculates PQC scores from TLS scan results and constructs
-combined records without requiring a separate matching step.
+Coordinates the A1 TLS configuration assessment and combines
+its findings with the original TLS scan evidence.
 """
 
 from src.scanner.models import (
     CombinedTLSReport,
-    PQCScore,
     TLSScanResult,
 )
-
 from src.scanner.a1_assessment import assess_a1_configuration
-from src.scanner.pqc_assessment import assess_pqc_exposure
-from src.scanner.pqc_scoring import score_pqc
 
 
 def assess_tls_results(
     tls_results: list[TLSScanResult],
-) -> tuple[list[PQCScore], list[CombinedTLSReport]]:
+) -> list[CombinedTLSReport]:
     """
-    Calculate PQC scores and construct combined reports.
-    Each score is calculated directly from its corresponding TLS result.
-    The original TLS result order is preserved.
+    Assess TLS scan results using A1.
 
-    Parameters:
-        tls_results: TLS scan results to assess.
+    Each input scan is assessed independently. The original scan
+    evidence and the resulting A1 findings are preserved together.
+
+    No numerical risk score is calculated.
+
+    Args:
+        tls_results: TLS scan results collected by the scanner.
 
     Returns:
-        A tuple containing:
-        - The list of PQC scores.
-        - The list of combined TLS and PQC reports.
+        Combined reports containing TLS evidence and A1 findings.
+        The order of the input scan results is preserved.
+
     """
 
-    pqc_scores: list[PQCScore] = []
     combined_reports: list[CombinedTLSReport] = []
 
     for tls_result in tls_results:
         # Assess A1 dimensions independently; do not collapse them into a score.
         a1_assessment = assess_a1_configuration(tls_result)
 
-        # Preserve the legacy score temporarily for backward compatibility.
-        pqc_score = score_pqc(tls_result)
-        pqc_scores.append(pqc_score)
-
-        # Assess key-establishment exposure independently.
-        pqc_exposure = assess_pqc_exposure(tls_result)
-
-        # Combine the original scan evidence and both assessments.
         combined_reports.append(
             {
                 "domain": tls_result["domain"],
                 "tls": tls_result,
                 "a1": a1_assessment,
-                "pqc": pqc_score,
-                "pqc_exposure": pqc_exposure,
             }
         )
 
-    return pqc_scores, combined_reports
+    return combined_reports

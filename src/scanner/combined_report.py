@@ -1,11 +1,8 @@
 """
-Combined TLS + PQC Report Generator
+Combined TLS and A1 assessment report generator.
 
-This module loads TLS scan results and PQC scoring results from JSON,
-merges them into CombinedTLSReport objects, and writes a final combined
-report to reports/combined_report.json.
-
-This is the final stage of the TLS → PQC → Reporting pipeline.
+Loads saved TLS scan results, runs the A1 assessment, and writes
+the combined evidence and findings to a JSON report.
 """
 
 from __future__ import annotations
@@ -14,7 +11,7 @@ import json
 from pathlib import Path
 
 from src.scanner.assessment import assess_tls_results
-from src.scanner.json_io import load_tls_results, save_pqc_scores
+from src.scanner.json_io import load_tls_results
 from src.scanner.models import CombinedTLSReport
 
 
@@ -22,27 +19,22 @@ def save_combined_reports(
     reports: list[CombinedTLSReport],
     path: str | Path = "reports/combined_report.json",
 ) -> None:
-    """
-    Save combined TLS + PQC reports to JSON.
-    """
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(reports, f, indent=2)
+    """Save combined TLS and A1 assessment reports to JSON."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as file:
+        json.dump(reports, file, indent=2)
+
+    print(f"Combined assessment report saved to {output_path}")
 
 
 def main() -> None:
-    """
-    Assess saved TLS results and generate the combined report.
-    """
+    """Generate an A1 assessment report from saved TLS scan results."""
     tls_results = load_tls_results()
-    pqc_scores, combined_reports = assess_tls_results(tls_results=tls_results)
+    combined_reports = assess_tls_results(tls_results)
 
-    save_pqc_scores(pqc_scores)
     save_combined_reports(combined_reports)
-
-    print("Combined TLS + PQC report generated.")
-    print("Saved PQC scores to data/processed/pqc_scores.json")
-    print("Saved combined report to reports/combined_report.json")
 
 
 if __name__ == "__main__":

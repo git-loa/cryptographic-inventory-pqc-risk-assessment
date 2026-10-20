@@ -1,267 +1,246 @@
 """
-JSON Persistence Layer for TLS and PQC Results.
+JSON persistence for TLS scan results and combined A1 assessment reports.
 
-Provides helper functions for saving and loading TLS scan results and PQC
-scoring results. Includes validation to ensure JSON structure integrity.
+Provides JSON serialization, loading, and structural validation for
+data exchanged between the scanning, assessment, and reporting stages.
 """
 
 import json
 from pathlib import Path
 from typing import Any
 
+from src.scanner.models import CombinedTLSReport, TLSScanResult
 from src.scanner.utils.logger import get_logger
-from src.scanner.models import TLSScanResult, PQCScore, CombinedTLSReport
 
 logger = get_logger(__name__)
 
+A1_DIMENSIONS = {
+    "tls_version",
+    "cipher_suite",
+    "public_key_algorithm",
+    "certificate_signature",
+}
 
-# -----------------------------
-# TLS JSON Save / Load
-# -----------------------------
+A1_CLASSIFICATIONS = {
+    "acceptable",
+    "acceptable_with_review",
+    "unacceptable",
+    "unknown",
+}
+
+
+# ---------------------------------------------------------
+# TLS scan results
+# ---------------------------------------------------------
 
 
 def save_tls_results(
     results: list[TLSScanResult],
     path: str | Path = "data/processed/tls_results.json",
 ) -> None:
-    """Save TLS scan results to JSON.
+    """Save TLS scan results to a JSON file."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    Parameters
-    ----------
-    results : list[TLSScanResult]
-        The TLS scan results to save.
-    path : str | Path, optional
-        The path to the JSON file where results will be saved,
-        by default "data/processed/tls_results.json".
-    """
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Saving TLS results to %s", output_path)
 
-    logger.info("Saving TLS results to %s", path)
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
+    with output_path.open("w", encoding="utf-8") as file:
+        json.dump(results, file, indent=2)
 
     logger.info("TLS results saved successfully.")
 
 
 def _validate_tls_entry(entry: dict[str, Any]) -> None:
-    """Validate a single TLSScanResult entry.
-
-    Raises ValueError if required fields are missing.
-
-    Parameters
-    ----------
-    entry : dict[str, Any]
-        The TLS scan result entry to validate.
-    """
-    required_fields = ["domain", "port"]
-
-    for field in required_fields:
+    """Validate the required structure of one TLS scan result."""
+    for field in ("domain", "port"):
         if field not in entry:
             raise ValueError(f"Invalid TLS entry: missing required field '{field}'")
 
-    # If no error, validate TLS fields
-    if "error" not in entry:
-        tls_fields = [
-            "tls_version",
-            "cipher_suite",
-            "cipher_strength",
-            "key_size",
-            "public_key_algorithm",
-            "not_before",
-            "not_after",
-            "certificate_issuer",
-            "certificate_subject",
-        ]
-        for field in tls_fields:
-            if field not in entry:
-                raise ValueError(
-                    f"Invalid TLS entry for domain '{entry.get('domain')}': "
-                    f"missing TLS field '{field}'"
-                )
+    if not isinstance(entry["domain"], str) or not entry["domain"].strip():
+        raise ValueError("Invalid TLS entry: 'domain' must be a non-empty string")
 
-        # Structural validation
-        if not isinstance(entry["certificate_subject"], dict):
-            raise ValueError("Invalid TLS entry: 'certificate_subject' must be a dict")
+    if not isinstance(entry["port"], int) or isinstance(entry["port"], bool):
+        raise ValueError("Invalid TLS entry: 'port' must be an integer")
 
-        if not isinstance(entry["certificate_issuer"], dict):
-            raise ValueError("Invalid TLS entry: 'certificate_issuer' must be a dict")
+    # Failed scans may not contain successful TLS or certificate metadata.
+    if "error" in entry:
+        return
 
-        if not isinstance(entry["public_key_algorithm"], str):
+    required_fields = (
+        "tls_version",
+        "cipher_suite",
+        "cipher_strength",
+        "key_size",
+        "public_key_algorithm",
+        "not_before",
+        "not_after",
+        "certificate_issuer",
+        "certificate_subject",
+    )
+
+    for field in required_fields:
+        if field not in entry:
             raise ValueError(
-                "Invalid TLS entry: 'public_key_algorithm' must be a string"
+                f"Invalid TLS entry for domain '{entry['domain']}': "
+                f"missing TLS field '{field}'"
             )
+
+    for field in ("certificate_subject", "certificate_issuer"):
+        if not isinstance(entry[field], dict):
+            raise ValueError(f"Invalid TLS entry: '{field}' must be a dictionary")
+
+    algorithm = entry["public_key_algorithm"]
+    if algorithm is not None and not isinstance(algorithm, str):
+        raise ValueError(
+            "Invalid TLS entry: 'public_key_algorithm' must be a string or None"
+        )
 
 
 def load_tls_results(
     path: str | Path = "data/processed/tls_results.json",
 ) -> list[TLSScanResult]:
-    """Load and validate TLS scan results from JSON.
+    """Load and validate TLS scan results from JSON."""
+    input_path = Path(path)
+    logger.info("Loading TLS results from %s", input_path)
 
-    Parameters
-    ----------
-    path : str | Path, optional
-        The path to the JSON file containing TLS results,
-        by default "data/processed/tls_results.json".
+    if not input_path.exists():
+        raise FileNotFoundError(f"TLS results file not found: {input_path}")
 
-    Returns
-    -------
-    list[TLSScanResult]
-        The loaded and validated TLS scan results.
-    """
-    logger.info("Loading TLS results from %s", path)
-
-    if not Path(path).exists():
-        raise FileNotFoundError(f"TLS results file not found: {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with input_path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
 
     if not isinstance(data, list):
-        raise ValueError("TLS results JSON must be a list of TLSScanResult objects")
+        raise ValueError("TLS results JSON must contain a list")
 
     for entry in data:
         if not isinstance(entry, dict):
-            raise ValueError("TLS results must contain dictionaries")
+            raise ValueError("TLS results must contain JSON objects")
+
         _validate_tls_entry(entry)
 
     logger.info("TLS results loaded and validated successfully.")
     return data
 
 
-# -----------------------------
-# PQC JSON Save / Load
-# -----------------------------
+# ---------------------------------------------------------
+# A1 finding validation
+# ---------------------------------------------------------
 
 
-def save_pqc_scores(
-    scores: list[PQCScore],
-    path: str | Path = "data/processed/pqc_scores.json",
+def _validate_a1_finding(
+    dimension: str,
+    finding: Any,
+    domain: str,
 ) -> None:
-    """Save PQC scoring results to JSON.
+    """Validate one A1 finding and its required fields."""
+    if not isinstance(finding, dict):
+        raise ValueError(
+            f"Invalid A1 assessment for '{domain}': " f"'{dimension}' must be an object"
+        )
 
-    Parameters
-    ----------
-    scores : list[PQCScore]
-        The PQC scoring results to save.
-    path : str | Path, optional
-        The path to the JSON file where results will be saved,
-        by default "data/processed/pqc_scores.json".
-    """
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    required_fields = ("dimension", "observed", "classification", "reason")
 
-    logger.info("Saving PQC scores to %s", path)
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(scores, f, indent=2)
-
-    logger.info("PQC scores saved successfully.")
-
-
-def _validate_pqc_entry(entry: dict[str, Any]) -> None:
-    """Validate a single PQCScore entry.
-
-    Raises ValueError if required fields are missing.
-
-    Parameters
-    ----------
-    entry : dict[str, Any]
-        The PQC score entry to validate.
-    """
-    required_fields = [
-        "domain",
-        "tls_score",
-        "pqc_risk",
-        "reasons",
-    ]
-
-    # Validate required fields
     for field in required_fields:
-        if field not in entry:
-            raise ValueError(f"Invalid PQC entry: missing required field '{field}'")
+        if field not in finding:
+            raise ValueError(
+                f"Invalid A1 finding '{dimension}' for '{domain}': "
+                f"missing required field '{field}'"
+            )
 
-    # Validate types of specific fields
-    if not isinstance(entry["domain"], str):
-        raise ValueError("Invalid PQC entry: 'domain' must be a string")
+    if finding["dimension"] != dimension:
+        raise ValueError(
+            f"Invalid A1 finding for '{domain}': " f"expected dimension '{dimension}'"
+        )
 
-    if not isinstance(entry["reasons"], list):
-        raise ValueError("Invalid PQC entry: 'reasons' must be a list")
+    for field in ("dimension", "observed", "classification", "reason"):
+        if not isinstance(finding[field], str):
+            raise ValueError(
+                f"Invalid A1 finding '{dimension}' for '{domain}': "
+                f"'{field}' must be a string"
+            )
 
-    if not isinstance(entry["pqc_risk"], str):
-        raise ValueError("Invalid PQC entry: 'pqc_risk' must be a string")
+    if finding["classification"] not in A1_CLASSIFICATIONS:
+        raise ValueError(
+            f"Invalid A1 classification for '{domain}' in '{dimension}': "
+            f"{finding['classification']!r}"
+        )
 
-    if not isinstance(entry["tls_score"], int):
-        raise ValueError("Invalid PQC entry: 'tls_score' must be an integer")
+
+def _validate_a1_assessment(
+    assessment: Any,
+    domain: str,
+) -> None:
+    """Validate all four required A1 assessment dimensions."""
+    if not isinstance(assessment, dict):
+        raise ValueError(
+            f"Invalid combined report for '{domain}': " "'a1' must be an object"
+        )
+
+    for dimension in A1_DIMENSIONS:
+        if dimension not in assessment:
+            raise ValueError(
+                f"Invalid A1 assessment for '{domain}': "
+                f"missing required dimension '{dimension}'"
+            )
+
+        _validate_a1_finding(
+            dimension=dimension,
+            finding=assessment[dimension],
+            domain=domain,
+        )
 
 
-def load_pqc_scores(
-    path: str | Path = "data/processed/pqc_scores.json",
-) -> list[PQCScore]:
-    """Load and validate PQC scoring results from JSON.
-
-    Parameters
-    ----------
-    path : str | Path, optional
-        The path to the JSON file containing PQC scores,
-        by default "data/processed/pqc_scores.json".
-
-    Returns
-    -------
-    list[PQCScore]
-        The loaded and validated PQC scoring results.
-    """
-    logger.info("Loading PQC scores from %s", path)
-
-    if not Path(path).exists():
-        raise FileNotFoundError(f"PQC scores file not found: {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    if not isinstance(data, list):
-        raise ValueError("PQC scores JSON must be a list of PQCScore objects")
-
-    for entry in data:
-        if not isinstance(entry, dict):
-            raise ValueError("PQC scores must contain dictionaries")
-        _validate_pqc_entry(entry)
-
-    logger.info("PQC scores loaded and validated successfully.")
-    return data
+# ---------------------------------------------------------
+# Combined A1 assessment reports
+# ---------------------------------------------------------
 
 
 def load_combined_reports(
     path: str | Path = "reports/combined_report.json",
 ) -> list[CombinedTLSReport]:
-    """Load combined TLS and PQC reports from JSON."""
-    logger.info("Loading combined reports from %s", path)
+    """Load and validate combined TLS evidence and A1 findings."""
+    input_path = Path(path)
+    logger.info("Loading combined reports from %s", input_path)
 
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Combined report file not found: {path}")
+    if not input_path.exists():
+        raise FileNotFoundError(f"Combined report file not found: {input_path}")
 
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with input_path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
 
     if not isinstance(data, list):
-        raise ValueError("Combined report JSON must be a list")
+        raise ValueError("Combined report JSON must contain a list")
 
     for entry in data:
         if not isinstance(entry, dict):
-            raise ValueError("Combined reports must contain dictionaries")
+            raise ValueError("Combined reports must contain JSON objects")
 
-        for field in ("domain", "tls", "pqc"):
+        for field in ("domain", "tls", "a1"):
             if field not in entry:
                 raise ValueError(
-                    f"Invalid combined report: missing required field '{field}'"
+                    "Invalid combined report: " f"missing required field '{field}'"
                 )
-        if not isinstance(entry["domain"], str):
-            raise ValueError("Combined report 'domain' field must be a string")
 
-        if not isinstance(entry["tls"], dict):
-            raise ValueError("Combined report 'tls' field must be a dictionary")
+        domain = entry["domain"]
+        tls = entry["tls"]
 
-        if not isinstance(entry["pqc"], dict):
-            raise ValueError("Combined report 'pqc' field must be a dictionary")
+        if not isinstance(domain, str) or not domain.strip():
+            raise ValueError(
+                "Invalid combined report: 'domain' must be a non-empty string"
+            )
 
-    logger.info("Combined reports loaded successfully.")
+        if not isinstance(tls, dict):
+            raise ValueError(
+                f"Invalid combined report for '{domain}': " "'tls' must be an object"
+            )
+
+        if tls.get("domain") != domain:
+            raise ValueError(
+                f"Invalid combined report for '{domain}': "
+                "report domain does not match TLS evidence domain"
+            )
+
+        _validate_a1_assessment(entry["a1"], domain)
+
+    logger.info("Combined reports loaded and validated successfully.")
     return data

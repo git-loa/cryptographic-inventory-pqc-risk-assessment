@@ -1,4 +1,4 @@
-# TLS + PQC Security Assessment Report
+# TLS Inventory & A1 Assessment Report
 
 **Author:** {{ author }}
 **Organization:** {{ organization }}
@@ -6,165 +6,204 @@
 
 ---
 
-# Executive Summary
+## 1. Executive Summary
 
-This report provides a combined analysis of TLS configuration, certificate metadata, and post‑quantum
-cryptography (PQC) readiness for the scanned domains. It highlights critical risks, deprecated
-cryptographic configurations, certificate issues, and PQC migration readiness.
+This report presents TLS configuration evidence and the results of the
+project's A1 assessment. A1 evaluates negotiated TLS version, cipher suite,
+certificate public-key algorithm, and certificate signature algorithm.
+
+The classifications reflect the project's current assessment rules. They
+are not a complete security audit, a comprehensive PQC readiness rating,
+or a guarantee that an endpoint is secure.
+
+| Metric | Count |
+|:--|--:|
+| Domains assessed | {{ findings.total_domains }} |
+| Successful TLS scans | {{ findings.tls_successes }} |
+| Failed TLS scans | {{ findings.tls_errors | length }} |
+| A1 findings evaluated | {{ findings.total_findings }} |
+| Acceptable findings | {{ findings.classification_counts.acceptable }} |
+| Findings requiring review | {{ findings.classification_counts.acceptable_with_review }} |
+| Unacceptable findings | {{ findings.classification_counts.unacceptable }} |
+| Findings with unknown classification | {{ findings.classification_counts.unknown }} |
+
+### Classification Guide
+
+| Classification | Meaning |
+|:--|:--|
+| `acceptable` | Meets the project's current rule for this dimension. |
+| `acceptable_with_review` | Requires further review or migration consideration. |
+| `unacceptable` | Explicitly excluded by the current project policy. |
+| `unknown` | Evidence is missing, unrecognized, or not covered by a current rule. |
+
+Classifications apply to individual findings. A domain may receive different
+classifications across the four A1 dimensions.
 
 ---
 
-# Top Findings
+## 2. Findings Requiring Attention
 
-- **{{ findings.total_domains }} domains scanned**
-- **{{ findings.tls_successes }} TLS scans succeeded**
-- **{{ findings.pqc_successes }} legacy heuristic scores computed**
-- **{{ findings.tls_errors | length }} TLS scan errors**
-- **{{ findings.pqc_errors | length }} PQC scoring errors**
-- **{{ findings.high_risk | length }} domains at High PQC Risk**
-- **{{ findings.deprecated_tls | length }} domains using deprecated TLS versions**
-- **{{ findings.weak_keys | length }} domains with weak RSA/ECC keys**
-- **{{ findings.expiring_certs | length }} certificates expiring within 30 days**
+{% if findings.unacceptable_findings %}
+### Unacceptable Findings
+
+{% for finding in findings.unacceptable_findings %}
+#### {{ finding.domain }} — {{ finding.dimension }}
+
+- **Observed evidence:** `{{ finding.observed }}`
+- **Classification:** `{{ finding.classification }}`
+- **Rationale:** {{ finding.reason }}
+
+{% endfor %}
+{% else %}
+No findings were classified as unacceptable under the current A1 rules.
+
+{% endif %}
+
+{% if findings.review_findings %}
+### Findings Requiring Review
+
+{% for finding in findings.review_findings %}
+#### {{ finding.domain }} — {{ finding.dimension }}
+
+- **Observed evidence:** `{{ finding.observed }}`
+- **Classification:** `{{ finding.classification }}`
+- **Rationale:** {{ finding.reason }}
+
+{% endfor %}
+{% else %}
+No findings were classified as requiring additional review.
+
+{% endif %}
+
+{% if findings.unknown_findings %}
+### Unknown or Incomplete Evidence
+
+The following findings could not be classified reliably using the available
+evidence and current rules.
+
+{% for finding in findings.unknown_findings %}
+#### {{ finding.domain }} — {{ finding.dimension }}
+
+- **Observed evidence:** `{{ finding.observed }}`
+- **Classification:** `{{ finding.classification }}`
+- **Rationale:** {{ finding.reason }}
+
+{% endfor %}
+{% else %}
+All four A1 dimensions received a classification other than `unknown`
+for every assessed domain.
+
+{% endif %}
 
 {% if findings.tls_errors %}
 ### TLS Scan Errors
-{% for d in findings.tls_errors %}
-- {{ d }}
-{% endfor %}
-{% endif %}
 
-{% if findings.pqc_errors %}
-### Legacy Heuristic Scoring Errors
-{% for d in findings.pqc_errors %}
-- {{ d }}
-{% endfor %}
-{% endif %}
+These endpoints could not be scanned successfully. Their A1 findings are
+reported separately and may contain unknown evidence.
 
-{% if findings.high_risk %}
-### Domains Labeled High by the Legacy Heuristic
-{% for d in findings.high_risk %}
-- {{ d }}
+{% for result in findings.tls_errors %}
+- **{{ result.domain }}:** {{ result.error }}
 {% endfor %}
-{% endif %}
 
-{% if findings.deprecated_tls %}
-### Deprecated TLS Versions
-{% for d in findings.deprecated_tls %}
-- {{ d }}
-{% endfor %}
-{% endif %}
-
-{% if findings.weak_keys %}
-### Weak Cryptographic Keys
-{% for d in findings.weak_keys %}
-- {{ d }}
-{% endfor %}
-{% endif %}
-
-{% if findings.expiring_certs %}
-### Certificates Expiring Soon
-{% for d in findings.expiring_certs %}
-- {{ d }}
-{% endfor %}
 {% endif %}
 
 ---
 
-# Summary Table
+## 3. Domain Summary
 
-{% set risk_badge = {
-    "High":   '<span style="color:red; font-weight:bold;">🟥 High</span>',
-    "high":   '<span style="color:red; font-weight:bold;">🟥 High</span>',
-    "Medium": '<span style="color:orange; font-weight:bold;">🟧 Medium</span>',
-    "medium": '<span style="color:orange; font-weight:bold;">🟧 Medium</span>',
-    "Low":    '<span style="color:green; font-weight:bold;">🟩 Low</span>',
-    "low":    '<span style="color:green; font-weight:bold;">🟩 Low</span>'
-} %}
-
-| Domain | TLS Version | Cipher Suite | Key Size | Legacy Heuristic Label | Legacy Score |
-|--------|-------------|--------------|----------|----------|--------|
+| Domain | TLS Version | Cipher Suite | Public-Key Algorithm | Certificate Signature |
+|:--|:--|:--|:--|:--|
 {% for item in reports %}
-| {{ item.domain }} | {{ item.tls.tls_version or "—" }} | {{ item.tls.cipher_suite or "—" }} | {{ item.tls.key_size or "—" }} | {{ risk_badge[item.pqc.pqc_risk] | safe }} | {{ item.pqc.tls_score }}/100 |
+| {{ item.domain }} | {{ item.a1.tls_version.classification }} | {{ item.a1.cipher_suite.classification }} | {{ item.a1.public_key_algorithm.classification }} | {{ item.a1.certificate_signature.classification }} |
 {% endfor %}
 
 ---
 
-# Risk‑Sorted Lists
-
-## Legacy Heuristic: High Label
-{% for item in reports if item.pqc.pqc_risk|lower == "high" %}
-- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
-{% endfor %}
-
-## Legacy Heuristic: Medium Label
-{% for item in reports if item.pqc.pqc_risk|lower == "medium" %}
-- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
-{% endfor %}
-
-## Legacy Heuristic: Low Label
-{% for item in reports if item.pqc.pqc_risk|lower == "low" %}
-- {{ item.domain }} — {{ risk_badge[item.pqc.pqc_risk] | safe }} ({{ item.pqc.tls_score }}/100)
-{% endfor %}
-
----
-
-# Detailed Results
+## 4. Detailed Domain Results
 
 {% for item in reports %}
 <details>
 <summary><strong>{{ item.domain }}</strong></summary>
 
+### Scan Status
+
 {% if item.tls.error %}
-### Scan Error
+**Status:** Failed
 **Error:** {{ item.tls.error }}
 
 {% else %}
+**Status:** Successful
+{% endif %}
 
-### TLS Summary
-- **TLS Version:** {{ item.tls.tls_version or "—" }}
-- **Cipher Suite:** {{ item.tls.cipher_suite or "—" }}
-- **Cipher Strength:** {{ item.tls.cipher_strength or "—" }}
-- **Key Size:** {{ item.tls.key_size or "—" }}
-- **Valid From:** {{ item.tls.not_before or "—" }}
-- **Valid Until:** {{ item.tls.not_after or "—" }}{% if item.tls.not_after %}{% set parts = item.tls.not_after.split() %}{% set month_map = {
-        "Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
-        "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12
-    } %}{% set exp_month = month_map[parts[0]] %}{% set exp_day = parts[1] | int %}{% set exp_year = parts[3] | int %}{% set gen_date = generated_at.split()[0].split('-') %}{% set now_year = gen_date[0] | int %}{% set now_month = gen_date[1] | int %}{% set now_day = gen_date[2] | int %}{% set expiry_key = exp_year * 10000 + exp_month * 100 + exp_day %}{% set today_key = now_year * 10000 + now_month * 100 + now_day %}{% set days_left = expiry_key - today_key %}{% if days_left < 0 %}<span style="color:red; font-weight:bold;"> (Expired)</span>{% elif days_left < 30 %}<span style="color:red; font-weight:bold;"> ({{ days_left }} days left)</span>{% elif days_left < 90 %}<span style="color:orange; font-weight:bold;"> ({{ days_left }} days left)</span>{% else %}<span style="color:green;"> ({{ days_left }} days left)</span>{% endif %}{% endif %}
-- **Scan Time:** {{ item.tls.scan_time_seconds }} seconds
+### TLS Connection Evidence
 
-### Certificate Issuer
-{% for k, v in item.tls.certificate_issuer.items() %}
-- {{ k }}: {{ v }}
-{% endfor %}
+| Field | Observed Value |
+|:--|:--|
+| Domain | {{ item.domain }} |
+| Port | {{ item.tls.port }} |
+| TLS version | {{ item.tls.tls_version or "Not available" }} |
+| Cipher suite | {{ item.tls.cipher_suite or "Not available" }} |
+| Cipher strength | {{ item.tls.cipher_strength if item.tls.cipher_strength is not none else "Not available" }} |
+| Public-key algorithm | {{ item.tls.public_key_algorithm or "Not available" }} |
+| Public-key size | {{ item.tls.key_size if item.tls.key_size is not none else "Not available" }} |
+| Certificate valid from | {{ item.tls.not_before or "Not available" }} |
+| Certificate valid until | {{ item.tls.not_after or "Not available" }} |
+| Scan duration | {{ item.tls.scan_time_seconds if item.tls.scan_time_seconds is defined else "Not available" }} seconds |
 
 ### Certificate Subject
-{% for k, v in item.tls.certificate_subject.items() %}
-- {{ k }}: {{ v }}
+
+{% if item.tls.certificate_subject %}
+{% for key, value in item.tls.certificate_subject.items() %}
+- **{{ key }}:** {{ value }}
 {% endfor %}
+{% else %}
+Certificate subject information is unavailable.
+{% endif %}
 
-### Legacy Heuristic Output (Compatibility Only)
-- **Risk Level:** {{ risk_badge[item.pqc.pqc_risk] | safe }}
-- **Score:** {{ item.pqc.tls_score }}/100
+### Certificate Issuer
 
-**Reasons**
-{% for reason in item.pqc.reasons %}
-- {{ reason }}
+{% if item.tls.certificate_issuer %}
+{% for key, value in item.tls.certificate_issuer.items() %}
+- **{{ key }}:** {{ value }}
 {% endfor %}
-
+{% else %}
+Certificate issuer information is unavailable.
 {% endif %}
 
 ### A1 TLS Configuration Assessment
 
 | Dimension | Observed Evidence | Classification | Rationale |
-|-----------|------------------|----------------|-----------|
+|:--|:--|:--|:--|
 | TLS version | {{ item.a1.tls_version.observed }} | {{ item.a1.tls_version.classification }} | {{ item.a1.tls_version.reason }} |
 | Cipher suite | {{ item.a1.cipher_suite.observed }} | {{ item.a1.cipher_suite.classification }} | {{ item.a1.cipher_suite.reason }} |
 | Certificate public-key algorithm | {{ item.a1.public_key_algorithm.observed }} | {{ item.a1.public_key_algorithm.classification }} | {{ item.a1.public_key_algorithm.reason }} |
-| Certificate signature | {{ item.a1.certificate_signature.observed }} | {{ item.a1.certificate_signature.classification }} | {{ item.a1.certificate_signature.reason }} |
+| Certificate signature algorithm | {{ item.a1.certificate_signature.observed }} | {{ item.a1.certificate_signature.classification }} | {{ item.a1.certificate_signature.reason }} |
 
 </details>
 
----
 {% endfor %}
 
-# End of Report
+---
+
+## 5. Scope and Limitations
+
+This report reflects the A1 assessment rules implemented in this project.
+
+- Findings describe individual TLS configuration dimensions; they are not
+  combined into a numerical or domain-level risk score.
+- `acceptable` means that a finding meets the project's current rule. It
+  does not guarantee that the endpoint is secure.
+- Certificate metadata collection does not, by itself, establish certificate
+  trust, hostname validity, or successful certificate-chain validation.
+- Unknown evidence must not be interpreted as either acceptable or
+  unacceptable.
+- A1 does not yet provide a complete assessment of key-establishment
+  exposure, business context, migration feasibility, mitigations, or
+  migration governance.
+
+For the current rules and technical references, consult
+`docs/assessment-methodology.md`.
+
+---
+
+*Generated by the TLS Inventory & A1 Assessment tool.*
