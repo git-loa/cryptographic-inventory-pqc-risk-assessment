@@ -7,7 +7,7 @@ class AssessmentPolicyRegistry:
     """Register and retrieve assessment policies by their identifiers."""
 
     def __init__(self) -> None:
-        self._policies: dict[str:AssessmentPolicy] = {}
+        self._policies: dict[str, AssessmentPolicy] = {}
 
     def register(self, policy: AssessmentPolicy) -> None:
         """Register a policy, rejecting duplicate identifiers."""

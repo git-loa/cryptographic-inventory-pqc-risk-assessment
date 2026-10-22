@@ -11,8 +11,6 @@ Covers:
 import pytest
 
 from src.scanner.domain_loader import load_domains
-from src.scanner.json_io import load_tls_results, load_pqc_scores
-from src.scanner.assessment import assess_tls_results
 
 # ---------------------------------------------------------
 # DOMAIN FIXTURES
@@ -45,50 +43,3 @@ def all_domains(domains_builtin, domains_testfile):
     """
     combined = set(domains_builtin) | set(domains_testfile)
     return sorted(combined)
-
-
-# ---------------------------------------------------------
-# TLS + PQC FIXTURES
-# ---------------------------------------------------------
-
-
-@pytest.fixture
-def tls_results():
-    """TLS scan results loaded from JSON."""
-    return load_tls_results()
-
-
-@pytest.fixture
-def pqc_scores():
-    """PQC scores loaded from JSON."""
-    return load_pqc_scores()
-
-
-# ---------------------------------------------------------
-# COMBINED REPORT FIXTURE
-# ---------------------------------------------------------
-
-
-@pytest.fixture
-def combined_report(tls_results):
-    """Combined TLS + PQC report used by multiple modules."""
-    _, combined_reports = assess_tls_results(tls_results)
-    return combined_reports
-
-
-# ---------------------------------------------------------
-# MARKDOWN INPUT FIXTURE
-# ---------------------------------------------------------
-
-
-@pytest.fixture
-def markdown_input(combined_report):
-    """
-    Markdown-ready data structure.
-    Useful for testing markdown_report.render_markdown().
-    """
-    return {
-        "data": combined_report,
-        "author": "Leonard",
-        "organization": "Quantum Security",
-    }
