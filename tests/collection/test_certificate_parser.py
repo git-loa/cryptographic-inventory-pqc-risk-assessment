@@ -16,7 +16,7 @@ from src.scanner.certificate_parser import (
     parse_certificate,
     _extract_public_key_info,
 )
-from src.scanner.pqc_scoring import (
+from src.assessment.policies.a1_classifiers import (
     classify_public_key_algorithm,
     classify_certificate_signature,
 )
