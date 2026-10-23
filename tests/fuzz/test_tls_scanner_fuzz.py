@@ -5,7 +5,7 @@ under a wide range of malformed, extreme, and valid domain inputs.
 """
 
 from hypothesis import given, strategies as st, settings
-from src.scanner.tls_scanner import scan_domain
+from src.collection.tls_scanner import scan_domain
 
 # ------------------------------------------------------------
 # Domain fuzzing strategies

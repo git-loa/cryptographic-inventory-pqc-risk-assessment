@@ -13,10 +13,10 @@ import argparse
 import time
 from pathlib import Path
 
-from src.scanner.utils.logger import get_logger
-from src.scanner.domain_loader import load_domains
-from src.scanner.tls_scanner import scan_domain
-from src.scanner.models import TLSScanResult
+from src.utils.logger import get_logger
+from src.collection.domain_loader import load_domains
+from src.collection.tls_scanner import scan_domain
+from src.collection.models import TLSScanResult
 from src.scanner.json_io import save_tls_results
 
 logger = get_logger(__name__)

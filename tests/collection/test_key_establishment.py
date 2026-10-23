@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from src.scanner.key_establishment import (
+from src.collection.key_establishment import (
     collect_key_establishment_group,
     parse_key_establishment_group,
 )
@@ -44,7 +44,7 @@ def test_empty_output_returns_none():
 
 def test_missing_openssl_returns_unavailable():
     with patch(
-        "src.scanner.key_establishment.shutil.which",
+        "src.collection.key_establishment.shutil.which",
         return_value=None,
     ):
         result = collect_key_establishment_group("example.com")

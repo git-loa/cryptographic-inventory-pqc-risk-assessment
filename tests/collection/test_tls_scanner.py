@@ -4,7 +4,7 @@ Unit tests for the TLS scanner module.
 
 from unittest.mock import MagicMock, patch
 
-from src.scanner.tls_scanner import scan_domain
+from src.collection.tls_scanner import scan_domain
 
 
 def test_scan_domain(all_domains):
@@ -80,16 +80,16 @@ def test_successful_tls_scan_has_success_status():
 
     with (
         patch(
-            "src.scanner.tls_scanner.validate_domain_or_error",
+            "src.collection.tls_scanner.validate_domain_or_error",
             return_value=None,
         ),
         patch(
-            "src.scanner.tls_scanner.ssl.create_default_context",
+            "src.collection.tls_scanner.ssl.create_default_context",
             return_value=fake_context,
         ),
-        patch("src.scanner.tls_scanner.socket.create_connection") as mock_connect,
+        patch("src.collection.tls_scanner.socket.create_connection") as mock_connect,
         patch(
-            "src.scanner.tls_scanner.parse_certificate",
+            "src.collection.tls_scanner.parse_certificate",
             return_value={
                 "certificate_subject": {},
                 "certificate_issuer": {},
@@ -100,7 +100,7 @@ def test_successful_tls_scan_has_success_status():
             },
         ),
         patch(
-            "src.scanner.tls_scanner.collect_key_establishment_group",
+            "src.collection.tls_scanner.collect_key_establishment_group",
             return_value=("X25519", "observed"),
         ),
     ):
@@ -116,11 +116,11 @@ def test_unexpected_os_error_returns_failed_status():
     """An unexpected OSError should produce a structured failure result."""
     with (
         patch(
-            "src.scanner.tls_scanner.validate_domain_or_error",
+            "src.collection.tls_scanner.validate_domain_or_error",
             return_value=None,
         ),
         patch(
-            "src.scanner.tls_scanner.socket.create_connection",
+            "src.collection.tls_scanner.socket.create_connection",
             side_effect=OSError("Unexpected socket failure"),
         ),
     ):
@@ -136,11 +136,11 @@ def test_failed_tls_scan_has_failed_status():
 
     with (
         patch(
-            "src.scanner.tls_scanner.validate_domain_or_error",
+            "src.collection.tls_scanner.validate_domain_or_error",
             return_value=None,
         ),
         patch(
-            "src.scanner.tls_scanner.socket.create_connection",
+            "src.collection.tls_scanner.socket.create_connection",
             side_effect=ConnectionError("Connection refused"),
         ),
     ):

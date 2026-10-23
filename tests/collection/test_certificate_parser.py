@@ -12,7 +12,7 @@ from cryptography.x509.oid import NameOID
 
 import pytest
 
-from src.scanner.certificate_parser import (
+from src.collection.certificate_parser import (
     parse_certificate,
     _extract_public_key_info,
 )

@@ -10,7 +10,7 @@ Covers:
 
 import pytest
 
-from src.scanner.domain_loader import load_domains
+from src.collection.domain_loader import load_domains
 
 # ---------------------------------------------------------
 # DOMAIN FIXTURES
