@@ -1,80 +1,198 @@
-# TLS Inventory Scanner & PQC Risk Assessment
+# TLS Cryptographic Inventory & PQC Risk Assessment
 
-A Python project for collecting TLS configuration and certificate metadata, then assessing selected cryptographic properties relevant to post-quantum migration. It produces structured JSON data and a Markdown report.
+A Python-based security engineering project for collecting TLS cryptographic evidence, assessing selected TLS configuration properties, and supporting post-quantum cryptography (PQC) migration planning.
 
-The project is under active development. Its current assessment rules are deliberately scoped and should not be treated as a complete security audit or a production-ready PQC readiness determination.
+The project combines TLS endpoint scanning, structured evidence collection, policy-based assessment, and reporting.
 
-## Current status
+**Status:** Active development
+**Language:** Python
+**Focus:** TLS, cryptographic inventory, PQC migration, and security assessment
 
-- **TLS inventory:** Scans configured domains and collects negotiated TLS details.
-- **Certificate metadata:** Extracts X.509 identity, validity, public-key, signature, SAN, and usage fields.
-- **A1 — TLS configuration quality:** Four rule-based findings are produced from each TLS scan and included in combined JSON and Markdown reports.
-- **A2 — Key-establishment exposure:** Evidence collection and assessment are included in combined reports, but the recognized mechanism registry remains limited.
-- **Integration:** The legacy numerical PQC heuristic is still emitted for backward compatibility; it is not a standards-based or complete risk measure. A1 findings are separate and are not collapsed into an arbitrary aggregate score. A3–A8 are not implemented as complete assessment stages.
+## Overview
 
-See [Assessment Methodology](docs/assessment-methodology.md) for the current rules, limitations, and implementation status.
+Organizations preparing for post-quantum cryptography need to understand their cryptographic dependencies and identify systems requiring further investigation.
 
-## Project layout
+This project collects observable TLS configuration and certificate-related information and evaluates selected properties against explicit assessment rules.
 
-```text
-config/                 Domain input
-docs/                   Assessment methodology
-src/
-  pipeline.py           CLI pipeline orchestration
-  run_scan.py           TLS scanning entry point
-  scanner/
-    tls_scanner.py      TLS inventory collection
-    certificate_parser.py
-    key_establishment.py
-    pqc_assessment.py   A2 key-establishment assessment
-    pqc_scoring.py      A1 classifiers and legacy scoring
-    a1_assessment.py    Structured A1 assessment
-    assessment.py       Assessment orchestration
-    json_io.py          JSON input/output
-    combined_report.py  Combined JSON report
-    markdown_report.py  Markdown report generation
-tests/                  Unit and fuzz tests
-templates/              Report template
+Its objectives are to:
+
+* Collect and structure TLS cryptographic evidence.
+* Evaluate selected TLS configuration properties using assessment policies.
+* Produce explainable findings with supporting evidence and limitations.
+* Establish a modular foundation for additional cryptographic assessments.
+
+## Current Capabilities
+
+### TLS Scanning and Evidence Collection
+
+The scanning components collect TLS endpoint information, including:
+
+* Negotiated TLS protocol version and cipher suite.
+* Certificate-related information.
+* Public-key and certificate signature algorithm observations.
+* Key-establishment information where supported.
+* Scan status and evidence-collection metadata.
+
+Available observations depend on the endpoint, scanning method, and underlying tools.
+
+### Policy-Based Assessment
+
+The `src/assessment/` package provides an assessment policy interface, registry, orchestrator, and structured assessment models.
+
+The currently registered policy is **A1 — TLS Configuration Assessment**, which evaluates four dimensions:
+
+| Rule | Assessment dimension            |
+| ---- | ------------------------------- |
+| A1.1 | TLS protocol version            |
+| A1.2 | Cipher suite                    |
+| A1.3 | Public-key algorithm            |
+| A1.4 | Certificate signature algorithm |
+
+Assessment findings include classifications, rationales, and references to supporting evidence.
+
+The repository also contains existing scoring and reporting components that are being reconciled with the policy-based architecture.
+
+## Architecture
+
+The intended architecture separates evidence collection from assessment decisions and reporting.
+
+```mermaid
+flowchart TD
+    A["TLS Endpoints"] --> B["Collection Layer"]
+    B --> C["TLS Evidence"]
+    C --> D["Assessment Context"]
+    D --> E["Assessment Orchestrator"]
+    E --> F["Assessment Policy Registry"]
+    F --> G["A1: TLS Configuration Assessment"]
+    G --> H["Structured Findings"]
+    H --> I["Assessment Results"]
+    I --> J["Reporting"]
+
+    K["Additional Policies (Planned)"] -.-> F
 ```
 
-## Run
+### Main Components
 
-Install the project's dependencies in your Python environment, then view the available options:
+* **Collection — `src/collection/`:** Collects TLS evidence and represents observations using structured data models.
+* **Assessment — `src/assessment/`:** Defines assessment interfaces, policies, the registry, and orchestration logic.
+* **Scanning and reporting — `src/scanner/`:** Contains scanning, scoring, data-handling, and reporting modules.
+* **Pipeline — `src/pipeline.py`:** Coordinates the existing command-line workflow and is planned for refactoring.
+
+The complete scanning-to-assessment-to-reporting workflow is still under development. The diagram represents the intended architecture, not a guarantee that every stage is already integrated.
+
+## Getting Started
+
+### Requirements
+
+* Python.
+* Dependencies declared in the repository.
+* OpenSSL for key-establishment collection operations that use `openssl s_client`.
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/git-loa/cryptographic-inventory-pqc-risk-assessment.git
+cd cryptographic-inventory-pqc-risk-assessment
+```
+
+Create and activate a virtual environment.
+
+**Windows PowerShell:**
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**Linux/macOS:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install the project's dependencies according to its dependency manifest.
+
+### Run the Existing Pipeline
+
+Display the available command-line options:
+
+```bash
 python -m src.pipeline --help
 ```
 
-Run the full existing pipeline against the configured domain list:
+Run the existing pipeline against configured domains:
 
-```powershell
+```bash
 python -m src.pipeline --all --domains config/domains.txt
 ```
 
-The current pipeline writes:
+The current pipeline uses a flag-based interface. A redesigned CLI and application workflow are planned.
 
-```text
-data/processed/tls_results.json
-data/processed/pqc_scores.json
-reports/combined_report.json
-reports/tls_pqc_report.md
-```
+Only scan systems you own or are authorized to assess.
 
-The output named `pqc_scores.json` currently contains results from the legacy heuristic. Do not interpret its numerical score as a standards-based or fully validated PQC risk measure.
+## Assessment Methodology
 
-## Development and testing
+The assessment model distinguishes finding classifications from policy execution statuses.
+
+**Finding classifications:**
+
+* `acceptable`
+* `acceptable_with_review`
+* `unacceptable`
+* `unknown`
+
+**Policy execution statuses:**
+
+* `completed`
+* `partial`
+* `not_assessed`
+* `failed`
+
+These concepts represent different aspects of an assessment. A policy may complete successfully but produce an `unknown` finding when evidence is insufficient. Similarly, a policy execution failure does not automatically mean that the endpoint is cryptographically unacceptable.
+
+The assessment approach emphasizes explicit rules, explainable findings, and transparent evidence limitations. Existing numerical scores should be interpreted according to their implemented methodology, not as definitive PQC readiness ratings.
+
+## Testing
+
+The repository includes tests for assessment policies, orchestration, registry behavior, TLS scanning, certificate parsing, and key-establishment collection.
 
 Run the test suite from the repository root:
 
-```powershell
+```bash
 pytest
 ```
 
-The tests validate implemented behavior and data flow; they do not constitute a complete security audit.
+Run assessment tests separately:
 
-## Planned work
+```bash
+pytest tests/assessment/
+```
 
-1. Complete A2 mechanism classification, evidence validation, and tests.
-2. Strengthen report-schema validation and verify the integrated A1/A2 output end to end.
-3. Define any overall assessment policy explicitly, without arbitrary score weights.
-4. Retire the legacy heuristic only after the replacement assessment is tested; then implement A3–A8 incrementally.
+## Limitations
+
+This project is under active development and is not a comprehensive security auditing or PQC readiness platform.
+
+* Current policy-based assessment coverage is limited to selected TLS configuration properties.
+* Available evidence depends on scanning capabilities and endpoint behavior.
+* Key-establishment observations collected through a separate handshake may not represent the original connection.
+* Existing scoring and reporting components are being reconciled with the policy-based assessment architecture.
+* Comprehensive PQC migration planning requires broader information about cryptographic dependencies, data sensitivity, protocols, and operational constraints.
+
+Missing evidence should not automatically be interpreted as evidence of an insecure configuration.
+
+## Roadmap
+
+* [ ] Refactor the pipeline and introduce a clearer CLI.
+* [ ] Separate scanning, assessment, and reporting workflows.
+* [ ] Standardize evidence and assessment-result persistence.
+* [ ] Strengthen A1 integration and end-to-end testing.
+* [ ] Complete and validate A2 assessment rules, including key-establishment evidence.
+* [ ] Introduce additional assessment policies.
+* [ ] Retire obsolete components after their replacements are verified.
+
+## Disclaimer
+
+This project is intended for educational, research, and engineering development purposes. Its results are not a certification of security, a comprehensive cryptographic inventory, or a definitive determination of post-quantum readiness.

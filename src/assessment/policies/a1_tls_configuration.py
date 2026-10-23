@@ -26,7 +26,13 @@ class A1TLSConfigurationPolicy(AssessmentPolicy):
     """Assess four dimensions of TLS configuration quality."""
 
     POLICY_ID = "A1"
+    POLICY_NAME = "TLS Configuration Quality"
     POLICY_VERSION = "1.0.0"
+    POLICY_DESCRIPTION = (
+        "Assesses negotiated TLS version, cipher suite, certificate "
+        "public-key algorithm, and certificate signature algorithm "
+        "using explicit, evidence-based classification rules."
+    )
 
     @property
     def policy_id(self) -> str:
@@ -37,6 +43,16 @@ class A1TLSConfigurationPolicy(AssessmentPolicy):
     def policy_version(self) -> str:
         """Return the policy implementation version."""
         return self.POLICY_VERSION
+
+    @property
+    def policy_name(self) -> str:
+        """Return the human-readable policy name."""
+        return self.POLICY_NAME
+
+    @property
+    def policy_description(self) -> str:
+        """Return the policy's assessment scope."""
+        return self.POLICY_DESCRIPTION
 
     def assess(self, context: AssessmentContext) -> PolicyResult:
         """Evaluate TLS evidence and return standardized findings."""
