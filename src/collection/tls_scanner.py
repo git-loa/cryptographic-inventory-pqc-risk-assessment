@@ -20,6 +20,9 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Maximum permitted duration for one connection attempt or probe.
+MAX_TIMEOUT_SECONDS = 300.0
+
 
 def validate_domain_or_error(
     domain: str,
@@ -27,26 +30,22 @@ def validate_domain_or_error(
 ) -> TLSScanResult | None:
     """Validate endpoint input before any network activity."""
 
+    valid_port = (
+        isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
+    )
+
     if not isinstance(domain, str) or not domain:
         return _error_result(
             domain if isinstance(domain, str) else "",
-            port if isinstance(port, int) and not isinstance(port, bool) else 443,
+            port if valid_port else None,
             "Invalid domain name",
             0.0,
         )
 
-    if not isinstance(port, int) or isinstance(port, bool):
+    if not valid_port:
         return _error_result(
             domain,
-            443,
-            "Invalid port",
-            0.0,
-        )
-
-    if not 1 <= port <= 65535:
-        return _error_result(
-            domain,
-            443,
+            None,
             "Invalid port",
             0.0,
         )
@@ -89,7 +88,7 @@ def validate_domain_or_error(
 
 def _error_result(
     domain: str,
-    port: int,
+    port: int | None,
     message: str,
     elapsed: float,
 ) -> TLSScanResult:
@@ -260,11 +259,28 @@ def scan_domain(
     if validation_error is not None:
         return validation_error
 
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+        return _error_result(
+            domain,
+            port,
+            "Invalid timeout",
+            0.0,
+        )
+
+    try:
+        timeout_value = float(timeout)
+    except (OverflowError, ValueError):
+        return _error_result(
+            domain,
+            port,
+            "Invalid timeout",
+            0.0,
+        )
+
     if (
-        isinstance(timeout, bool)
-        or not isinstance(timeout, (int, float))
-        or not math.isfinite(timeout)
-        or timeout <= 0
+        not math.isfinite(timeout_value)
+        or timeout_value <= 0
+        or timeout_value > MAX_TIMEOUT_SECONDS
     ):
         return _error_result(
             domain,
@@ -284,6 +300,6 @@ def scan_domain(
     return _scan_tls_connection(
         domain,
         port,
-        float(timeout),
+        timeout_value,
         start,
     )

@@ -63,9 +63,16 @@ def assert_common_result_fields(result):
     """Verify the minimum result contract shared by scan outcomes."""
 
     assert isinstance(result, dict)
-    assert result["domain"] is not None
-    assert isinstance(result["port"], int)
+    assert isinstance(result["domain"], str)
+
+    port = result["port"]
+
+    assert port is None or (
+        isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
+    )
+
     assert result["scan_status"] in {"success", "failed"}
+
     assert isinstance(result["scan_time_seconds"], (int, float))
     assert result["scan_time_seconds"] >= 0
 
@@ -122,6 +129,7 @@ def test_invalid_port_is_rejected_without_network_access(port):
 
     assert result["scan_status"] == "failed"
     assert result["error"] == "Invalid port"
+    assert result["port"] is None
     assert result["key_establishment_evidence_status"] == "not_attempted"
     connect.assert_not_called()
 
@@ -137,6 +145,8 @@ def test_invalid_port_is_rejected_without_network_access(port):
         "5",
         None,
         True,
+        10**1000,
+        301,
     ],
 )
 def test_invalid_timeout_is_rejected_without_network_access(timeout):
@@ -147,6 +157,26 @@ def test_invalid_timeout_is_rejected_without_network_access(timeout):
     assert result["error"] == "Invalid timeout"
     assert result["key_establishment_evidence_status"] == "not_attempted"
     connect.assert_not_called()
+
+
+def test_maximum_timeout_is_accepted():
+    with patch(
+        "src.collection.tls_scanner._scan_tls_connection",
+        return_value={"scan_status": "success"},
+    ) as scan:
+        result = scan_domain(
+            DOMAIN,
+            timeout=300,
+        )
+
+    assert result["scan_status"] == "success"
+
+    scan.assert_called_once()
+    args = scan.call_args.args
+
+    assert args[0] == DOMAIN
+    assert args[1] == 443
+    assert args[2] == 300.0
 
 
 def test_validate_domain_accepts_normal_hostname():

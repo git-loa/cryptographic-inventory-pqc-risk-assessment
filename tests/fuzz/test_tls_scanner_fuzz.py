@@ -24,7 +24,7 @@ random_bytes_as_text = st.binary(max_size=300).map(
 )
 
 domain_like = st.from_regex(
-    r"[a-zA-Z0-9-]{1,20}(.[a-zA-Z0-9-]{1,20})+",
+    r"[a-zA-Z0-9-]{1,20}(\.[a-zA-Z0-9-]{1,20})+",
     fullmatch=True,
 )
 
@@ -135,6 +135,14 @@ def assert_result_contract(result):
     assert isinstance(result, dict)
     assert result["scan_status"] in {"success", "failed"}
 
+    assert isinstance(result["domain"], str)
+
+    port = result["port"]
+
+    assert port is None or (
+        isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
+    )
+
     assert isinstance(result["scan_time_seconds"], (int, float))
     assert math.isfinite(result["scan_time_seconds"])
     assert result["scan_time_seconds"] >= 0
@@ -150,8 +158,7 @@ def assert_result_contract(result):
         assert result["error"].strip()
 
     else:
-        # Successful scans must have valid endpoint identifiers.
-        assert isinstance(result["domain"], str)
+        # A successful scan must identify a valid endpoint.
         assert isinstance(result["port"], int)
         assert not isinstance(result["port"], bool)
         assert 1 <= result["port"] <= 65535
@@ -233,6 +240,7 @@ def test_scan_domain_handles_generated_ports_without_network(port):
     else:
         assert result["scan_status"] == "failed"
         assert result["error"] == "Invalid port"
+        assert result["port"] is None
         connection.assert_not_called()
 
 
@@ -256,9 +264,14 @@ def test_scan_domain_handles_generated_timeouts_without_network(timeout):
 
     assert_result_contract(result)
 
-    if is_valid_timeout(timeout):
+    if is_valid_timeout(timeout) and timeout <= 300:
+        assert result["scan_status"] == "success"
         connection.assert_called_once()
         assert result["port"] == 443
+
+        args = connection.call_args.args
+        assert args[2] == float(timeout)
+
     else:
         assert result["scan_status"] == "failed"
         assert result["error"] == "Invalid timeout"

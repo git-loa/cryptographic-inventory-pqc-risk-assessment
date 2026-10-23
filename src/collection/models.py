@@ -20,7 +20,7 @@ class _TLSScanResultRequired(TypedDict):
     """Fields required in every TLS scan result."""
 
     domain: str
-    port: int
+    port: int | None
     scan_status: ScanStatus
     scan_time_seconds: float
     key_establishment_evidence_status: KeyEstablishmentEvidenceStatus
