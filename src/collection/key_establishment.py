@@ -27,8 +27,8 @@ def parse_key_establishment_group(output: str) -> str | None:
     group-reporting line.
     """
 
-    for patttern in _GROUP_PATTERNS:
-        match = patttern.search(output)
+    for pattern in _GROUP_PATTERNS:
+        match = pattern.search(output)
 
         if match:
             group = match.group(1).strip()
