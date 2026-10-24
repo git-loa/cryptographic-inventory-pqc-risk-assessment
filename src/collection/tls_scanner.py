@@ -1,305 +1,283 @@
 """Collect TLS connection and certificate evidence from an endpoint.
 
-This module collects observations only. It does not determine whether an
+This module coordinates collection only. It does not determine whether an
 endpoint is secure or post-quantum cryptography (PQC) ready.
 """
 
 from __future__ import annotations
 
-import math
 import socket
 import ssl
-import time
 
 from cryptography.exceptions import UnsupportedAlgorithm
 
 from src.collection.certificate_parser import parse_certificate
 from src.collection.key_establishment import collect_key_establishment_group
-from src.collection.models import TLSScanResult
+from src.collection.models import (
+    TargetType,
+    TLSScanResult,
+)
+from src.collection.scan_results import (
+    ScanState,
+    add_diagnostic,
+    create_scan_state,
+    fail_scan,
+    finish_scan,
+    handle_connection_error,
+)
+from src.collection.tls_utils import (
+    ResolvedTarget,
+    make_diagnostic,
+    resolve_target,
+    validate_port,
+    validate_target,
+    validate_timeout,
+)
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Maximum permitted duration for one connection attempt or probe.
-MAX_TIMEOUT_SECONDS = 300.0
 
+def collect_tls_details(state: ScanState, tls_socket: ssl.SSLSocket) -> bool:
+    """Collect the negotiated TLS version and cipher suite."""
 
-def validate_domain_or_error(
-    domain: str,
-    port: int = 443,
-) -> TLSScanResult | None:
-    """Validate endpoint input before any network activity."""
+    cipher = tls_socket.cipher()
 
-    valid_port = (
-        isinstance(port, int) and not isinstance(port, bool) and 1 <= port <= 65535
+    if cipher is None:
+        add_diagnostic(
+            state,
+            make_diagnostic(
+                code="NO_CIPHER_NEGOTIATED",
+                category="connection",
+                severity="error",
+                message="No cipher suite was negotiated.",
+                stage="tls_handshake",
+            ),
+        )
+        state.result["scan_status"] = "failed"
+        return False
+
+    state.result.update(
+        {
+            "tls_version": tls_socket.version(),
+            "cipher_suite": cipher[0],
+            "cipher_strength": cipher[2],
+        }
     )
 
-    if not isinstance(domain, str) or not domain:
-        return _error_result(
-            domain if isinstance(domain, str) else "",
-            port if valid_port else None,
-            "Invalid domain name",
-            0.0,
+    return True
+
+
+def collect_certificate_evidence(
+    state: ScanState,
+    tls_socket: ssl.SSLSocket,
+) -> bool:
+    """Collect and parse the peer's certificate evidence."""
+
+    der_certificate = tls_socket.getpeercert(binary_form=True)
+
+    if not der_certificate:
+        add_diagnostic(
+            state,
+            make_diagnostic(
+                code="NO_PEER_CERTIFICATE",
+                category="certificate",
+                severity="error",
+                message="The server did not provide a certificate.",
+                stage="certificate_collection",
+            ),
         )
+        state.result["scan_status"] = "failed"
+        return False
 
-    if not valid_port:
-        return _error_result(
-            domain,
-            None,
-            "Invalid port",
-            0.0,
-        )
-    # A trailing dot is permitted for a fully qualified DNS name.
-    hostname = domain[:-1] if domain.endswith(".") else domain
-
-    if not hostname or len(hostname) > 253:
-        return _error_result(domain, port, "Invalid domain name", 0.0)
-
-    # Normalize internationalized domain names for validation. The original
-    # input remains the endpoint identifier used in the scan result.
     try:
-        ascii_hostname = hostname.encode("idna").decode("ascii")
-    except UnicodeError:
-        return _error_result(domain, port, "Invalid domain name", 0.0)
-
-    labels = ascii_hostname.split(".")
-
-    # Require at least two labels, such as example.com
-    if len(labels) < 2:
-        return _error_result(
-            domain,
-            port,
-            "Invalid domain name",
-            0.0,
+        certificate_info = parse_certificate(der_certificate)
+    except (ValueError, UnsupportedAlgorithm) as error:
+        logger.warning(
+            "Certificate parsing failed for %s:%d: %s",
+            state.result["target"],
+            state.result["port"],
+            error,
         )
 
-    for label in labels:
-        if not label or len(label) > 63:
-            return _error_result(domain, port, "Invalid domain name", 0.0)
+        add_diagnostic(
+            state,
+            make_diagnostic(
+                code="CERTIFICATE_PARSING_FAILED",
+                category="parsing",
+                severity="error",
+                message=str(error),
+                stage="certificate_parsing",
+            ),
+        )
+        state.result["scan_status"] = "partial"
+        return False
 
-        if label.startswith("-") or label.endswith("-"):
-            return _error_result(domain, port, "Invalid domain name", 0.0)
-
-        if not all(character.isalnum() or character == "-" for character in label):
-            return _error_result(domain, port, "Invalid domain name", 0.0)
-
-    return None
-
-
-def _error_result(
-    domain: str,
-    port: int | None,
-    message: str,
-    elapsed: float,
-) -> TLSScanResult:
-    """Build a consistent failed result without inventing observations."""
-
-    return {
-        "domain": domain,
-        "port": port,
-        "scan_status": "failed",
-        "tls_version": None,
-        "cipher_suite": None,
-        "cipher_strength": None,
-        "certificate_subject": {},
-        "certificate_issuer": {},
-        "not_before": None,
-        "not_after": None,
-        "key_size": None,
-        "error": message,
-        "scan_time_seconds": max(0.0, elapsed),
-        "public_key_algorithm": None,
-        "public_key_variant": None,
-        "public_key_algorithm_oid": None,
-        "key_establishment_group": None,
-        "key_establishment_evidence_status": "not_attempted",
-        "key_establishment_source": None,
-        "certificate_version": None,
-        "certificate_serial_number": None,
-        "public_key_curve": None,
-        "rsa_public_exponent": None,
-        "certificate_signature_algorithm_oid": None,
-        "certificate_signature_hash_algorithm": None,
-        "san_dns_names": [],
-        "san_ip_addresses": [],
-        "key_usage": None,
-        "extended_key_usage": None,
-        "basic_constraints": None,
-    }
+    state.result.update(certificate_info)
+    return True
 
 
-def _handle_connection_error(
-    error: Exception,
-    domain: str,
-    port: int,
-    start: float,
-) -> TLSScanResult:
-    """Translate expected connection failures into collection results."""
-
-    elapsed = time.perf_counter() - start
-
-    if isinstance(error, ssl.SSLError):
-        message = f"SSL error: {error}"
-    elif isinstance(error, socket.timeout):
-        message = f"Timeout: {error}"
-    elif isinstance(error, socket.gaierror):
-        message = f"DNS error: {error}"
-    else:
-        message = f"Connection error: {error}"
-
-    return _error_result(domain, port, message, elapsed)
-
-
-def _scan_tls_connection(
-    domain: str,
+def collect_key_establishment_evidence(
+    state: ScanState,
+    target: str,
     port: int,
     timeout: float,
-    start: float,
-) -> TLSScanResult:
-    """Perform the TLS handshake and collect peer certificate evidence."""
+) -> None:
+    """Collect key-establishment evidence using a separate TLS handshake."""
 
     try:
+        key_group, key_status = collect_key_establishment_group(
+            target,
+            port=port,
+            timeout=timeout,
+        )
+    except (OSError, ValueError, TimeoutError) as error:
+        logger.warning(
+            "Key-establishment probe failed for %s:%d: %s",
+            target,
+            port,
+            error,
+        )
+
+        key_group, key_status = None, "unavailable"
+
+        add_diagnostic(
+            state,
+            make_diagnostic(
+                code="KEY_ESTABLISHMENT_PROBE_UNAVAILABLE",
+                category="key_establishment",
+                severity="warning",
+                message=str(error) or "Key-establishment probe failed.",
+                stage="key_establishment_probe",
+            ),
+        )
+
+    state.result["key_establishment_group"] = key_group
+    state.result["key_establishment_evidence_status"] = key_status
+
+    state.result["key_establishment_source"] = (
+        "openssl_s_client_separate_handshake"
+        if key_status == "observed" and key_group
+        else None
+    )
+
+
+def scan_tls_connection(
+    state: ScanState,
+    target: str,
+    target_type: TargetType,
+    timeout: float,
+) -> TLSScanResult:
+    """Establish TLS and coordinate evidence collection."""
+
+    port = state.result["port"]
+
+    try:
+        resolved: ResolvedTarget = resolve_target(
+            target,
+            target_type,
+            port,
+        )
+        state.result["resolved_ip_address"] = resolved.ip_address
+
         context = ssl.create_default_context()
 
+        # Retain the hostname for SNI and certificate identity verification.
+        # For IP literals, Python verifies the corresponding IP subjectAltName.
         with socket.create_connection(
-            (domain, port),
+            (resolved.ip_address, resolved.port),
             timeout=timeout,
         ) as sock:
             with context.wrap_socket(
                 sock,
-                server_hostname=domain,
-            ) as tls:
-                cipher = tls.cipher()
+                server_hostname=resolved.hostname,
+            ) as tls_socket:
+                state.result["certificate_verification_status"] = "verified"
+                state.result["certificate_verification_error"] = None
 
-                if cipher is None:
-                    return _error_result(
-                        domain,
-                        port,
-                        "No cipher suite negotiated",
-                        time.perf_counter() - start,
-                    )
+                if not collect_tls_details(state, tls_socket):
+                    return finish_scan(state)
 
-                der_certificate = tls.getpeercert(binary_form=True)
+                if not collect_certificate_evidence(state, tls_socket):
+                    return finish_scan(state)
 
-                if not der_certificate:
-                    return _error_result(
-                        domain,
-                        port,
-                        "No certificate returned by server",
-                        time.perf_counter() - start,
-                    )
-
-                try:
-                    certificate_info = parse_certificate(der_certificate)
-                except (ValueError, UnsupportedAlgorithm) as error:
-                    logger.warning(
-                        "Certificate parsing failed for %s:%d: %s",
-                        domain,
-                        port,
-                        error,
-                    )
-                    return _error_result(
-                        domain,
-                        port,
-                        f"Certificate parsing error: {error}",
-                        time.perf_counter() - start,
-                    )
-
-                # This is a separate TLS handshake. Its result is evidence
-                # from that handshake, not proof of every supported group.
-                try:
-                    key_group, key_status = collect_key_establishment_group(
-                        domain,
-                        port=port,
-                        timeout=timeout,
-                    )
-                except (OSError, ValueError, TimeoutError) as error:
-                    logger.warning(
-                        "Key-establishment probe failed for %s:%d: %s",
-                        domain,
-                        port,
-                        error,
-                    )
-                    key_group, key_status = None, "unavailable"
-
-                # A source is populated only when a group was actually observed.
-                key_source = (
-                    "openssl_s_client_separate_handshake"
-                    if key_status == "observed" and key_group
-                    else None
+                collect_key_establishment_evidence(
+                    state,
+                    target=resolved.hostname,
+                    port=resolved.port,
+                    timeout=timeout,
                 )
 
-                return {
-                    "domain": domain,
-                    "port": port,
-                    "scan_status": "success",
-                    "tls_version": tls.version(),
-                    "cipher_suite": cipher[0],
-                    "cipher_strength": cipher[2],
-                    **certificate_info,
-                    "scan_time_seconds": time.perf_counter() - start,
-                    "key_establishment_group": key_group,
-                    "key_establishment_evidence_status": key_status,
-                    "key_establishment_source": key_source,
-                }
+                state.result["scan_status"] = "completed"
+                return finish_scan(state)
 
     except (OSError, ssl.SSLError) as error:
-        return _handle_connection_error(error, domain, port, start)
+        return handle_connection_error(state, error)
 
 
-def scan_domain(
-    domain: str,
+def scan_target(
+    target: str,
     port: int = 443,
-    timeout: float = 5,
+    timeout: float = 5.0,
 ) -> TLSScanResult:
-    """Scan one endpoint and return its collected TLS evidence."""
+    """Scan a DNS hostname or IP address and return collected TLS evidence."""
 
-    validation_error = validate_domain_or_error(domain, port)
+    # Use safe defaults to ensure invalid input can still produce a
+    # canonical result conforming to the TLSScanResult contract.
+    result_target = target if isinstance(target, str) else ""
+    state = create_scan_state(
+        target=result_target,
+        target_type="domain",
+        port=443,
+    )
 
-    if validation_error is not None:
-        return validation_error
+    try:
+        valid_port = validate_port(port)
+    except ValueError as error:
+        return fail_scan(
+            state,
+            message=str(error),
+            category="input_validation",
+            stage="input_validation",
+            code="INVALID_SCAN_INPUT",
+        )
 
-    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
-        return _error_result(
-            domain,
-            port,
-            "Invalid timeout",
-            0.0,
+    state.result["port"] = valid_port
+
+    try:
+        valid_timeout = validate_timeout(timeout)
+    except ValueError as error:
+        return fail_scan(
+            state,
+            message=str(error),
+            category="input_validation",
+            stage="input_validation",
+            code="INVALID_SCAN_INPUT",
         )
 
     try:
-        timeout_value = float(timeout)
-    except (OverflowError, ValueError):
-        return _error_result(
-            domain,
-            port,
-            "Invalid timeout",
-            0.0,
+        target_type, normalized_target = validate_target(target)
+    except ValueError as error:
+        return fail_scan(
+            state,
+            message=str(error),
+            category="input_validation",
+            stage="input_validation",
+            code="INVALID_SCAN_INPUT",
         )
 
-    if (
-        not math.isfinite(timeout_value)
-        or timeout_value <= 0
-        or timeout_value > MAX_TIMEOUT_SECONDS
-    ):
-        return _error_result(
-            domain,
-            port,
-            "Invalid timeout",
-            0.0,
-        )
+    state.result["target_type"] = target_type
 
     logger.info(
-        "Starting TLS scan for domain=%s port=%d",
-        domain,
-        port,
+        "Starting TLS scan for target=%s type=%s port=%d",
+        result_target,
+        target_type,
+        valid_port,
     )
 
-    start = time.perf_counter()
-
-    return _scan_tls_connection(
-        domain,
-        port,
-        timeout_value,
-        start,
+    return scan_tls_connection(
+        state=state,
+        target=normalized_target,
+        target_type=target_type,
+        timeout=valid_timeout,
     )
