@@ -1,4 +1,5 @@
-"""Collect TLS connection and certificate evidence from an endpoint.
+"""
+Collect TLS connection and certificate evidence from an endpoint.
 
 This module coordinates collection only. It does not determine whether an
 endpoint is secure or post-quantum cryptography (PQC) ready.
