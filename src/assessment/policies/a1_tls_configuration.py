@@ -152,16 +152,24 @@ class A1TLSConfigurationPolicy(AssessmentPolicy):
         """Determine policy execution status from the scan outcome."""
         scan_status = tls.get("scan_status")
 
+        if scan_status == "completed":
+            return ("completed", [])
+
+        if scan_status == "partial":
+            return (
+                "partial",
+                [
+                    "The TLS scan completed partially; "
+                    "some evidence may be unavailable."
+                ],
+            )
+
         if scan_status == "failed":
             return (
                 "partial",
-                ["The TLS scan failed; available evidence may be incomplete."],
+                ["The TLS scan failed; " "available evidence may be incomplete."],
             )
-
-        if scan_status != "success":
-            return (
-                "partial",
-                ["The scan outcome is missing or unrecognized."],
-            )
-
-        return "completed", []
+        return (
+            "partial",
+            ["The scan outcome is missing or unrecognized."],
+        )
