@@ -5,8 +5,8 @@ import ssl
 from unittest.mock import Mock, patch
 
 
-from src.collection import tls_scanner
-from src.collection.scan_results import create_scan_state
+from pqc_inventory.collection import tls_scanner
+from pqc_inventory.collection.scan_results import create_scan_state
 
 
 def make_state():

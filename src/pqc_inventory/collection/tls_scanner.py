@@ -12,13 +12,13 @@ import ssl
 
 from cryptography.exceptions import UnsupportedAlgorithm
 
-from src.collection.certificate_parser import parse_certificate
-from src.collection.key_establishment import collect_key_establishment_group
-from src.collection.models import (
+from pqc_inventory.collection.certificate_parser import parse_certificate
+from pqc_inventory.collection.key_establishment import collect_key_establishment_group
+from pqc_inventory.collection.models import (
     TargetType,
     TLSScanResult,
 )
-from src.collection.scan_results import (
+from pqc_inventory.collection.scan_results import (
     ScanState,
     add_diagnostic,
     create_scan_state,
@@ -26,7 +26,7 @@ from src.collection.scan_results import (
     finish_scan,
     handle_connection_error,
 )
-from src.collection.tls_utils import (
+from pqc_inventory.collection.tls_utils import (
     ResolvedTarget,
     make_diagnostic,
     resolve_target,
@@ -34,7 +34,7 @@ from src.collection.tls_utils import (
     validate_target,
     validate_timeout,
 )
-from src.utils.logger import get_logger
+from pqc_inventory.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -4,7 +4,7 @@ import socket
 
 import pytest
 
-from src.collection import tls_utils
+from pqc_inventory.collection import tls_utils
 
 # ---------------------------------------------------------------------------
 # validate_target

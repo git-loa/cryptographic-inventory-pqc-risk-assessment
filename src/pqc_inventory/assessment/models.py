@@ -7,7 +7,7 @@ the assessment orchestrator, and reporting components.
 
 from typing import Literal, TypedDict
 
-from src.collection.models import TLSScanResult
+from pqc_inventory.collection.models import TLSScanResult
 
 AssessmentClassification = Literal[
     "acceptable",

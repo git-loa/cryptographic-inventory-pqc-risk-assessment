@@ -1,12 +1,12 @@
 """Orchestrate execution of registered assessment policies."""
 
-from src.assessment.models import (
+from pqc_inventory.assessment.models import (
     AssessmentContext,
     AssessmentRun,
     PolicyResult,
 )
-from src.assessment.registry import AssessmentPolicyRegistry
-from src.assessment.interfaces import AssessmentPolicyError
+from pqc_inventory.assessment.registry import AssessmentPolicyRegistry
+from pqc_inventory.assessment.interfaces import AssessmentPolicyError
 
 
 # pylint: disable=too-few-public-methods

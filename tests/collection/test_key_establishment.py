@@ -3,7 +3,7 @@
 import subprocess
 from unittest.mock import Mock
 
-from src.collection import key_establishment
+from pqc_inventory.collection import key_establishment
 
 # ---------------------------------------------------------
 # Tests for parse_key_establishment_group()

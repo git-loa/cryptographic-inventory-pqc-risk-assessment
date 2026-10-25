@@ -6,7 +6,7 @@ import argparse
 
 from collections.abc import Sequence
 
-from src.assessment.policy_setup import create_default_registry
+from pqc_inventory.assessment.policy_setup import create_default_registry
 
 APP_NAME = "pqc-assessment"
 APP_VERSION = "0.1.0"

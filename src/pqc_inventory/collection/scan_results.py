@@ -8,14 +8,14 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from src.collection.models import (
+from pqc_inventory.collection.models import (
     SCAN_SCHEMA_VERSION,
     DiagnosticCategory,
     ScanDiagnostic,
     TLSScanResult,
     TargetType,
 )
-from src.collection.tls_utils import make_diagnostic, utc_now
+from pqc_inventory.collection.tls_utils import make_diagnostic, utc_now
 
 
 @dataclass(slots=True)

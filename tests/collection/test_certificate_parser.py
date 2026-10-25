@@ -3,7 +3,7 @@
 import pytest
 
 from cryptography import x509
-from src.collection import certificate_parser
+from pqc_inventory.collection import certificate_parser
 
 
 def test_parse_rsa_certificate(rsa_certificate):

@@ -5,7 +5,7 @@ import ssl
 
 import pytest
 
-from src.collection.scan_results import (
+from pqc_inventory.collection.scan_results import (
     create_scan_state,
     fail_scan,
     finish_scan,

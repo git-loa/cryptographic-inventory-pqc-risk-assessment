@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.assessment.policies.a1_tls_configuration import (
+from pqc_inventory.assessment.policies.a1_tls_configuration import (
     A1TLSConfigurationPolicy,
 )
 

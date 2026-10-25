@@ -4,7 +4,7 @@ Interfaces defining the contract for assessment policies.
 
 from typing import Protocol
 
-from src.assessment.models import AssessmentContext, PolicyResult
+from pqc_inventory.assessment.models import AssessmentContext, PolicyResult
 
 
 class AssessmentPolicy(Protocol):

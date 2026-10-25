@@ -1,9 +1,9 @@
 """Configure the assessment registry with available policies."""
 
-from src.assessment.policies.a1_tls_configuration import (
+from pqc_inventory.assessment.policies.a1_tls_configuration import (
     A1TLSConfigurationPolicy,
 )
-from src.assessment.registry import AssessmentPolicyRegistry
+from pqc_inventory.assessment.registry import AssessmentPolicyRegistry
 
 
 def create_default_registry() -> AssessmentPolicyRegistry:

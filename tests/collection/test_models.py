@@ -2,7 +2,7 @@
 
 from typing import get_args, get_type_hints
 
-from src.collection import models
+from pqc_inventory.collection import models
 
 # ---------------------------------------------------------------------------
 # Schema version

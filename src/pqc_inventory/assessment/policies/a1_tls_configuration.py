@@ -8,13 +8,13 @@ This policy evaluates supplied evidence only. It does not perform
 network scans, persist results, or calculate an aggregate score.
 """
 
-from src.assessment.interfaces import AssessmentPolicy
-from src.assessment.models import (
+from pqc_inventory.assessment.interfaces import AssessmentPolicy
+from pqc_inventory.assessment.models import (
     AssessmentContext,
     AssessmentFinding,
     PolicyResult,
 )
-from src.assessment.policies.a1_classifiers import (
+from pqc_inventory.assessment.policies.a1_classifiers import (
     classify_certificate_signature,
     classify_cipher_suite,
     classify_public_key_algorithm,

@@ -4,7 +4,7 @@ Module for loading domain names from a text file.
 
 import re
 from pathlib import Path
-from src.utils.logger import get_logger
+from pqc_inventory.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

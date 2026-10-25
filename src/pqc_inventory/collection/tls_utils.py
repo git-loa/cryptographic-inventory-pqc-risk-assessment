@@ -8,7 +8,7 @@ import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from src.collection.models import (
+from pqc_inventory.collection.models import (
     DiagnosticCategory,
     DiagnosticSeverity,
     ScanDiagnostic,

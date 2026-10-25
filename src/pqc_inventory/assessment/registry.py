@@ -1,6 +1,6 @@
 """Registry for assessment policies."""
 
-from src.assessment.interfaces import AssessmentPolicy
+from pqc_inventory.assessment.interfaces import AssessmentPolicy
 
 
 class AssessmentPolicyRegistry:
