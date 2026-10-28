@@ -1,342 +1,201 @@
-# System Architecture
+# Architecture
 
-## 1. Purpose
+## 1. Purpose and Scope
 
-The Cryptographic Inventory and PQC Risk Assessment project collects TLS cryptographic evidence and evaluates it against documented assessment policies.
+The **Cryptographic Inventory and PQC Risk Assessment** project collects TLS configuration evidence and evaluates it against explicit assessment policies.
 
-The architecture separates five responsibilities:
+The system is designed to separate evidence collection, assessment logic, and data persistence. This separation supports independent testing, maintainability, and the future addition of assessment policies.
 
-* **Collection:** Observe TLS configurations and certificate properties.
-* **Assessment:** Apply documented rules to collected evidence.
-* **Storage:** Persist evidence and assessment results.
-* **Application:** Coordinate scanning, assessment, and reporting.
-* **Reporting:** Present findings, supporting evidence, and limitations.
-
-This separation supports independent testing, explainable assessments, and reassessment without unnecessary network rescanning.
-
-> **Status:** This document describes the target architecture. The existing repository will be migrated incrementally.
+The architecture describes the current implementation, including components that exist but are not yet connected to the command-line interface.
 
 ## 2. System Architecture
 
-```mermaid
-flowchart TB
-    User([User])
+The application is organized into five main areas:
 
-    subgraph CLI["Command-Line Interface"]
-        Entry["pipeline.py"]
-        Commands["cli.py"]
-    end
+* **CLI:** Defines commands and provides the application entry point.
+* **Application services:** Coordinate scanning, evidence validation, assessment, and reporting workflows.
+* **Collection:** Collects TLS evidence and extracts relevant connection and certificate information.
+* **Assessment:** Applies registered policies to validated evidence and produces assessment results.
+* **Storage:** Loads and saves evidence or assessment data in JSON format.
 
-    subgraph App["Application Services"]
-        ScanService["Scan Service"]
-        AssessService["Assessment Service"]
-        ReportService["Report Service"]
-    end
-
-    subgraph Scanner["Evidence Collection"]
-        TLS["TLS Scanner"]
-        Cert["Certificate Parser"]
-        KE["Key Establishment Observer"]
-    end
-
-    subgraph Engine["Assessment Engine"]
-        Orchestrator["Policy Orchestrator"]
-        Registry["Policy Registry"]
-        A1["A1: TLS Configuration"]
-        A2["A2: Key Establishment"]
-    end
-
-    subgraph Storage["Persistence"]
-        Repository[("JSON Repository")]
-    end
-
-    subgraph Reporting["Report Generation"]
-        Renderer["Markdown Renderer"]
-        Output["Markdown Report"]
-    end
-
-    User --> Entry
-    Entry --> Commands
-
-    Commands --> ScanService
-    Commands --> AssessService
-    Commands --> ReportService
-
-    ScanService --> TLS
-    ScanService --> Cert
-    ScanService --> KE
-    ScanService --> Repository
-
-    AssessService --> Repository
-    AssessService --> Orchestrator
-
-    Orchestrator --> Registry
-    Registry --> A1
-    Registry --> A2
-    Orchestrator --> Repository
-
-    ReportService --> Repository
-    ReportService --> Renderer
-    Renderer --> Output
-
-    classDef policy fill:#e8f2ff,stroke:#3973ac,color:#111
-    class A1,A2 policy
-```
-
-### Component responsibilities
-
-| Component               | Responsibility                                   |
-| ----------------------- | ------------------------------------------------ |
-| `pipeline.py`           | Application entry point and command dispatch     |
-| `cli.py`                | Command-line arguments and terminal presentation |
-| `scan_service.py`       | Coordinates evidence collection                  |
-| `assessment_service.py` | Coordinates policy execution                     |
-| `report_service.py`     | Coordinates report generation                    |
-| `tls_scanner.py`        | Collects TLS endpoint observations               |
-| `certificate_parser.py` | Extracts certificate properties                  |
-| `key_establishment.py`  | Collects key-establishment observations          |
-| `interfaces.py`         | Defines the assessment policy contract           |
-| `registry.py`           | Maintains available assessment policies          |
-| `orchestrator.py`       | Coordinates policy execution                     |
-| `json_repository.py`    | Loads and persists structured data               |
-| `markdown.py`           | Renders assessment results into Markdown         |
-
-The CLI must not contain scanning algorithms or assessment rules. The report renderer must not make independent security decisions.
-
-## 3. Data Flow
+### Architecture overview
 
 ```mermaid
 flowchart TD
-    A["Target Domains"] --> B["Evidence Collection"]
-    B --> C["Normalized Scan Evidence"]
-    C --> D[("Persisted Evidence")]
+    User["User"] --> CLI["CLI"]
 
-    D --> E["Assessment Service"]
-    E --> F["Assessment Orchestrator"]
+    CLI --> ScanService["ScanService"]
+    CLI --> AssessmentService["AssessmentService"]
+    CLI -. "Reporting integration pending" .-> ReportService["ReportService"]
 
-    F --> G["A1: TLS Configuration"]
-    F --> H["A2: Key Establishment"]
+    ScanService --> Collection["Collection Layer"]
+    Collection --> Evidence["TLS Evidence"]
 
-    G --> I["Policy Results"]
-    H --> I
+    AssessmentService --> Validator["EvidenceValidator"]
+    Validator --> Orchestrator["AssessmentOrchestrator"]
 
-    I --> J[("Persisted Assessment Run")]
-    J --> K["Report Service"]
-    K --> L["Markdown Report"]
+    Orchestrator --> Registry["Policy Registry"]
+    Registry --> A1["A1: TLS Configuration Quality"]
 
-    D -. "Reassess saved evidence" .-> E
-    J -. "Regenerate report" .-> K
+    AssessmentService --> Repository["JSON Repository"]
+    Repository --> Results["Persisted Assessment Results"]
+
+    ReportService -. "Not implemented" .-> Results
 ```
 
-The workflow has three independently executable operations:
+The diagram shows the architectural relationships, not a fully connected execution pipeline. The collection and assessment services exist, but the CLI has not yet been wired to those services. Reporting is not implemented.
 
-1. **Scan:** Collect and persist evidence.
-2. **Assess:** Apply policies to available evidence and persist results.
-3. **Report:** Render saved assessment results.
+## 3. Processing and Assessment Flow
 
-This design allows users to reassess evidence after policy changes without automatically repeating network scans.
+The intended workflow begins with TLS evidence collection. The evidence is then validated and evaluated by the selected assessment policies.
 
-If new rules require evidence that was never collected, the assessment must report that limitation.
+Each policy evaluates specific properties of the evidence and produces results according to its defined classification rules.
 
-## 4. Assessment Policy Architecture
-
-Assessment policies implement a shared contract and produce standardized results.
-
-```mermaid
-flowchart TB
-    Evidence["Collected Evidence"]
-    Context["Assessment Context"]
-    Orchestrator["Assessment Orchestrator"]
-
-    subgraph Policies["Registered Policies"]
-        A1["A1: TLS Configuration"]
-        A2["A2: Key Establishment"]
-        Future["A3–A8: Future Policies"]
-    end
-
-    subgraph Results["Standardized Policy Results"]
-        Status["Execution Status"]
-        Findings["Assessment Findings"]
-        Rationale["Rules and Rationale"]
-    end
-
-    Evidence --> Context
-    Context --> Orchestrator
-
-    Orchestrator --> A1
-    Orchestrator --> A2
-    Orchestrator --> Future
-
-    A1 --> Status
-    A2 --> Status
-    Future --> Status
-
-    A1 --> Findings
-    A2 --> Findings
-    Future --> Findings
-
-    Findings --> Rationale
-```
-
-Each policy is responsible for evaluating its defined assessment dimensions.
-
-The orchestrator is responsible for invoking policies and collecting results. It should not duplicate the internal rules of individual policies.
-
-### Policy contract
-
-The proposed interface is:
-
-```python
-from typing import Protocol
-
-
-class AssessmentPolicy(Protocol):
-    @property
-    def policy_id(self) -> str:
-        ...
-
-    @property
-    def policy_version(self) -> str:
-        ...
-
-    def assess(self, context: "AssessmentContext") -> "PolicyResult":
-        ...
-```
-
-`AssessmentContext` provides the evidence and applicable configuration.
-
-`PolicyResult` contains the execution status, findings, and limitations.
-
-This interface is a design proposal; it has not yet been established as the repository's implemented contract.
-
-## 5. Assessment Status and Classification
-
-Policy execution status and finding classification are independent concepts.
+### Intended workflow
 
 ```mermaid
 flowchart TD
-    Start["Execute Assessment Policy"]
-
-    Start --> Execution{"Execution outcome"}
-
-    Execution -->|Completed| Complete["completed"]
-    Execution -->|Incomplete| Partial["partial"]
-    Execution -->|Not executed| NotRun["not_assessed"]
-    Execution -->|Error| Failed["failed"]
-
-    Complete --> Evaluate["Evaluate Evidence"]
-    Partial --> Limitations["Record Partial Results and Limitations"]
-
-    Evaluate --> Decision{"Supported conclusion?"}
-
-    Decision -->|Rule satisfied| Acceptable["acceptable"]
-    Decision -->|Review required| Review["acceptable_with_review"]
-    Decision -->|Rule violated| Unacceptable["unacceptable"]
-    Decision -->|Insufficient evidence| Unknown["unknown"]
-
-    Limitations --> Unknown
+    A["Target Host and Port"] --> B["TLS Collection"]
+    B --> C["TLS Evidence"]
+    C --> D["Evidence Validation"]
+    D --> E["Assessment Orchestrator"]
+    E --> F["Policy Registry"]
+    F --> G["Selected Assessment Policies"]
+    G --> H["Assessment Results"]
+    H --> I["JSON Persistence"]
+    I -. "Future integration" .-> J["Report Generation"]
 ```
 
-**Execution status** describes whether the assessment ran successfully.
+This diagram represents the intended end-to-end workflow. Individual components are implemented to different degrees, and the complete workflow is not yet available through the CLI.
 
-**Classification** describes what the evidence supports.
+The `AssessmentService` supports assessment of evidence and file-based assessment. The `ScanService` supports individual and multiple-target scanning. Connecting these services through the CLI remains outstanding.
 
-A completed policy may produce an `unknown` finding. A failed policy must not automatically produce an `unacceptable` finding.
+## 4. Assessment Design
 
-The methodology document defines the actual classification criteria.
+The assessment subsystem separates policy definitions from the orchestration of assessments.
 
-## 6. Storage and Reporting
+Its principal components are:
 
-The initial persistence implementation will use JSON.
+* **`AssessmentPolicy`:** Defines the interface that assessment policies implement.
+* **`PolicyRegistry`:** Registers and provides access to available policies.
+* **`AssessmentOrchestrator`:** Coordinates policy execution against assessment context.
+* **`AssessmentContext`:** Supplies the domain, TLS evidence, and methodology version required for assessment.
+* **`AssessmentService`:** Validates input evidence and coordinates assessment through the assessment subsystem.
 
-The storage layer will manage:
+### Implemented policy
 
-* Scan evidence.
-* Assessment runs.
-* Schema validation.
-* Supported schema versions.
-* Loading and saving results.
+**A1 — TLS Configuration Quality** evaluates TLS configuration using explicit, evidence-based classification rules.
 
-The reporting layer will render saved assessment results without repeating assessment logic.
+Its scope includes:
 
-Reports should include:
+* Negotiated TLS version.
+* Negotiated cipher suite.
+* Certificate public-key algorithm.
+* Certificate signature algorithm.
 
-* Assessment scope and scan coverage.
-* Successful scans and failures.
-* Findings grouped by policy.
-* Classifications and supporting rationale.
-* Evidence provenance where available.
-* Unknown findings and missing evidence.
-* Policy and methodology versions.
-* Assessment limitations.
+The policy interface and A1 implementation exist in the codebase. Additional policies should be introduced only when their requirements, classification rules, evidence needs, and tests are defined.
 
-No unexplained aggregate score should replace individual findings.
+The presence of collection functionality related to key establishment does not, by itself, mean that a corresponding assessment policy has been implemented.
 
-## 7. Target Repository Structure
+Detailed classification rules belong in [`assessment-methodology.md`](assessment-methodology.md), rather than in this architecture document.
+
+## 5. Data and Persistence
+
+The collection layer produces structured TLS evidence. The assessment subsystem uses that evidence to generate assessment results.
+
+The data models define the structures exchanged between components. Their detailed fields and relationships are documented separately in [`data-model.md`](data-model.md).
+
+The storage layer provides JSON loading and saving through `json_repository.py`. The assessment service can use this repository to load evidence and persist assessment runs.
+
+Current persistence should not be interpreted as a complete reporting or long-term data-management solution. A broader reporting workflow and any additional storage requirements remain future work.
+
+## 6. Implementation Status
+
+The project is under active development. The following table distinguishes existing components from outstanding integration.
+
+| Component                                    | Current status                       |
+| -------------------------------------------- | ------------------------------------ |
+| TLS collection                               | Implemented                          |
+| Collection data models and parsing utilities | Implemented                          |
+| Evidence validation                          | Implemented                          |
+| Assessment policy interface                  | Implemented                          |
+| Policy registry and orchestration            | Implemented                          |
+| A1 — TLS Configuration Quality               | Implemented                          |
+| JSON persistence                             | Implemented                          |
+| Scan service                                 | Implemented; CLI integration pending |
+| Assessment service                           | Implemented; CLI integration pending |
+| CLI policy listing                           | Connected                            |
+| CLI scan command                             | Not connected                        |
+| CLI assess command                           | Not connected                        |
+| CLI report command                           | Not implemented                      |
+| CLI run command                              | Not connected                        |
+| Report service                               | Not implemented                      |
+| Additional assessment policies               | Future work                          |
+
+### CLI integration status
+
+```mermaid
+flowchart TD
+    CLI["pqc-assessment CLI"]
+
+    CLI --> Policies["policies"]
+    CLI -. "Integration pending" .-> Scan["scan"]
+    CLI -. "Integration pending" .-> Assess["assess"]
+    CLI -. "Integration pending" .-> Run["run"]
+    CLI -. "Not implemented" .-> Report["report"]
+
+    Policies --> Registry["Policy Registry"]
+    Scan -. "Requires service wiring" .-> ScanService["ScanService"]
+    Assess -. "Requires service wiring" .-> AssessmentService["AssessmentService"]
+    Run -. "Requires workflow orchestration" .-> Workflow["End-to-End Workflow"]
+    Report -. "Requires implementation" .-> ReportService["ReportService"]
+```
+
+The CLI currently supports listing registered policies. The other commands are defined in the parser but are not yet connected to working command handlers.
+
+This status should be updated whenever functionality is implemented or integration changes.
+
+## 7. Package Structure and Design Principles
+
+The main application package is `src/pqc_inventory/`.
 
 ```text
-cryptographic-inventory-pqc-risk-assessment/
-├── config/
-│   ├── domains.txt
-│   └── assessment.toml
-├── docs/
-│   ├── architecture.md
-│   ├── assessment-methodology.md
-│   ├── data-model.md
-│   └── decisions/
-├── src/
-│   ├── pipeline.py
-│   ├── cli.py
-│   ├── application/
-│   │   ├── scan_service.py
-│   │   ├── assessment_service.py
-│   │   └── report_service.py
-│   ├── scanner/
-│   │   ├── tls_scanner.py
-│   │   ├── certificate_parser.py
-│   │   └── key_establishment.py
-│   ├── assessment/
-│   │   ├── models.py
-│   │   ├── interfaces.py
-│   │   ├── registry.py
-│   │   ├── orchestrator.py
-│   │   └── policies/
-│   │       ├── a1_tls_configuration.py
-│   │       ├── a2_key_establishment.py
-│   │       └── ...
-│   ├── storage/
-│   │   └── json_repository.py
-│   ├── reporting/
-│   │   ├── markdown.py
-│   │   └── templates/
-│   └── utils/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── contract/
-│   └── fuzz/
-├── reports/
-├── data/
-├── pyproject.toml
-└── README.md
+src/pqc_inventory/
+├── __main__.py
+├── cli.py
+├── application/
+│   ├── assessment_service.py
+│   ├── evidence_validator.py
+│   ├── report_service.py
+│   └── scan_service.py
+├── assessment/
+│   ├── interfaces.py
+│   ├── models.py
+│   ├── orchestrator.py
+│   ├── policy_setup.py
+│   ├── registry.py
+│   └── policies/
+├── collection/
+│   ├── certificate_parser.py
+│   ├── domain_loader.py
+│   ├── key_establishment.py
+│   ├── models.py
+│   ├── scan_results.py
+│   ├── tls_scanner.py
+│   └── tls_utils.py
+├── storage/
+│   └── json_repository.py
+└── utils/
+    └── logger.py
 ```
 
-This is the target structure, not a claim that all these paths already exist.
+The structure follows these principles:
 
-## 8. Migration Plan
+1. **Separation of responsibilities:** Collection, assessment, orchestration, and persistence have distinct roles.
+2. **Explicit assessment rules:** Policies classify evidence using documented criteria rather than hidden assumptions.
+3. **Testability:** Components can be tested independently and integrated incrementally.
+4. **Extensibility:** Additional policies can follow the existing policy interface.
+5. **Evidence-based results:** Assessments should be traceable to the evidence and methodology used.
+6. **Incremental integration:** CLI commands should be connected to application services as their workflows become ready.
 
-Implementation will proceed incrementally:
-
-1. Finalize the architecture and data-model contracts.
-2. Introduce shared assessment models and the policy interface.
-3. Migrate A1 and its tests.
-4. Define and integrate A2.
-5. Standardize evidence and assessment persistence.
-6. Align reporting with the shared result model.
-7. Replace the legacy CLI workflow.
-8. Remove obsolete scoring code and update documentation.
-9. Introduce additional policies when their methodologies and evidence requirements are defined.
-
-Each phase should be independently testable.
-
-Moving files alone does not complete the migration. The implementation, data contracts, and tests must agree with the architecture.
+The architecture will evolve as CLI integration, reporting, and additional assessment policies are implemented. Documentation should reflect verified behavior rather than intended functionality.
