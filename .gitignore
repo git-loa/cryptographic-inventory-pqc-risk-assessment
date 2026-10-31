@@ -223,10 +223,13 @@ __marimo__/
 # -------------------------
 *.j2c
 
+# Generated runtime data
+/data/evidence/*.json
+
+
 # -------------------------
 # Pipeline Outputs
 # -------------------------
-data/processed/*.json
 reports/*.json
 reports/*.md
 
