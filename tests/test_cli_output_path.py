@@ -1,8 +1,7 @@
 from pathlib import Path
 
 import pytest
-
-from pqc_inventory.cli import resolve_output_path
+from pqc_inventory.commands.common import resolve_output_path
 
 
 def test_accepts_new_json_path(tmp_path: Path) -> None:

@@ -1,0 +1,7 @@
+"""Shared constants for CLI commands."""
+
+EXIT_SUCCESS = 0
+EXIT_ERROR = 1
+EXIT_INVALID_INPUT = 2
+EXIT_PARTIAL = 3
+EXIT_CANCELLED = 4
