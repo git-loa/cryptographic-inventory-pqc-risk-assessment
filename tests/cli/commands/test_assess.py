@@ -3,16 +3,10 @@
 from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from pqc_inventory.commands.assess import (
-    confirm_all_policies,
-    get_registered_policies,
-    resolve_policy_selection,
-    summarize_assessment_results,
-)
 import pqc_inventory.commands.assess as assess_command
 from pqc_inventory.commands.constants import (
     EXIT_CANCELLED,
@@ -32,33 +26,21 @@ def make_assessment_run(*statuses: str) -> dict:
     """Create an assessment run containing the supplied policy statuses."""
 
     return {
-        "schema_version": "1.0",
-        "assessment_run_id": "test-run",
-        "domain": "example.com",
-        "created_at": "2026-01-01T00:00:00Z",
-        "methodology_version": "1.0",
-        "evidence": {},
         "assessments": {
-            f"A{index}": {
-                "policy_id": f"A{index}",
-                "policy_version": "1.0",
-                "execution_status": status,
-                "findings": [],
-                "limitations": [],
-            }
+            f"A{index}": {"execution_status": status}
             for index, status in enumerate(statuses, start=1)
-        },
+        }
     }
 
 
 # ============================================================
-# get_registered_policies()
+# assess_command.get_registered_policies()
 # ============================================================
 
 
 # pylint: disable=missing-function-docstring
 def test_get_registered_policies():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     assert isinstance(policies, tuple)
     assert len(policies) >= 1
@@ -66,64 +48,64 @@ def test_get_registered_policies():
 
 
 # ============================================================
-# confirm_all_policies()
+# assess_command.confirm_all_policies()
 # ============================================================
 
 
 def test_confirm_all_policies_user_accepts():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     with patch("builtins.input", return_value="y"):
-        result = confirm_all_policies(policies)
+        result = assess_command.confirm_all_policies(policies)
 
     assert result is True
 
 
 def test_confirm_all_policies_user_accepts_yes():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     with patch("builtins.input", return_value="yes"):
-        result = confirm_all_policies(policies)
+        result = assess_command.confirm_all_policies(policies)
 
     assert result is True
 
 
 def test_confirm_all_policies_user_declines():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     with patch("builtins.input", return_value="n"):
-        result = confirm_all_policies(policies)
+        result = assess_command.confirm_all_policies(policies)
 
     assert result is False
 
 
 def test_confirm_all_policies_empty_response():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     with patch("builtins.input", return_value=""):
-        result = confirm_all_policies(policies)
+        result = assess_command.confirm_all_policies(policies)
 
     assert result is False
 
 
 def test_confirm_all_policies_invalid_response():
-    policies = get_registered_policies()
+    policies = assess_command.get_registered_policies()
 
     with patch("builtins.input", return_value="maybe"):
-        result = confirm_all_policies(policies)
+        result = assess_command.confirm_all_policies(policies)
 
     assert result is False
 
 
 # ============================================================
-# resolve_policy_selection()
+# assess_command.resolve_policy_selection()
 # ============================================================
 
 
 def test_resolve_policy_selection_explicit_policies():
     args = Namespace(policies=["A1"], yes=False)
 
-    result = resolve_policy_selection(args)
+    result = assess_command.resolve_policy_selection(args)
 
     assert result == ["A1"]
 
@@ -140,7 +122,7 @@ def test_resolve_policy_selection_multiple_policies():
         "pqc_inventory.commands.assess.get_registered_policies",
         return_value=mock_policies,
     ):
-        result = resolve_policy_selection(args)
+        result = assess_command.resolve_policy_selection(args)
 
     assert result == ["A1", "A2"]
 
@@ -148,7 +130,7 @@ def test_resolve_policy_selection_multiple_policies():
 def test_resolve_policy_selection_yes():
     args = Namespace(policies=None, yes=True)
 
-    result = resolve_policy_selection(args)
+    result = assess_command.resolve_policy_selection(args)
 
     assert result == ["A1"]
 
@@ -166,7 +148,7 @@ def test_resolve_policy_selection_user_confirms():
             return_value=True,
         ),
     ):
-        result = resolve_policy_selection(args)
+        result = assess_command.resolve_policy_selection(args)
 
     assert result == ["A1"]
 
@@ -184,7 +166,7 @@ def test_resolve_policy_selection_user_declines():
             return_value=False,
         ),
     ):
-        result = resolve_policy_selection(args)
+        result = assess_command.resolve_policy_selection(args)
 
     assert result is None
 
@@ -197,13 +179,13 @@ def test_resolve_policy_selection_non_interactive():
         return_value=False,
     ):
         with pytest.raises(ValueError, match="non-interactive mode"):
-            resolve_policy_selection(args)
+            assess_command.resolve_policy_selection(args)
 
 
 def test_resolve_policy_selection_explicit_policies_with_yes():
     args = Namespace(policies=["A1"], yes=True)
 
-    result = resolve_policy_selection(args)
+    result = assess_command.resolve_policy_selection(args)
 
     assert result == ["A1"]
 
@@ -212,14 +194,14 @@ def test_resolve_policy_selection_unknown_policy():
     args = Namespace(policies=["A99"], yes=False)
 
     with pytest.raises(ValueError, match="Unregistered policy IDs"):
-        resolve_policy_selection(args)
+        assess_command.resolve_policy_selection(args)
 
 
 def test_resolve_policy_selection_duplicate_policies():
     args = Namespace(policies=["A1", "A1"], yes=False)
 
     with pytest.raises(ValueError, match="Duplicate policy IDs"):
-        resolve_policy_selection(args)
+        assess_command.resolve_policy_selection(args)
 
 
 def test_resolve_policy_selection_no_registered_policies():
@@ -230,11 +212,11 @@ def test_resolve_policy_selection_no_registered_policies():
         return_value=(),
     ):
         with pytest.raises(ValueError, match="No assessment policies"):
-            resolve_policy_selection(args)
+            assess_command.resolve_policy_selection(args)
 
 
 # ============================================================
-# summarize_assessment_results()
+# assess_command.summarize_assessment_results()
 # ============================================================
 
 
@@ -246,7 +228,7 @@ def test_summarize_assessment_results_all_completed(capsys):
 
     output_path = Path("data/assessments/results.json")
 
-    exit_code = summarize_assessment_results(results, output_path)
+    exit_code = assess_command.summarize_assessment_results(results, output_path)
 
     captured = capsys.readouterr()
 
@@ -263,7 +245,7 @@ def test_summarize_assessment_results_all_completed(capsys):
 def test_summarize_assessment_results_partial():
     results = [make_assessment_run("completed", "partial")]
 
-    exit_code = summarize_assessment_results(
+    exit_code = assess_command.summarize_assessment_results(
         results,
         Path("data/assessments/results.json"),
     )
@@ -274,7 +256,7 @@ def test_summarize_assessment_results_partial():
 def test_summarize_assessment_results_failed():
     results = [make_assessment_run("completed", "failed")]
 
-    exit_code = summarize_assessment_results(
+    exit_code = assess_command.summarize_assessment_results(
         results,
         Path("data/assessments/results.json"),
     )
@@ -285,7 +267,7 @@ def test_summarize_assessment_results_failed():
 def test_summarize_assessment_results_not_assessed():
     results = [make_assessment_run("not_assessed")]
 
-    exit_code = summarize_assessment_results(
+    exit_code = assess_command.summarize_assessment_results(
         results,
         Path("data/assessments/results.json"),
     )
@@ -300,7 +282,7 @@ def test_summarize_assessment_results_mixed_statuses(capsys):
         make_assessment_run("completed"),
     ]
 
-    exit_code = summarize_assessment_results(
+    exit_code = assess_command.summarize_assessment_results(
         results,
         Path("data/assessments/results.json"),
     )
@@ -317,7 +299,7 @@ def test_summarize_assessment_results_mixed_statuses(capsys):
 
 
 def test_run_assess_success(monkeypatch):
-    """Test successful execution of the assessment workflow."""
+    """Test successful execution and verify workflow stage arguments."""
 
     args = Namespace(
         input="evidence.json",
@@ -329,33 +311,43 @@ def test_run_assess_success(monkeypatch):
     expected_results = [make_assessment_run("completed")]
     expected_output = Path("assessment.json")
 
+    mock_policy_selection = Mock(return_value=["A1"])
+    mock_output_path = Mock(return_value=expected_output)
+    mock_execute = Mock(return_value=expected_results)
+    mock_summary = Mock(return_value=EXIT_SUCCESS)
+
     monkeypatch.setattr(
         assess_command,
         "resolve_policy_selection",
-        lambda args: ["A1"],
+        mock_policy_selection,
     )
-
     monkeypatch.setattr(
         assess_command,
         "resolve_output_path",
-        lambda output: expected_output,
+        mock_output_path,
     )
-
     monkeypatch.setattr(
         assess_command,
         "execute_assessment",
-        lambda **kwargs: expected_results,
+        mock_execute,
     )
-
     monkeypatch.setattr(
         assess_command,
         "summarize_assessment_results",
-        lambda results, output_path: EXIT_SUCCESS,
+        mock_summary,
     )
 
     result = assess_command.run_assess(args)
 
     assert result == EXIT_SUCCESS
+    mock_policy_selection.assert_called_once_with(args)
+    mock_output_path.assert_called_once_with(args.output)
+    mock_execute.assert_called_once_with(
+        input_path=Path("evidence.json"),
+        output_path=expected_output,
+        policy_ids=["A1"],
+    )
+    mock_summary.assert_called_once_with(expected_results, expected_output)
 
 
 def test_run_assess_invalid_policy_selection(monkeypatch, capsys):
@@ -512,3 +504,91 @@ def test_run_assess_unexpected_error(monkeypatch, capsys):
 
     assert result == EXIT_ERROR
     assert "Unexpected assessment error" in capsys.readouterr().err
+
+
+def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
+    """Test cancellation when policy selection is interrupted."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+    mock_output_path = Mock()
+    mock_execute = Mock()
+
+    def raise_interrupt(args):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        raise_interrupt,
+    )
+    monkeypatch.setattr(assess_command, "resolve_output_path", mock_output_path)
+    monkeypatch.setattr(assess_command, "execute_assessment", mock_execute)
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_CANCELLED
+    assert "Assessment cancelled" in capsys.readouterr().out
+    mock_output_path.assert_not_called()
+    mock_execute.assert_not_called()
+
+
+def test_run_assess_output_eoferror(monkeypatch, capsys):
+    """Test cancellation when output approval receives EOF."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+    mock_execute = Mock()
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        Mock(return_value=["A1"]),
+    )
+
+    def raise_eoferror(output):
+        raise EOFError
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        raise_eoferror,
+    )
+    monkeypatch.setattr(assess_command, "execute_assessment", mock_execute)
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_CANCELLED
+    assert "Assessment cancelled" in capsys.readouterr().out
+    mock_execute.assert_not_called()
+
+
+def test_run_assess_propagates_partial_exit_code(monkeypatch):
+    """Test that a partial assessment exit code is propagated."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+    expected_results = [make_assessment_run("partial")]
+    expected_output = Path("assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        Mock(return_value=["A1"]),
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        Mock(return_value=expected_output),
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        Mock(return_value=expected_results),
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "summarize_assessment_results",
+        Mock(return_value=EXIT_PARTIAL),
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_PARTIAL
