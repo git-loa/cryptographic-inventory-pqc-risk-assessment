@@ -13,7 +13,15 @@ from pqc_inventory.commands.assess import (
     resolve_policy_selection,
     summarize_assessment_results,
 )
-from pqc_inventory.commands.constants import EXIT_PARTIAL, EXIT_SUCCESS
+import pqc_inventory.commands.assess as assess_command
+from pqc_inventory.commands.constants import (
+    EXIT_CANCELLED,
+    EXIT_ERROR,
+    EXIT_INVALID_INPUT,
+    EXIT_PARTIAL,
+    EXIT_SUCCESS,
+)
+from pqc_inventory.storage.json_repository import JSONRepositoryError
 
 # ============================================================
 # Test Helpers
@@ -306,3 +314,201 @@ def test_summarize_assessment_results_mixed_statuses(capsys):
     assert "Partial:                1" in captured.out
     assert "Failed:                 1" in captured.out
     assert "Not assessed:           1" in captured.out
+
+
+def test_run_assess_success(monkeypatch):
+    """Test successful execution of the assessment workflow."""
+
+    args = Namespace(
+        input="evidence.json",
+        output="assessment.json",
+        policies=["A1"],
+        yes=False,
+    )
+
+    expected_results = [make_assessment_run("completed")]
+    expected_output = Path("assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: ["A1"],
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        lambda output: expected_output,
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        lambda **kwargs: expected_results,
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "summarize_assessment_results",
+        lambda results, output_path: EXIT_SUCCESS,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_SUCCESS
+
+
+def test_run_assess_invalid_policy_selection(monkeypatch, capsys):
+    """Test that invalid policy selection stops execution."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    def raise_error(args):
+        raise ValueError("Unregistered policy IDs: A99")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        raise_error,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_INVALID_INPUT
+    assert "Policy selection error" in capsys.readouterr().err
+
+
+def test_run_assess_policy_selection_cancelled(monkeypatch, capsys):
+    """Test cancellation during policy selection."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: None,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_CANCELLED
+    assert "Assessment cancelled" in capsys.readouterr().out
+
+
+def test_run_assess_output_cancelled(monkeypatch, capsys):
+    """Test cancellation when approving the output destination."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: ["A1"],
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        lambda output: None,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_CANCELLED
+    assert "Assessment cancelled" in capsys.readouterr().out
+
+
+def test_run_assess_invalid_input(monkeypatch, capsys):
+    """Test handling of invalid assessment evidence."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: ["A1"],
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        lambda output: Path(output),
+    )
+
+    def raise_error(**kwargs):
+        raise ValueError("Invalid evidence structure.")
+
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        raise_error,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_INVALID_INPUT
+    assert "Assessment input error" in capsys.readouterr().err
+
+
+def test_run_assess_repository_error(monkeypatch, capsys):
+    """Test handling of repository errors during assessment."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: ["A1"],
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        lambda output: Path(output),
+    )
+
+    def raise_error(**kwargs):
+        raise JSONRepositoryError("Unable to save assessment results.")
+
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        raise_error,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_ERROR
+    assert "Assessment error" in capsys.readouterr().err
+
+
+def test_run_assess_unexpected_error(monkeypatch, capsys):
+    """Test handling of unexpected assessment execution errors."""
+
+    args = Namespace(input="evidence.json", output="assessment.json")
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        lambda args: ["A1"],
+    )
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        lambda output: Path(output),
+    )
+
+    def raise_error(**kwargs):
+        raise RuntimeError("Unexpected failure.")
+
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        raise_error,
+    )
+
+    result = assess_command.run_assess(args)
+
+    assert result == EXIT_ERROR
+    assert "Unexpected assessment error" in capsys.readouterr().err

@@ -8,7 +8,15 @@ from pqc_inventory.assessment.interfaces import AssessmentPolicy
 from pqc_inventory.assessment.models import AssessmentRun
 from pqc_inventory.assessment.policy_setup import create_default_registry
 from pqc_inventory.application.assessment_service import AssessmentService
-from pqc_inventory.commands.constants import EXIT_PARTIAL, EXIT_SUCCESS
+from pqc_inventory.commands.common import resolve_output_path
+from pqc_inventory.commands.constants import (
+    EXIT_CANCELLED,
+    EXIT_ERROR,
+    EXIT_INVALID_INPUT,
+    EXIT_PARTIAL,
+    EXIT_SUCCESS,
+)
+from pqc_inventory.storage.json_repository import JSONRepositoryError
 
 
 def register_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -185,3 +193,55 @@ def summarize_assessment_results(
         return EXIT_PARTIAL
 
     return EXIT_SUCCESS
+
+
+def run_assess(  # pylint: disable=too-many-return-statements
+    args: argparse.Namespace,
+) -> int:
+    """Execute the assessment workflow and report its outcome."""
+
+    exit_code = EXIT_SUCCESS
+
+    # Step 1: Resolve the assessment policies to execute.
+    try:
+        selected_policy_ids = resolve_policy_selection(args)
+    except ValueError as exc:
+        print(f"Policy selection error: {exc}", file=sys.stderr)
+        return EXIT_INVALID_INPUT
+    except (EOFError, KeyboardInterrupt):
+        print("\nAssessment cancelled by user.")
+        return EXIT_CANCELLED
+    if selected_policy_ids is None:
+        print("Assessment cancelled by user.")
+        return EXIT_CANCELLED
+
+    # Step 2: Approve the output destination path.
+    try:
+        output_path = resolve_output_path(args.output)
+    except (EOFError, KeyboardInterrupt):
+        print("\nAssessment cancelled by user.")
+        return EXIT_CANCELLED
+    if output_path is None:
+        print("Assessment cancelled by user.")
+        return EXIT_CANCELLED
+
+    # Step 3: Execute the assessment.
+    try:
+        results = execute_assessment(
+            input_path=Path(args.input),
+            output_path=output_path,
+            policy_ids=selected_policy_ids,
+        )
+    except ValueError as exc:
+        print(f"Assessment input error: {exc}", file=sys.stderr)
+        return EXIT_INVALID_INPUT
+    except (JSONRepositoryError, KeyError) as exc:
+        print(f"Assessment error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    except Exception as exc:
+        print(f"Unexpected assessment error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+
+    # Step 4: Summarize the assessment results.
+    exit_code = summarize_assessment_results(results, output_path)
+    return exit_code
