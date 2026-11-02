@@ -16,6 +16,7 @@ from pqc_inventory.commands.scan import (
 )
 from pqc_inventory.commands.assess import (
     register_parser as register_assess_parser,
+    run_assess,
 )
 from pqc_inventory.commands.report import (
     register_parser as register_report_parser,
@@ -34,6 +35,7 @@ CommandHandler = Callable[[argparse.Namespace], int]
 COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "policies": run_policies,
     "scan": run_scan,
+    "assess": run_assess,
 }
 
 
