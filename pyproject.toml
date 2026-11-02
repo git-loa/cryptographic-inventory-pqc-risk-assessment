@@ -40,6 +40,11 @@ package-dir = { "" = "src" }
 where = ["src"]
 include = ["pqc_inventory*"]
 
+[tool.setuptools.package-data]
+pqc_inventory = [
+    "templates/reports/*.j2",
+]
+
 [tool.black]
 line-length = 88
 
