@@ -275,3 +275,55 @@ def test_build_overview_counts_multiple_findings_per_policy(
         "unacceptable": 1,
         "unknown": 0,
     }
+
+
+def test_build_complete_report_data(
+    assessment_run_factory,
+):
+    """Ensure the builder assembles all report data sections."""
+
+    assessment_runs = [
+        assessment_run_factory(
+            assessment_run_id="run-001",
+            methodology_version="1.0",
+        ),
+    ]
+
+    metadata = {
+        "report_title": "TLS Cryptographic Assessment Report",
+        "report_id": "report-001",
+        "generated_at": "2026-11-03T12:00:00Z",
+        "author": "Security Assessment Team",
+        "organization": "Example Organization",
+        "report_version": "1.0",
+    }
+
+    builder = ReportDataBuilder(assessment_runs)
+    report_data = builder.build_report_data(metadata)
+
+    assert report_data["metadata"] == metadata
+    assert report_data["assessment_runs"] == assessment_runs
+
+    assert report_data["overview"]["total_assessment_runs"] == 1
+    assert report_data["overview"]["methodology_versions"] == ["1.0"]
+
+
+def test_build_report_data_without_assessment_runs():
+    """Ensure complete report data can be built from an empty collection."""
+
+    metadata = {
+        "report_title": "TLS Cryptographic Assessment Report",
+        "report_id": "report-002",
+        "generated_at": "2026-11-03T12:00:00Z",
+        "author": "Security Assessment Team",
+        "organization": "Example Organization",
+        "report_version": "1.0",
+    }
+
+    builder = ReportDataBuilder([])
+    report_data = builder.build_report_data(metadata)
+
+    assert report_data["metadata"] == metadata
+    assert report_data["assessment_runs"] == []
+    assert report_data["overview"]["total_assessment_runs"] == 0
+    assert report_data["overview"]["methodology_versions"] == []

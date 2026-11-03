@@ -144,3 +144,15 @@ class ReportDataBuilder:
             "scan_status_counts": scan_status_counts,
             "classification_counts": classification_counts,
         }
+
+    def build_report_data(
+        self,
+        metadata: ReportMetadata,
+    ) -> ReportData:
+        """Build the complete report data structure."""
+
+        return {
+            "metadata": metadata,
+            "overview": self.build_overview(),
+            "assessment_runs": self.assessment_runs,
+        }
