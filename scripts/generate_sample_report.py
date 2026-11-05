@@ -6,7 +6,7 @@ from pqc_inventory.application.assessment_service import AssessmentService
 from pqc_inventory.application.report_request import ReportRequest
 from pqc_inventory.application.report_service import ReportService
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 EVIDENCE_PATH = PROJECT_ROOT / "examples" / "sample_tls_evidence.json"
 

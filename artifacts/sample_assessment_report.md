@@ -10,9 +10,9 @@
 
 | Report detail | Value |
 |---|---|
-| Report ID | `81d3d675-619e-4783-97d2-b7ca575b2448` |
+| Report ID | `bcf9aca7-03e3-468a-9173-81794651c527` |
 | Report version | 1.0 |
-| Generated | 2026-11-05T15:43:56.140738Z |
+| Generated | 2026-11-05T16:05:05.632507Z |
 | Prepared by | PQC Assessment Framework |
 | Organization | Sample Assessment |
 | Methodology version(s) | 1.0 |
@@ -128,11 +128,11 @@ This section describes each distinct policy represented in the assessment runs. 
 
 | Attribute | Value |
 |---|---|
-| Assessment run ID | `66713236-15de-4480-8bb5-4c0fe1f43efb` |
+| Assessment run ID | `999cfedf-9406-4813-853b-87099f23c4ea` |
 | Target | google.com |
 | Target type | domain |
 | Port | 443 |
-| Assessment date | 2026-11-05T15:43:56.074011Z |
+| Assessment date | 2026-11-05T16:05:05.570702Z |
 | Methodology version | 1.0 |
 | Collection status | 🟢 Completed |
 
@@ -428,4 +428,4 @@ Interpret findings within the documented scope and limitations of the assessment
 
 *End of report*
 
-**Report ID:** `81d3d675-619e-4783-97d2-b7ca575b2448` · **Version:** 1.0 · **Generated:** 2026-11-05T15:43:56.140738Z
+**Report ID:** `bcf9aca7-03e3-468a-9173-81794651c527` · **Version:** 1.0 · **Generated:** 2026-11-05T16:05:05.632507Z
