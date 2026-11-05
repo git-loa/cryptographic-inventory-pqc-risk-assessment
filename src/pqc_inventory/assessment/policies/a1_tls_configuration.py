@@ -12,7 +12,9 @@ from pqc_inventory.assessment.interfaces import AssessmentPolicy
 from pqc_inventory.assessment.models import (
     AssessmentContext,
     AssessmentFinding,
+    PolicyMetadata,
     PolicyResult,
+    PolicyRule,
 )
 from pqc_inventory.assessment.policies.a1_classifiers import (
     classify_certificate_signature,
@@ -68,6 +70,91 @@ class A1TLSConfigurationPolicy(AssessmentPolicy):
             "findings": findings,
             "limitations": limitations,
         }
+
+    @property
+    def metadata(self) -> PolicyMetadata:
+        """Return descriptive metadata and rules for the A1 policy."""
+
+        return PolicyMetadata(
+            policy_id=self.POLICY_ID,
+            name=self.POLICY_NAME,
+            version=self.POLICY_VERSION,
+            description=self.POLICY_DESCRIPTION,
+            scope=(
+                "Negotiated TLS protocol version",
+                "Negotiated TLS cipher suite",
+                "Certificate public-key algorithm",
+                "Certificate signature algorithm",
+            ),
+            rules=(
+                PolicyRule(
+                    rule_id="A1.1",
+                    name="TLS Protocol Version",
+                    description=(
+                        "Evaluates the security classification of the "
+                        "negotiated TLS protocol version."
+                    ),
+                    dimension="tls_version",
+                    evaluation_summary=(
+                        "TLS 1.3 is acceptable; TLS 1.2 is acceptable "
+                        "with review; TLS 1.0, TLS 1.1, SSLv2, and SSLv3 "
+                        "are unacceptable. Missing or unrecognized "
+                        "evidence is classified as unknown."
+                    ),
+                ),
+                PolicyRule(
+                    rule_id="A1.2",
+                    name="Cipher Suite Security",
+                    description=(
+                        "Evaluates the negotiated cipher suite using "
+                        "the negotiated TLS protocol version."
+                    ),
+                    dimension="cipher_suite",
+                    evaluation_summary=(
+                        "Explicitly excluded cipher-suite patterns are "
+                        "unacceptable. Recognized TLS 1.3 AEAD suites "
+                        "are acceptable, except CCM_8, which requires "
+                        "review. Recognized TLS 1.2 ECDHE-AEAD suites "
+                        "are acceptable; static RSA and ECDHE-CBC suites "
+                        "require review. Unrecognized combinations "
+                        "are classified as unknown."
+                    ),
+                ),
+                PolicyRule(
+                    rule_id="A1.3",
+                    name="Certificate Public-Key Algorithm",
+                    description=(
+                        "Evaluates the certificate public-key algorithm "
+                        "and its implications for post-quantum migration."
+                    ),
+                    dimension="public_key_algorithm",
+                    evaluation_summary=(
+                        "ML-DSA is acceptable. RSA, EC, Ed25519, and "
+                        "Ed448 are acceptable with review because they "
+                        "are classical algorithms. DSA is unacceptable. "
+                        "Missing or unrecognized algorithms are unknown."
+                    ),
+                ),
+                PolicyRule(
+                    rule_id="A1.4",
+                    name="Certificate Signature Algorithm",
+                    description=(
+                        "Evaluates the certificate signature algorithm "
+                        "using its object identifier and relevant hash evidence."
+                    ),
+                    dimension="certificate_signature",
+                    evaluation_summary=(
+                        "Recognized SHA-1 signature OIDs are unacceptable. "
+                        "Recognized classical RSA, ECDSA, and EdDSA "
+                        "signatures require post-quantum migration review. "
+                        "RSA-PSS requires a recognized SHA-256, SHA-384, "
+                        "or SHA-512 hash. Recognized ML-DSA signature "
+                        "OIDs are acceptable. Other or insufficient "
+                        "evidence is classified as unknown."
+                    ),
+                ),
+            ),
+        )
 
     def _build_findings(self, tls: dict) -> list[AssessmentFinding]:
         """Classify TLS evidence and build the four A1 findings."""

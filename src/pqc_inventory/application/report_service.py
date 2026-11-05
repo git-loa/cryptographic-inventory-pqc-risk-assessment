@@ -75,13 +75,13 @@ class ReportService:  # pylint: disable=too-few-public-methods
                 the assessment data fails validation.
             OSError: If the report cannot be written to disk.
         """
+        renderer = self._get_renderer(request.report_format)
+
         report_data = self._build_report_data(
             input_path=request.input_path,
             author=request.author,
             organization=request.organization,
         )
-
-        renderer = self._get_renderer(request.report_format)
 
         rendered_content = renderer.render(report_data=report_data)
 

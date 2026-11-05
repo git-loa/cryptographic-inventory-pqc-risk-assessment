@@ -157,26 +157,263 @@ class AssessmentRunValidator:  # pylint: disable=too-few-public-methods
             )
 
     @classmethod
+    def _validate_policy_rule(
+        cls,
+        rule: object,
+        policy_id: str,
+        index: int,
+        rule_index: int,
+    ) -> None:
+        """Validate one policy rule definition."""
+        if not isinstance(rule, dict):
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}', "
+                f"rule {rule_index} must be a JSON object."
+            )
+
+        required_fields = {
+            "rule_id",
+            "name",
+            "description",
+            "dimension",
+            "evaluation_summary",
+            "references",
+        }
+
+        missing_fields = required_fields - rule.keys()
+
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}', "
+                f"rule {rule_index} is missing fields: {missing}."
+            )
+
+        for field in (
+            "rule_id",
+            "name",
+            "description",
+            "dimension",
+            "evaluation_summary",
+        ):
+            value = rule[field]
+
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Assessment run {index}, policy '{policy_id}', "
+                    f"rule {rule_index} has an invalid '{field}' field."
+                )
+
+        cls._validate_policy_references(
+            rule["references"],
+            policy_id,
+            index,
+        )
+
+    @classmethod
+    def _validate_policy_references(
+        cls,
+        references: object,
+        policy_id: str,
+        index: int,
+    ) -> None:
+        """Validate references associated with policy metadata."""
+        if not isinstance(references, list):
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                "has invalid references: expected a list."
+            )
+
+        required_fields = {
+            "reference_id",
+            "title",
+            "publisher",
+            "url",
+            "relevance",
+        }
+
+        for reference_index, reference in enumerate(references):
+            if not isinstance(reference, dict):
+                raise ValueError(
+                    f"Assessment run {index}, policy '{policy_id}', "
+                    f"reference {reference_index} must be a JSON object."
+                )
+
+            missing_fields = required_fields - reference.keys()
+
+            if missing_fields:
+                missing = ", ".join(sorted(missing_fields))
+                raise ValueError(
+                    f"Assessment run {index}, policy '{policy_id}', "
+                    f"reference {reference_index} is missing fields: {missing}."
+                )
+
+            for field in required_fields:
+                value = reference[field]
+
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(
+                        f"Assessment run {index}, policy '{policy_id}', "
+                        f"reference {reference_index} has an invalid '{field}' field."
+                    )
+
+            version = reference.get("version")
+
+            if version is not None and not isinstance(version, str):
+                raise ValueError(
+                    f"Assessment run {index}, policy '{policy_id}', "
+                    f"reference {reference_index} has an invalid 'version' field."
+                )
+
+    @classmethod
+    def _validate_policy_metadata(
+        cls,
+        metadata: object,
+        policy_id: str,
+        index: int,
+    ) -> dict[str, object]:
+        """Validate the metadata describing a policy."""
+        if not isinstance(metadata, dict):
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                "has invalid metadata: expected a JSON object."
+            )
+
+        metadata_data = cast(dict[str, object], metadata)
+
+        required_fields = {
+            "policy_id",
+            "name",
+            "version",
+            "description",
+            "scope",
+            "rules",
+            "references",
+        }
+
+        missing_fields = required_fields - metadata_data.keys()
+
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                f"metadata is missing fields: {missing}."
+            )
+
+        for field in ("policy_id", "name", "version", "description"):
+            value = metadata_data[field]
+
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"Assessment run {index}, policy '{policy_id}' "
+                    f"metadata has an invalid '{field}' field."
+                )
+
+        if metadata_data["policy_id"] != policy_id:
+            raise ValueError(
+                f"Assessment run {index} has a policy identifier mismatch: "
+                f"dictionary key '{policy_id}' does not match "
+                f"metadata policy ID '{metadata_data['policy_id']}'."
+            )
+
+        cls._validate_string_list(
+            metadata_data["scope"],
+            "scope",
+            index,
+            policy_id,
+        )
+
+        rules = metadata_data["rules"]
+
+        if not isinstance(rules, list) or not rules:
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                "metadata has invalid rules: expected a non-empty list."
+            )
+
+        for rule_index, rule in enumerate(rules):
+            cls._validate_policy_rule(
+                rule,
+                policy_id,
+                index,
+                rule_index,
+            )
+
+        cls._validate_policy_references(
+            metadata_data["references"],
+            policy_id,
+            index,
+        )
+
+        return metadata_data
+
+    @classmethod
+    def _validate_policy_execution_record(
+        cls,
+        policy_record: object,
+        policy_id: str,
+        index: int,
+    ) -> None:
+        """Validate policy metadata and its execution result."""
+        if not isinstance(policy_record, dict):
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                "must be a JSON object."
+            )
+
+        record = cast(dict[str, object], policy_record)
+
+        required_fields = {"metadata", "result"}
+        missing_fields = required_fields - record.keys()
+
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                f"is missing fields: {missing}."
+            )
+
+        metadata = cls._validate_policy_metadata(
+            record["metadata"],
+            policy_id,
+            index,
+        )
+
+        cls._validate_policy_result(
+            record["result"],
+            policy_id,
+            index,
+        )
+
+        result = cast(dict[str, object], record["result"])
+
+        if metadata["version"] != result["policy_version"]:
+            raise ValueError(
+                f"Assessment run {index}, policy '{policy_id}' "
+                "has a metadata and result version mismatch."
+            )
+
+    @classmethod
     def _validate_assessments(
         cls,
         assessments: object,
         index: int,
     ) -> None:
-        """Validate the collection of policy results."""
+        """Validate the collection of policy execution records."""
         if not isinstance(assessments, dict):
             raise ValueError(
                 f"Assessment run {index} has invalid assessments: "
                 "expected a JSON object."
             )
 
-        for policy_id, policy_result in assessments.items():
+        for policy_id, policy_record in assessments.items():
             if not isinstance(policy_id, str) or not policy_id.strip():
                 raise ValueError(
                     f"Assessment run {index} contains an invalid policy identifier."
                 )
 
-            cls._validate_policy_result(
-                policy_result,
+            cls._validate_policy_execution_record(
+                policy_record,
                 policy_id,
                 index,
             )

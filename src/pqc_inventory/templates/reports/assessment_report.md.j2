@@ -310,7 +310,7 @@ No key usage information recorded.
 
 **Extended Key Usage**
 
-{% for usage in run.evidence.get("extended_key_usage", []) %}
+{% for usage in run.evidence.get("extended_key_usage") or [] %}
 - {{ usage }}
 {% else %}
 - No extended key usage information recorded.

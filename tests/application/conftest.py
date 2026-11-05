@@ -5,6 +5,8 @@ import pytest
 from pqc_inventory.assessment.models import (
     AssessmentFinding,
     AssessmentRun,
+    PolicyExecutionRecord,
+    PolicyMetadataRecord,
     PolicyResult,
 )
 from pqc_inventory.collection.models import TLSScanResult
@@ -40,6 +42,46 @@ def tls_scan_factory():
 
 
 @pytest.fixture
+def policy_metadata_factory():
+    """Create policy metadata records with configurable attributes."""
+
+    def _create(
+        policy_id: str = "A1",
+        name: str | None = None,
+        version: str = "1.0.0",
+        description: str = "A test assessment policy.",
+        scope: list[str] | None = None,
+        rules: list[dict] | None = None,
+        references: list[dict] | None = None,
+    ) -> PolicyMetadataRecord:
+
+        return {
+            "policy_id": policy_id,
+            "name": name if name is not None else f"Test Policy {policy_id}",
+            "version": version,
+            "description": description,
+            "scope": (scope if scope is not None else ["Test assessment scope"]),
+            "rules": (
+                rules
+                if rules is not None
+                else [
+                    {
+                        "rule_id": f"{policy_id}.1",
+                        "name": "Test Rule",
+                        "description": "A rule used for testing.",
+                        "dimension": "tls_version",
+                        "evaluation_summary": ("Classifies the observed TLS version."),
+                        "references": [],
+                    }
+                ]
+            ),
+            "references": references if references is not None else [],
+        }
+
+    return _create
+
+
+@pytest.fixture
 def policy_result_factory():
     """Create policy results with configurable findings and status."""
 
@@ -60,6 +102,40 @@ def policy_result_factory():
 
 
 @pytest.fixture
+def policy_execution_record_factory(
+    policy_metadata_factory,
+    policy_result_factory,
+):
+    """Create policy execution records containing metadata and results."""
+
+    def _create(
+        policy_id: str = "A1",
+        execution_status: str = "completed",
+        findings: list[AssessmentFinding] | None = None,
+        metadata: PolicyMetadataRecord | None = None,
+    ) -> PolicyExecutionRecord:
+
+        metadata_record = (
+            metadata
+            if metadata is not None
+            else policy_metadata_factory(policy_id=policy_id)
+        )
+
+        result = policy_result_factory(
+            policy_id=policy_id,
+            execution_status=execution_status,
+            findings=findings,
+        )
+
+        return {
+            "metadata": metadata_record,
+            "result": result,
+        }
+
+    return _create
+
+
+@pytest.fixture
 def assessment_run_factory(tls_scan_factory):
     """Create assessment runs with configurable evidence and assessments."""
 
@@ -67,7 +143,7 @@ def assessment_run_factory(tls_scan_factory):
         assessment_run_id: str = "run-001",
         domain: str = "example.com",
         methodology_version: str = "1.0",
-        assessments: dict[str, PolicyResult] | None = None,
+        assessments: dict[str, PolicyExecutionRecord] | None = None,
         scan_status: str = "completed",
     ) -> AssessmentRun:
         return {
@@ -95,6 +171,7 @@ def finding_factory():
         finding_id: str = "finding-001",
         policy_id: str = "A1",
         classification: str = "acceptable",
+        rule_id: str = "A1.1",
     ) -> AssessmentFinding:
         return {
             "finding_id": finding_id,
@@ -102,7 +179,7 @@ def finding_factory():
             "dimension": "tls_version",
             "observed_value": "TLSv1.3",
             "classification": classification,
-            "rule_id": "A1-R1",
+            "rule_id": rule_id,
             "rationale": "Test finding rationale.",
             "evidence_references": ["tls_version"],
         }

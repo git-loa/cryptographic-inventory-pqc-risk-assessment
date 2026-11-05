@@ -98,9 +98,9 @@ class ReportDataBuilder:
 
         # Count policy execution outcomes.
         policy_counter = Counter[PolicyExecutionStatus](
-            policy_result["execution_status"]
+            policy_record["result"]["execution_status"]
             for run in self.assessment_runs
-            for policy_result in run["assessments"].values()
+            for policy_record in run["assessments"].values()
         )
 
         policy_execution_counts: PolicyExecutionCounts = {
@@ -125,8 +125,8 @@ class ReportDataBuilder:
         classification_counter = Counter[AssessmentClassification](
             finding["classification"]
             for run in self.assessment_runs
-            for policy_result in run["assessments"].values()
-            for finding in policy_result["findings"]
+            for policy_record in run["assessments"].values()
+            for finding in policy_record["result"]["findings"]
         )
 
         classification_counts: ClassificationCounts = {

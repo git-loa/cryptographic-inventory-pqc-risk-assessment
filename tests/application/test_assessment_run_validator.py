@@ -9,13 +9,13 @@ from pqc_inventory.application.assessment_run_validator import (
 
 def test_validate_single_assessment_run(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Accept one structurally valid assessment run."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
 
@@ -27,7 +27,7 @@ def test_validate_single_assessment_run(
 
 def test_validate_multiple_assessment_runs(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Accept a list containing multiple valid assessment runs."""
 
@@ -35,14 +35,14 @@ def test_validate_multiple_assessment_runs(
         assessment_run_factory(
             assessment_run_id="run-001",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
+                "A1": policy_execution_record_factory(policy_id="A1"),
             },
         ),
         assessment_run_factory(
             assessment_run_id="run-002",
             domain="example.org",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
+                "A1": policy_execution_record_factory(policy_id="A1"),
             },
         ),
     ]
@@ -86,13 +86,13 @@ def test_reject_non_dictionary_assessment_item():
 
 def test_reject_missing_required_field(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Reject an assessment run missing a mandatory field."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
     assessment_run.pop("methodology_version")
@@ -113,7 +113,7 @@ def test_reject_missing_required_field(
 )
 def test_reject_invalid_metadata(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     field,
     invalid_value,
 ):
@@ -121,7 +121,7 @@ def test_reject_invalid_metadata(
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
     assessment_run[field] = invalid_value
@@ -132,13 +132,13 @@ def test_reject_invalid_metadata(
 
 def test_reject_invalid_embedded_tls_evidence(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Reject malformed TLS evidence."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
     assessment_run["evidence"]["port"] = 70000
@@ -149,13 +149,13 @@ def test_reject_invalid_embedded_tls_evidence(
 
 def test_reject_evidence_as_list(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Require embedded evidence to be a single JSON object."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
     assessment_run["evidence"] = [assessment_run["evidence"]]
@@ -166,14 +166,14 @@ def test_reject_evidence_as_list(
 
 def test_reject_domain_evidence_mismatch(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Ensure the assessment domain matches the TLS evidence target."""
 
     assessment_run = assessment_run_factory(
         domain="example.org",
         assessments={
-            "A1": policy_result_factory(policy_id="A1"),
+            "A1": policy_execution_record_factory(policy_id="A1"),
         },
     )
 
@@ -197,13 +197,13 @@ def test_reject_invalid_assessments_structure(
 
 def test_reject_policy_identifier_mismatch(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Ensure policy dictionary keys match their result identifiers."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(policy_id="A2"),
+            "A1": policy_execution_record_factory(policy_id="A2"),
         },
     )
 
@@ -213,13 +213,13 @@ def test_reject_policy_identifier_mismatch(
 
 def test_reject_invalid_policy_execution_status(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Reject unsupported policy execution statuses."""
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(
+            "A1": policy_execution_record_factory(
                 policy_id="A1",
                 execution_status="invalid",
             ),
@@ -232,7 +232,7 @@ def test_reject_invalid_policy_execution_status(
 
 def test_reject_invalid_finding_classification(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     finding_factory,
 ):
     """Reject findings with unsupported classifications."""
@@ -241,7 +241,7 @@ def test_reject_invalid_finding_classification(
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(
+            "A1": policy_execution_record_factory(
                 policy_id="A1",
                 findings=[finding],
             ),
@@ -254,7 +254,7 @@ def test_reject_invalid_finding_classification(
 
 def test_reject_finding_policy_identifier_mismatch(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     finding_factory,
 ):
     """Ensure findings belong to their containing policy."""
@@ -263,7 +263,7 @@ def test_reject_finding_policy_identifier_mismatch(
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(
+            "A1": policy_execution_record_factory(
                 policy_id="A1",
                 findings=[finding],
             ),
@@ -276,7 +276,7 @@ def test_reject_finding_policy_identifier_mismatch(
 
 def test_reject_invalid_evidence_references(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     finding_factory,
 ):
     """Reject empty or non-string evidence references."""
@@ -286,7 +286,7 @@ def test_reject_invalid_evidence_references(
 
     assessment_run = assessment_run_factory(
         assessments={
-            "A1": policy_result_factory(
+            "A1": policy_execution_record_factory(
                 policy_id="A1",
                 findings=[finding],
             ),
@@ -294,4 +294,63 @@ def test_reject_invalid_evidence_references(
     )
 
     with pytest.raises(ValueError, match="evidence_references"):
+        AssessmentRunValidator.validate(assessment_run)
+
+
+def test_reject_missing_policy_metadata(
+    assessment_run_factory,
+    policy_execution_record_factory,
+):
+    """Reject policy execution records without metadata."""
+
+    record = policy_execution_record_factory(policy_id="A1")
+    record.pop("metadata")
+
+    assessment_run = assessment_run_factory(
+        assessments={"A1": record},
+    )
+
+    with pytest.raises(ValueError, match="metadata"):
+        AssessmentRunValidator.validate(assessment_run)
+
+
+def test_reject_policy_metadata_identifier_mismatch(
+    assessment_run_factory,
+    policy_execution_record_factory,
+    policy_metadata_factory,
+):
+    """Ensure metadata identifiers match their assessment keys."""
+
+    record = policy_execution_record_factory(
+        policy_id="A1",
+        metadata=policy_metadata_factory(policy_id="A2"),
+    )
+
+    assessment_run = assessment_run_factory(
+        assessments={"A1": record},
+    )
+
+    with pytest.raises(ValueError, match="identifier mismatch"):
+        AssessmentRunValidator.validate(assessment_run)
+
+
+def test_reject_policy_metadata_without_rules(
+    assessment_run_factory,
+    policy_execution_record_factory,
+    policy_metadata_factory,
+):
+    """Reject policy metadata without its required rule definitions."""
+
+    metadata = policy_metadata_factory(rules=[])
+
+    record = policy_execution_record_factory(
+        policy_id="A1",
+        metadata=metadata,
+    )
+
+    assessment_run = assessment_run_factory(
+        assessments={"A1": record},
+    )
+
+    with pytest.raises(ValueError, match="rules"):
         AssessmentRunValidator.validate(assessment_run)

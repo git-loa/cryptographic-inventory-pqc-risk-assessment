@@ -36,7 +36,7 @@ def test_build_overview_with_no_assessment_runs():
 
 def test_build_overview_with_multiple_assessment_runs(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Test aggregation of multiple assessment runs."""
 
@@ -45,7 +45,7 @@ def test_build_overview_with_multiple_assessment_runs(
             assessment_run_id="run-001",
             methodology_version="1.0",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
+                "A1": policy_execution_record_factory(policy_id="A1"),
             },
         ),
         assessment_run_factory(
@@ -53,8 +53,8 @@ def test_build_overview_with_multiple_assessment_runs(
             methodology_version="1.1",
             domain="example.org",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
-                "A2": policy_result_factory(
+                "A1": policy_execution_record_factory(policy_id="A1"),
+                "A2": policy_execution_record_factory(
                     policy_id="A2",
                     execution_status="failed",
                 ),
@@ -72,7 +72,7 @@ def test_build_overview_with_multiple_assessment_runs(
 
 def test_build_overview_counts_policy_execution_statuses(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Test policy execution status aggregation across assessment runs."""
 
@@ -80,8 +80,8 @@ def test_build_overview_counts_policy_execution_statuses(
         assessment_run_factory(
             assessment_run_id="run-001",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
-                "A2": policy_result_factory(
+                "A1": policy_execution_record_factory(policy_id="A1"),
+                "A2": policy_execution_record_factory(
                     policy_id="A2",
                     execution_status="failed",
                 ),
@@ -90,12 +90,12 @@ def test_build_overview_counts_policy_execution_statuses(
         assessment_run_factory(
             assessment_run_id="run-002",
             assessments={
-                "A1": policy_result_factory(policy_id="A1"),
-                "A2": policy_result_factory(
+                "A1": policy_execution_record_factory(policy_id="A1"),
+                "A2": policy_execution_record_factory(
                     policy_id="A2",
                     execution_status="partial",
                 ),
-                "A3": policy_result_factory(
+                "A3": policy_execution_record_factory(
                     policy_id="A3",
                     execution_status="not_assessed",
                 ),
@@ -148,7 +148,7 @@ def test_build_overview_counts_scan_statuses(assessment_run_factory):
 
 def test_build_overview_counts_finding_classifications(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     finding_factory,
 ):
     """Test finding classification aggregation across assessment runs."""
@@ -173,7 +173,7 @@ def test_build_overview_counts_finding_classifications(
         assessment_run_factory(
             assessment_run_id="run-001",
             assessments={
-                "A1": policy_result_factory(
+                "A1": policy_execution_record_factory(
                     policy_id="A1",
                     findings=findings[:2],
                 ),
@@ -182,7 +182,7 @@ def test_build_overview_counts_finding_classifications(
         assessment_run_factory(
             assessment_run_id="run-002",
             assessments={
-                "A1": policy_result_factory(
+                "A1": policy_execution_record_factory(
                     policy_id="A1",
                     findings=findings[2:],
                 ),
@@ -203,7 +203,7 @@ def test_build_overview_counts_finding_classifications(
 
 def test_failed_policy_without_findings(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
 ):
     """Ensure failed policies count as failures without affecting classifications."""
 
@@ -211,7 +211,7 @@ def test_failed_policy_without_findings(
         assessment_run_factory(
             assessment_run_id="run-001",
             assessments={
-                "A1": policy_result_factory(
+                "A1": policy_execution_record_factory(
                     policy_id="A1",
                     execution_status="failed",
                 ),
@@ -234,7 +234,7 @@ def test_failed_policy_without_findings(
 
 def test_build_overview_counts_multiple_findings_per_policy(
     assessment_run_factory,
-    policy_result_factory,
+    policy_execution_record_factory,
     finding_factory,
 ):
     """Ensure every finding is counted individually."""
@@ -258,7 +258,7 @@ def test_build_overview_counts_multiple_findings_per_policy(
         assessment_run_factory(
             assessment_run_id="run-001",
             assessments={
-                "A1": policy_result_factory(
+                "A1": policy_execution_record_factory(
                     policy_id="A1",
                     findings=findings,
                 ),

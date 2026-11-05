@@ -43,6 +43,7 @@ include = ["pqc_inventory*"]
 [tool.setuptools.package-data]
 pqc_inventory = [
     "templates/reports/*.j2",
+    "templates/reports/assets/*.css",
 ]
 
 [tool.black]
