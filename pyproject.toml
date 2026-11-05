@@ -1,61 +1,63 @@
 [build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.build_meta"
+    requires = ["setuptools>=68.0"]
+    build-backend = "setuptools.build_meta"
 
 [project]
-name = "cryptographic-inventory-pqc-risk-assessment"
-version = "0.1.0"
-description = "TLS cryptographic inventory scanner with PQC/HNDL risk assessment."
-readme = "README.md"
-requires-python = ">=3.10"
-authors = [
-{ name = "Leonard Okyere Afeke" }
-]
+    name = "cryptographic-inventory-pqc-risk-assessment"
+    version = "0.1.0"
+    description = "TLS cryptographic inventory scanner with PQC/HNDL risk assessment."
+    readme = "README.md"
+    requires-python = ">=3.10"
+    authors = [
+    { name = "Leonard Okyere Afeke" }
+    ]
 dependencies = [
-"cryptography",
-"pyOpenSSL",
-"requests",
-"pydantic",
-"rich",
-"jinja2",
+    "cryptography",
+    "pyOpenSSL",
+    "requests",
+    "pydantic",
+    "rich",
+    "jinja2",
+    "PyYAML",
 ]
 
 [project.optional-dependencies]
 dev = [
-"pytest",
-"flake8",
-"black",
-"mypy",
-"hypothesis",
-"pre-commit",
+    "pytest",
+    "flake8",
+    "black",
+    "mypy",
+    "hypothesis",
+    "pre-commit",
 ]
 
 [project.scripts]
-pqc-assessment = "pqc_inventory.cli:main"
+    pqc-assessment = "pqc_inventory.cli:main"
 
 [tool.setuptools]
-package-dir = { "" = "src" }
+    package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["pqc_inventory*"]
+    where = ["src"]
+    include = ["pqc_inventory*"]
 
 [tool.setuptools.package-data]
-pqc_inventory = [
-    "templates/reports/*.j2",
-    "templates/reports/assets/*.css",
-]
+    pqc_inventory = [
+        "templates/reports/*.j2",
+        "templates/reports/assets/*.css",
+        "templates/config/*.yaml",
+    ]
 
 [tool.black]
-line-length = 88
+    line-length = 88
 
 [tool.flake8]
-max-line-length = 88
-exclude = ["**pycache**", ".venv"]
+    max-line-length = 88
+    exclude = ["**pycache**", ".venv"]
 
 [tool.mypy]
-strict = true
+    strict = true
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests"]
+    pythonpath = ["src"]
+    testpaths = ["tests"]
