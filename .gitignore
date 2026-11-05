@@ -226,6 +226,8 @@ __marimo__/
 # Generated runtime data
 /data/evidence/*.json
 
+# Generated runtime artifacts
+/artifacts/
 
 # -------------------------
 # Pipeline Outputs
