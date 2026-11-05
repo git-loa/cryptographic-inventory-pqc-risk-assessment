@@ -23,8 +23,8 @@ def test_renderer_generates_dynamic_table_of_contents(report_data):
 
     markdown = renderer.render(report_data=report_data)
 
-    assert "[Target 1: example.com](#target-1)" in markdown
-    assert "[Target 2: example.org](#target-2)" in markdown
+    assert "[1. example.com](#target-1)" in markdown
+    assert "[2. example.org](#target-2)" in markdown
 
     assert '<a id="target-1"></a>' in markdown
     assert '<a id="target-2"></a>' in markdown
@@ -37,16 +37,17 @@ def test_renderer_wraps_each_target_in_collapsible_section(report_data):
 
     markdown = renderer.render(report_data=report_data)
 
-    assert markdown.count("<details>") == 2
-    assert markdown.count("</details>") == 2
+    target_1_summary = (
+        "<summary><strong>View assessment and collection details for "
+        "example.com</strong></summary>"
+    )
+    target_2_summary = (
+        "<summary><strong>View assessment and collection details for "
+        "example.org</strong></summary>"
+    )
 
-    assert (
-        "<summary><strong>Target 1: example.com</strong>" " — 🟢 Completed</summary>"
-    ) in markdown
-
-    assert (
-        "<summary><strong>Target 2: example.org</strong>" " — 🟠 Partial</summary>"
-    ) in markdown
+    assert target_1_summary in markdown
+    assert target_2_summary in markdown
 
 
 def test_renderer_includes_policy_findings(report_data):

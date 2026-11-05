@@ -53,11 +53,36 @@ def report_data() -> ReportData:
             },
             "assessments": {
                 "A1": {
-                    "policy_id": "A1",
-                    "policy_version": "1.0.0",
-                    "execution_status": "completed",
-                    "findings": [finding],
-                    "limitations": [],
+                    "metadata": {
+                        "policy_id": "A1",
+                        "name": "TLS Configuration Quality",
+                        "version": "1.0.0",
+                        "description": (
+                            "Evaluates observed TLS configuration properties "
+                            "using documented assessment rules."
+                        ),
+                        "scope": ["TLS configuration"],
+                        "rules": [
+                            {
+                                "rule_id": "A1-R1",
+                                "name": "TLS version assessment",
+                                "description": "Evaluates the negotiated TLS version.",
+                                "dimension": "tls_version",
+                                "evaluation_summary": (
+                                    "Classifies the negotiated TLS version."
+                                ),
+                                "references": [],
+                            }
+                        ],
+                        "references": [],
+                    },
+                    "result": {
+                        "policy_id": "A1",
+                        "policy_version": "1.0.0",
+                        "execution_status": "completed",
+                        "findings": [finding],
+                        "limitations": [],
+                    },
                 }
             },
         }

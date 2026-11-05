@@ -2,266 +2,273 @@
 
 
 
+
 # TLS Cryptographic Assessment Report
 
 **Sample Assessment**
+*Cryptographic inventory and TLS configuration assessment*
 
----
-
-## Report Information
-
-| Field | Value |
+| Report detail | Value |
 |---|---|
-| Report ID | `b5631c2b-6e72-4791-8532-01eefdef661e` |
-| Report Version | 1.0 |
-| Generated | 2026-11-04T17:37:25.826280Z |
-| Prepared By | PQC Assessment Framework |
+| Report ID | `81d3d675-619e-4783-97d2-b7ca575b2448` |
+| Report version | 1.0 |
+| Generated | 2026-11-05T15:43:56.140738Z |
+| Prepared by | PQC Assessment Framework |
 | Organization | Sample Assessment |
-| Methodology Version(s) | 1.0 |
+| Methodology version(s) | 1.0 |
 
 ---
 
-# Table of Contents
+## Contents
 
-1. [Executive Summary](#1-executive-summary)
-2. [Assessment Overview](#2-assessment-overview)
-   - [Policy Execution Results](#21-policy-execution-results)
-   - [TLS Collection Results](#22-tls-collection-results)
-   - [Assessment Methodology](#23-assessment-methodology)
-3. [Detailed Assessment Results](#3-detailed-assessment-results)
-   - [Target 1: google.com](#target-1)
-4. [Assessment Methodology and Classification](#4-assessment-methodology-and-classification)
-5. [Limitations and Considerations](#5-limitations-and-considerations)
-6. [Report Conclusion](#6-report-conclusion)
+1. [Executive summary](#1-executive-summary)
+2. [Assessment overview](#2-assessment-overview)
+3. [Policy catalogue and methodology](#3-policy-catalogue-and-methodology)
+4. [Target assessment results](#4-target-assessment-results)
+   - [1. google.com](#target-1)
+5. [Classification and interpretation](#5-classification-and-interpretation)
+6. [Limitations](#6-limitations)
+7. [Conclusion](#7-conclusion)
 
 ---
 
-# 1. Executive Summary
+# 1. Executive summary
 
-This report presents the results of a cryptographic assessment
-based on collected TLS evidence and the assessment policies
-available in the configured assessment framework.
+This report records the TLS evidence collected for the listed targets and the results produced by the assessment policies configured for the assessment run. It is intended to support technical review, cryptographic inventory development, and prioritization of further investigation.
 
-The assessment evaluates observed cryptographic configurations,
-records policy findings, and identifies areas requiring further
-investigation.
+### Assessment at a glance
 
-## 1.1 Assessment Summary
-
-| Metric | Result |
+| Measure | Result |
 |---|---:|
-| Total Assessment Runs | 1 |
-| Policy Identifiers Represented | 1 |
-| Policy Identifiers | A1 |
+| Assessment runs | **1** |
+| Distinct policy identifiers | **1** |
+| Policies represented | A1 |
+| Methodology versions | 1.0 |
 
-## 1.2 Finding Classification Summary
+### Finding classifications
 
-| Classification | Count |
+| Classification | Findings |
 |---|---:|
 | 🟢 Acceptable | 2 |
 | 🟠 Acceptable with Review | 2 |
 | 🔴 Unacceptable | 0 |
 | ⚪ Unknown | 0 |
 
-> **Interpretation:** These classifications represent individual
-> assessment findings. They should not be interpreted as an
-> aggregate security rating or overall PQC readiness score.
+> **Interpretation:** These counts summarize individual policy findings. They are not an aggregate security rating, a compliance determination, or a measure of overall post-quantum cryptography (PQC) readiness.
 
 ---
 
-# 2. Assessment Overview
+# 2. Assessment overview
 
-## 2.1 Policy Execution Results
+### Policy execution
 
-| Execution Status | Count |
+| Execution status | Count |
 |---|---:|
-| Completed | 1 |
-| Partial | 0 |
-| Failed | 0 |
-| Not Assessed | 0 |
+| 🟢 Completed | 1 |
+| 🟠 Partial | 0 |
+| 🔴 Failed | 0 |
+| ⚪ Not assessed | 0 |
 
-## 2.2 TLS Collection Results
+### TLS collection
 
-| Collection Status | Count |
+| Collection status | Count |
 |---|---:|
-| Completed | 1 |
-| Partial | 0 |
-| Failed | 0 |
+| 🟢 Completed | 1 |
+| 🟠 Partial | 0 |
+| 🔴 Failed | 0 |
 
-## 2.3 Assessment Methodology
+### Assessment coverage
 
-The following methodology versions are represented in this report:
-
-- `1.0`
-
-### Policies Represented
-
-- `A1`
+- **Methodology versions:** 1.0
+- **Policy identifiers:** A1
 
 ---
 
-# 3. Detailed Assessment Results
+# 3. Policy catalogue and methodology
 
-This section presents the assessment results for each target.
-Each target is presented in a collapsible section to make
-large reports easier to navigate.
+This section describes each distinct policy represented in the assessment runs. Policy metadata is presented once; target-specific execution outcomes and findings appear in Section 4.
 
+
+## 3.1 TLS Configuration Quality (`A1`)
+
+| Policy attribute | Description |
+|---|---|
+| Policy ID | `A1` |
+| Version | 1.0.0 |
+| Description | Assesses negotiated TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm using explicit, evidence-based classification rules. |
+| Scope | Negotiated TLS protocol version; Negotiated TLS cipher suite; Certificate public-key algorithm; Certificate signature algorithm |
+
+### Assessment rules
+
+| Rule | Dimension | Description | Evaluation summary |
+|---|---|---|---|
+| `A1.1` — TLS Protocol Version | tls_version | Evaluates the security classification of the negotiated TLS protocol version. | TLS 1.3 is acceptable; TLS 1.2 is acceptable with review; TLS 1.0, TLS 1.1, SSLv2, and SSLv3 are unacceptable. Missing or unrecognized evidence is classified as unknown. |
+| `A1.2` — Cipher Suite Security | cipher_suite | Evaluates the negotiated cipher suite using the negotiated TLS protocol version. | Explicitly excluded cipher-suite patterns are unacceptable. Recognized TLS 1.3 AEAD suites are acceptable, except CCM_8, which requires review. Recognized TLS 1.2 ECDHE-AEAD suites are acceptable; static RSA and ECDHE-CBC suites require review. Unrecognized combinations are classified as unknown. |
+| `A1.3` — Certificate Public-Key Algorithm | public_key_algorithm | Evaluates the certificate public-key algorithm and its implications for post-quantum migration. | ML-DSA is acceptable. RSA, EC, Ed25519, and Ed448 are acceptable with review because they are classical algorithms. DSA is unacceptable. Missing or unrecognized algorithms are unknown. |
+| `A1.4` — Certificate Signature Algorithm | certificate_signature | Evaluates the certificate signature algorithm using its object identifier and relevant hash evidence. | Recognized SHA-1 signature OIDs are unacceptable. Recognized classical RSA, ECDSA, and EdDSA signatures require post-quantum migration review. RSA-PSS requires a recognized SHA-256, SHA-384, or SHA-512 hash. Recognized ML-DSA signature OIDs are acceptable. Other or insufficient evidence is classified as unknown. |
+
+
+
+
+
+---
+
+# 4. Target assessment results
 
 <a id="target-1"></a>
 
+## 4.1 google.com
+
+**Collection status:** 🟢 Completed
+
 <details>
-<summary><strong>Target 1: google.com</strong> — 🟢 Completed</summary>
+<summary><strong>View assessment and collection details for google.com</strong></summary>
 
-## Assessment Information
+### Assessment record
 
-| Field | Value |
+| Attribute | Value |
 |---|---|
-| Assessment Run ID | `16d8f359-838d-461a-9eba-7b78ad147582` |
+| Assessment run ID | `66713236-15de-4480-8bb5-4c0fe1f43efb` |
 | Target | google.com |
-| Target Type | domain |
+| Target type | domain |
 | Port | 443 |
-| Assessment Date | 2026-11-04T17:37:25.781029Z |
-| Methodology Version | 1.0 |
-| Collection Status | 🟢 Completed |
+| Assessment date | 2026-11-05T15:43:56.074011Z |
+| Methodology version | 1.0 |
+| Collection status | 🟢 Completed |
 
-## Policy Results
+### Policy execution results
 
 
-### A1
+#### TLS Configuration Quality (`A1`)
 
-| Field | Value |
+| Attribute | Result |
 |---|---|
-| Policy ID | `A1` |
-| Policy Version | 1.0.0 |
-| Execution Status | 🟢 Completed |
+| Policy version | 1.0.0 |
+| Execution status | 🟢 Completed |
+| Findings recorded | 4 |
+| Policy description | Assesses negotiated TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm using explicit, evidence-based classification rules. |
 
+**Findings summary**
 
-#### Findings Summary
+| Finding ID | Rule | Dimension | Observed value | Classification |
+|---|---|---|---|---|
+| `A1-tls_version` | `A1.1` | tls_version | TLSv1.3 | 🟢 Acceptable |
+| `A1-cipher_suite` | `A1.2` | cipher_suite | TLS_AES_256_GCM_SHA384 | 🟢 Acceptable |
+| `A1-public_key_algorithm` | `A1.3` | public_key_algorithm | EC | 🟠 Acceptable with Review |
+| `A1-certificate_signature` | `A1.4` | certificate_signature | 1.2.840.10045.4.3.2 | 🟠 Acceptable with Review |
 
-| Rule | Dimension | Observed Value | Classification |
-|---|---|---|---|
-| `A1.1` | tls_version | TLSv1.3 | 🟢 Acceptable |
-| `A1.2` | cipher_suite | TLS_AES_256_GCM_SHA384 | 🟢 Acceptable |
-| `A1.3` | public_key_algorithm | EC | 🟠 Acceptable with Review |
-| `A1.4` | certificate_signature | 1.2.840.10045.4.3.2 | 🟠 Acceptable with Review |
+**Finding details**
 
-#### Finding Details
+<details>
+<summary><strong>A1-tls_version</strong> — 🟢 Acceptable</summary>
 
-
-**Finding: `A1-tls_version`**
-
-| Field | Value |
+| Attribute | Value |
 |---|---|
-| Rule | `A1.1` |
+| Rule ID | `A1.1` |
 | Dimension | tls_version |
 | Classification | 🟢 Acceptable |
-| Observed Value | TLSv1.3 |
+| Observed value | TLSv1.3 |
 
 **Rationale**
 
 TLS 1.3 is the preferred modern TLS version.
 
-**Evidence References**
+**Evidence references**
 
 - `tls.tls_version`
+</details>
+<details>
+<summary><strong>A1-cipher_suite</strong> — 🟢 Acceptable</summary>
 
-
-**Finding: `A1-cipher_suite`**
-
-| Field | Value |
+| Attribute | Value |
 |---|---|
-| Rule | `A1.2` |
+| Rule ID | `A1.2` |
 | Dimension | cipher_suite |
 | Classification | 🟢 Acceptable |
-| Observed Value | TLS_AES_256_GCM_SHA384 |
+| Observed value | TLS_AES_256_GCM_SHA384 |
 
 **Rationale**
 
 The TLS 1.3 cipher suite is in the project's recognized AEAD allowlist.
 
-**Evidence References**
+**Evidence references**
 
 - `tls.cipher_suite`
 - `tls.tls_version`
+</details>
+<details>
+<summary><strong>A1-public_key_algorithm</strong> — 🟠 Acceptable with Review</summary>
 
-
-**Finding: `A1-public_key_algorithm`**
-
-| Field | Value |
+| Attribute | Value |
 |---|---|
-| Rule | `A1.3` |
+| Rule ID | `A1.3` |
 | Dimension | public_key_algorithm |
 | Classification | 🟠 Acceptable with Review |
-| Observed Value | EC |
+| Observed value | EC |
 
 **Rationale**
 
 EC is a classical public-key algorithm requiring post-quantum migration review.
 
-**Evidence References**
+**Evidence references**
 
 - `tls.public_key_algorithm`
+</details>
+<details>
+<summary><strong>A1-certificate_signature</strong> — 🟠 Acceptable with Review</summary>
 
-
-**Finding: `A1-certificate_signature`**
-
-| Field | Value |
+| Attribute | Value |
 |---|---|
-| Rule | `A1.4` |
+| Rule ID | `A1.4` |
 | Dimension | certificate_signature |
 | Classification | 🟠 Acceptable with Review |
-| Observed Value | 1.2.840.10045.4.3.2 |
+| Observed value | 1.2.840.10045.4.3.2 |
 
 **Rationale**
 
 The certificate uses a recognized classical signature algorithm requiring post-quantum migration review.
 
-**Evidence References**
+**Evidence references**
 
 - `tls.certificate_signature_algorithm_oid`
 - `tls.certificate_signature_hash_algorithm`
+</details>
 
 
 
 
----
+### TLS connection evidence
 
-
-
-## Collection Evidence
-
-### TLS Configuration
-
-| Property | Observed Value |
+| Property | Observed value |
 |---|---|
-| TLS Version | TLSv1.3 |
-| Cipher Suite | TLS_AES_256_GCM_SHA384 |
-| Cipher Strength | 256 |
-| Key Establishment Group | X25519 |
-| Key Establishment Source | openssl_s_client_separate_handshake |
-| Key Establishment Evidence Status | observed |
+| Negotiated TLS version | TLSv1.3 |
+| Cipher suite | TLS_AES_256_GCM_SHA384 |
+| Cipher strength | 256 |
+| Key-establishment group | X25519 |
+| Key-establishment evidence source | openssl_s_client_separate_handshake |
+| Key-establishment evidence status | observed |
 
-### Certificate Information
+### Certificate evidence
 
-| Property | Observed Value |
+| Property | Observed value |
 |---|---|
-| Certificate Version | v3 |
-| Serial Number | 217138846515957589284893936179616346089 |
-| Public Key Algorithm | EC |
-| Public Key Variant | Not available |
-| Public Key Algorithm OID | 1.2.840.10045.2.1 |
-| Key Size | 256 |
-| Public Key Curve | secp256r1 |
-| RSA Public Exponent | Not available |
-| Signature Algorithm OID | 1.2.840.10045.4.3.2 |
-| Signature Hash Algorithm | sha256 |
-| Not Before | 2026-09-28T18:38:33+00:00 |
-| Not After | 2026-12-21T18:38:32+00:00 |
-| Certificate Verification | verified |
+| Certificate version | v3 |
+| Serial number | 217138846515957589284893936179616346089 |
+| Public-key algorithm | EC |
+| Public-key variant | Not available |
+| Public-key algorithm OID | 1.2.840.10045.2.1 |
+| Key size | 256 |
+| Public-key curve | secp256r1 |
+| RSA public exponent | Not available |
+| Certificate signature algorithm OID | 1.2.840.10045.4.3.2 |
+| Certificate signature hash algorithm | sha256 |
+| Valid from | 2026-09-28T18:38:33+00:00 |
+| Valid until | 2026-12-21T18:38:32+00:00 |
+| Certificate verification status | verified |
 
-### Certificate Extensions
+### Certificate extensions
 
-**Subject Alternative DNS Names**
+**Subject alternative DNS names**
 
 - `*.google.com`
 - `*.appengine.google.com`
@@ -329,120 +336,96 @@ The certificate uses a recognized classical signature algorithm requiring post-q
 - `android.clients.google.com`
 - `*.aistudio.google.com`
 
-**Subject Alternative IP Addresses**
+**Subject alternative IP addresses**
 
-- No IP addresses recorded.
+- None recorded.
 
-**Key Usage**
+**Key usage**
 
-- digital_signature: Enabled
-- content_commitment: Disabled
-- key_encipherment: Disabled
-- data_encipherment: Disabled
-- key_agreement: Disabled
-- key_cert_sign: Disabled
-- crl_sign: Disabled
+| Usage | State |
+|---|---|
+| digital_signature | Enabled |
+| content_commitment | Disabled |
+| key_encipherment | Disabled |
+| data_encipherment | Disabled |
+| key_agreement | Disabled |
+| key_cert_sign | Disabled |
+| crl_sign | Disabled |
 
-**Extended Key Usage**
+**Extended key usage**
 
 - 1.3.6.1.5.5.7.3.1
 
-**Basic Constraints**
+**Basic constraints**
 
-- ca: False
-- path_length: None
+| Constraint | Value |
+|---|---|
+| ca | False |
+| path_length | Not available |
 
-### Certificate Subject
+### Certificate identity
 
-- **2.5.4.3:** *.google.com
+**Subject**
 
-### Certificate Issuer
+| Attribute | Value |
+|---|---|
+| 2.5.4.3 | *.google.com |
 
-- **2.5.4.6:** US
-- **2.5.4.10:** Google Trust Services
-- **2.5.4.3:** WE2
+**Issuer**
 
-## Collection Diagnostics
+| Attribute | Value |
+|---|---|
+| 2.5.4.6 | US |
+| 2.5.4.10 | Google Trust Services |
+| 2.5.4.3 | WE2 |
 
+### Collection diagnostics
 
 No collection diagnostics were recorded.
-
 
 </details>
 
 ---
 
+# 5. Classification and interpretation
 
-# 4. Assessment Methodology and Classification
-
-Assessment findings are generated using the rules implemented
-in the configured assessment policies.
-
-Each finding includes:
-
-- A policy identifier and version.
-- An assessment rule identifier.
-- An observed value, where available.
-- A classification.
-- A rationale explaining the classification.
-- References to supporting evidence.
-
-## 4.1 Classification Definitions
-
-| Classification | Description |
+| Classification | Interpretation |
 |---|---|
-| 🟢 Acceptable | Meets the applicable implemented assessment rule. |
-| 🟠 Acceptable with Review | Requires further security review or consideration. |
-| 🔴 Unacceptable | Does not meet the applicable assessment rule. |
-| ⚪ Unknown | Available evidence is insufficient or unsupported. |
+| 🟢 Acceptable | The observed evidence meets the applicable implemented assessment rule. |
+| 🟠 Acceptable with Review | The result requires additional security review or contextual consideration. |
+| 🔴 Unacceptable | The observed evidence does not meet the applicable implemented assessment rule. |
+| ⚪ Unknown | The available evidence is insufficient or unsupported for a conclusive classification. |
 
-These classifications are project-specific assessment outcomes.
-They do not independently establish regulatory compliance or
-comprehensive cryptographic security.
+Classifications are policy-specific outcomes. Interpret them in the context of the applicable policy version, rule, evidence, and documented scope. They do not independently establish regulatory compliance or comprehensive cryptographic security.
 
-## 4.2 Evidence Interpretation
-
-Assessment conclusions depend on the evidence collected and
-the rules implemented by each policy.
-
-Missing, incomplete, or unavailable evidence must not automatically
-be interpreted as proof of either security or insecurity.
+Missing or incomplete evidence must not automatically be interpreted as proof of either security or insecurity.
 
 ---
 
-# 5. Limitations and Considerations
+# 6. Limitations
 
-The following considerations apply when interpreting this report:
+The following limitations should be considered when interpreting the results:
 
-- Assessment results are limited to the evidence available for each target.
-- Collection failures and incomplete scans may affect assessment coverage.
-- Policy findings reflect implemented rules and their documented scope.
-- TLS observations do not reveal every cryptographic dependency within an organization.
+- Findings are limited to the evidence collected for each target and the rules implemented by the represented policies.
+- Partial or failed collection may reduce the evidence available for assessment.
+- TLS endpoint observations do not enumerate every cryptographic dependency within an organization.
 - Certificate metadata alone does not establish complete certificate-chain trust or hostname validity.
-- Key-establishment observations must be interpreted according to their collection source.
-- The absence of a finding does not necessarily establish that a system is secure.
-- PQC readiness requires broader organizational and application-level evidence.
+- Key-establishment observations depend on the collection method and recorded evidence source.
+- The absence of a finding does not establish that a system is secure.
+- PQC readiness requires broader evidence about applications, protocols, cryptographic dependencies, vendors, and migration plans.
 
-Further investigation may be necessary before making security,
-compliance, or migration decisions.
-
----
-
-# 6. Report Conclusion
-
-This report provides a structured record of the collected cryptographic
-evidence and the assessment results produced by the configured policies.
-
-The findings should support further security analysis,
-cryptographic inventory development, and post-quantum migration planning.
-
-They should not be treated as a substitute for a comprehensive
-cryptographic assessment or an independently validated security audit.
+Further investigation may be required before making security, compliance, or migration decisions.
 
 ---
 
-*End of Report*
+# 7. Conclusion
 
-**Report ID:** `b5631c2b-6e72-4791-8532-01eefdef661e`
-**Report Version:** 1.0
-**Generated:** 2026-11-04T17:37:25.826280Z
+This report provides a structured record of the TLS evidence collected and the policy results produced for the assessed targets. It is intended to support technical review, cryptographic inventory development, and prioritization of further investigation.
+
+Interpret findings within the documented scope and limitations of the assessment methodology. This report is not a substitute for a comprehensive cryptographic assessment or an independently validated security audit.
+
+---
+
+*End of report*
+
+**Report ID:** `81d3d675-619e-4783-97d2-b7ca575b2448` · **Version:** 1.0 · **Generated:** 2026-11-05T15:43:56.140738Z

@@ -1,9 +1,9 @@
 [
   {
     "schema_version": "1.0",
-    "assessment_run_id": "16d8f359-838d-461a-9eba-7b78ad147582",
+    "assessment_run_id": "66713236-15de-4480-8bb5-4c0fe1f43efb",
     "domain": "google.com",
-    "created_at": "2026-11-04T17:37:25.781029Z",
+    "created_at": "2026-11-05T15:43:56.074011Z",
     "methodology_version": "1.0",
     "evidence": {
       "schema_version": "1.0",
@@ -132,62 +132,111 @@
     },
     "assessments": {
       "A1": {
-        "policy_id": "A1",
-        "policy_version": "1.0.0",
-        "execution_status": "completed",
-        "findings": [
-          {
-            "finding_id": "A1-tls_version",
-            "policy_id": "A1",
-            "dimension": "tls_version",
-            "observed_value": "TLSv1.3",
-            "classification": "acceptable",
-            "rule_id": "A1.1",
-            "rationale": "TLS 1.3 is the preferred modern TLS version.",
-            "evidence_references": [
-              "tls.tls_version"
-            ]
-          },
-          {
-            "finding_id": "A1-cipher_suite",
-            "policy_id": "A1",
-            "dimension": "cipher_suite",
-            "observed_value": "TLS_AES_256_GCM_SHA384",
-            "classification": "acceptable",
-            "rule_id": "A1.2",
-            "rationale": "The TLS 1.3 cipher suite is in the project's recognized AEAD allowlist.",
-            "evidence_references": [
-              "tls.cipher_suite",
-              "tls.tls_version"
-            ]
-          },
-          {
-            "finding_id": "A1-public_key_algorithm",
-            "policy_id": "A1",
-            "dimension": "public_key_algorithm",
-            "observed_value": "EC",
-            "classification": "acceptable_with_review",
-            "rule_id": "A1.3",
-            "rationale": "EC is a classical public-key algorithm requiring post-quantum migration review.",
-            "evidence_references": [
-              "tls.public_key_algorithm"
-            ]
-          },
-          {
-            "finding_id": "A1-certificate_signature",
-            "policy_id": "A1",
-            "dimension": "certificate_signature",
-            "observed_value": "1.2.840.10045.4.3.2",
-            "classification": "acceptable_with_review",
-            "rule_id": "A1.4",
-            "rationale": "The certificate uses a recognized classical signature algorithm requiring post-quantum migration review.",
-            "evidence_references": [
-              "tls.certificate_signature_algorithm_oid",
-              "tls.certificate_signature_hash_algorithm"
-            ]
-          }
-        ],
-        "limitations": []
+        "metadata": {
+          "policy_id": "A1",
+          "name": "TLS Configuration Quality",
+          "version": "1.0.0",
+          "description": "Assesses negotiated TLS version, cipher suite, certificate public-key algorithm, and certificate signature algorithm using explicit, evidence-based classification rules.",
+          "scope": [
+            "Negotiated TLS protocol version",
+            "Negotiated TLS cipher suite",
+            "Certificate public-key algorithm",
+            "Certificate signature algorithm"
+          ],
+          "rules": [
+            {
+              "rule_id": "A1.1",
+              "name": "TLS Protocol Version",
+              "description": "Evaluates the security classification of the negotiated TLS protocol version.",
+              "dimension": "tls_version",
+              "evaluation_summary": "TLS 1.3 is acceptable; TLS 1.2 is acceptable with review; TLS 1.0, TLS 1.1, SSLv2, and SSLv3 are unacceptable. Missing or unrecognized evidence is classified as unknown.",
+              "references": []
+            },
+            {
+              "rule_id": "A1.2",
+              "name": "Cipher Suite Security",
+              "description": "Evaluates the negotiated cipher suite using the negotiated TLS protocol version.",
+              "dimension": "cipher_suite",
+              "evaluation_summary": "Explicitly excluded cipher-suite patterns are unacceptable. Recognized TLS 1.3 AEAD suites are acceptable, except CCM_8, which requires review. Recognized TLS 1.2 ECDHE-AEAD suites are acceptable; static RSA and ECDHE-CBC suites require review. Unrecognized combinations are classified as unknown.",
+              "references": []
+            },
+            {
+              "rule_id": "A1.3",
+              "name": "Certificate Public-Key Algorithm",
+              "description": "Evaluates the certificate public-key algorithm and its implications for post-quantum migration.",
+              "dimension": "public_key_algorithm",
+              "evaluation_summary": "ML-DSA is acceptable. RSA, EC, Ed25519, and Ed448 are acceptable with review because they are classical algorithms. DSA is unacceptable. Missing or unrecognized algorithms are unknown.",
+              "references": []
+            },
+            {
+              "rule_id": "A1.4",
+              "name": "Certificate Signature Algorithm",
+              "description": "Evaluates the certificate signature algorithm using its object identifier and relevant hash evidence.",
+              "dimension": "certificate_signature",
+              "evaluation_summary": "Recognized SHA-1 signature OIDs are unacceptable. Recognized classical RSA, ECDSA, and EdDSA signatures require post-quantum migration review. RSA-PSS requires a recognized SHA-256, SHA-384, or SHA-512 hash. Recognized ML-DSA signature OIDs are acceptable. Other or insufficient evidence is classified as unknown.",
+              "references": []
+            }
+          ],
+          "references": []
+        },
+        "result": {
+          "policy_id": "A1",
+          "policy_version": "1.0.0",
+          "execution_status": "completed",
+          "findings": [
+            {
+              "finding_id": "A1-tls_version",
+              "policy_id": "A1",
+              "dimension": "tls_version",
+              "observed_value": "TLSv1.3",
+              "classification": "acceptable",
+              "rule_id": "A1.1",
+              "rationale": "TLS 1.3 is the preferred modern TLS version.",
+              "evidence_references": [
+                "tls.tls_version"
+              ]
+            },
+            {
+              "finding_id": "A1-cipher_suite",
+              "policy_id": "A1",
+              "dimension": "cipher_suite",
+              "observed_value": "TLS_AES_256_GCM_SHA384",
+              "classification": "acceptable",
+              "rule_id": "A1.2",
+              "rationale": "The TLS 1.3 cipher suite is in the project's recognized AEAD allowlist.",
+              "evidence_references": [
+                "tls.cipher_suite",
+                "tls.tls_version"
+              ]
+            },
+            {
+              "finding_id": "A1-public_key_algorithm",
+              "policy_id": "A1",
+              "dimension": "public_key_algorithm",
+              "observed_value": "EC",
+              "classification": "acceptable_with_review",
+              "rule_id": "A1.3",
+              "rationale": "EC is a classical public-key algorithm requiring post-quantum migration review.",
+              "evidence_references": [
+                "tls.public_key_algorithm"
+              ]
+            },
+            {
+              "finding_id": "A1-certificate_signature",
+              "policy_id": "A1",
+              "dimension": "certificate_signature",
+              "observed_value": "1.2.840.10045.4.3.2",
+              "classification": "acceptable_with_review",
+              "rule_id": "A1.4",
+              "rationale": "The certificate uses a recognized classical signature algorithm requiring post-quantum migration review.",
+              "evidence_references": [
+                "tls.certificate_signature_algorithm_oid",
+                "tls.certificate_signature_hash_algorithm"
+              ]
+            }
+          ],
+          "limitations": []
+        }
       }
     }
   }
