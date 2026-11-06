@@ -5,7 +5,7 @@ Command-line interface for TLS cryptographic inventory and assessment.
 import argparse
 from collections.abc import Callable, Sequence
 
-
+from pqc_inventory.config.bootstrap import initialize_workspace
 from pqc_inventory.commands.policies import (
     register_parser as register_policies_parser,
     run_policies,
@@ -26,7 +26,7 @@ from pqc_inventory.commands.run import (
     register_parser as register_run_parser,
 )
 
-from pqc_inventory.commands.constants import EXIT_SUCCESS
+from pqc_inventory.commands.constants import EXIT_ERROR, EXIT_SUCCESS
 
 APP_NAME = "pqc-assessment"
 APP_VERSION = "0.1.0"
@@ -36,6 +36,11 @@ COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "policies": run_policies,
     "scan": run_scan,
     "assess": run_assess,
+}
+
+WORKSPACE_COMMANDS: set[str] = {
+    "scan",
+    "assess",
 }
 
 
@@ -85,6 +90,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if handler is None:
         parser.error(f"No handler registered for command '{args.command}'.")
+
+    if args.command in WORKSPACE_COMMANDS:
+        try:
+            args.workspace = initialize_workspace()
+        except (OSError, ValueError) as exc:
+            parser.exit(
+                EXIT_ERROR,
+                f"Workspace initialization failed: {exc}\n",
+            )
 
     return handler(args)
 

@@ -254,7 +254,7 @@ class A1TLSConfigurationPolicy(AssessmentPolicy):
         if scan_status == "failed":
             return (
                 "partial",
-                ["The TLS scan failed; " "available evidence may be incomplete."],
+                ["The TLS scan failed; available evidence may be incomplete."],
             )
         return (
             "partial",

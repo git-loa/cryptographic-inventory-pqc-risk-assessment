@@ -40,12 +40,12 @@ def assessment_context():
         (
             "partial",
             "partial",
-            "The TLS scan completed partially; " "some evidence may be unavailable.",
+            "The TLS scan completed partially; some evidence may be unavailable.",
         ),
         (
             "failed",
             "partial",
-            "The TLS scan failed; " "available evidence may be incomplete.",
+            "The TLS scan failed; available evidence may be incomplete.",
         ),
         (
             None,
