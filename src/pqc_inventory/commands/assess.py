@@ -217,7 +217,10 @@ def run_assess(  # pylint: disable=too-many-return-statements
 
     # Step 2: Approve the output destination path.
     try:
-        output_path = resolve_output_path(args.output)
+        output_path = resolve_output_path(
+            output_path=args.output,
+            allowed_extensions={".json"},
+        )
     except (EOFError, KeyboardInterrupt):
         print("\nAssessment cancelled by user.")
         return EXIT_CANCELLED

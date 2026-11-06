@@ -17,14 +17,9 @@ from pqc_inventory.commands.constants import (
 )
 from pqc_inventory.storage.json_repository import JSONRepositoryError
 
-# ============================================================
-# Test Helpers
-# ============================================================
-
 
 def make_assessment_run(*statuses: str) -> dict:
     """Create an assessment run containing the supplied policy statuses."""
-
     return {
         "assessments": {
             f"A{index}": {"execution_status": status}
@@ -34,7 +29,7 @@ def make_assessment_run(*statuses: str) -> dict:
 
 
 # ============================================================
-# assess_command.get_registered_policies()
+# Registered policies
 # ============================================================
 
 
@@ -48,57 +43,32 @@ def test_get_registered_policies():
 
 
 # ============================================================
-# assess_command.confirm_all_policies()
+# Policy confirmation
 # ============================================================
 
 
-def test_confirm_all_policies_user_accepts():
+@pytest.mark.parametrize("response", ["y", "yes"])
+def test_confirm_all_policies_accepts_confirmation(response):
     policies = assess_command.get_registered_policies()
 
-    with patch("builtins.input", return_value="y"):
+    with patch("builtins.input", return_value=response):
         result = assess_command.confirm_all_policies(policies)
 
     assert result is True
 
 
-def test_confirm_all_policies_user_accepts_yes():
+@pytest.mark.parametrize("response", ["n", "", "maybe"])
+def test_confirm_all_policies_rejects_confirmation(response):
     policies = assess_command.get_registered_policies()
 
-    with patch("builtins.input", return_value="yes"):
-        result = assess_command.confirm_all_policies(policies)
-
-    assert result is True
-
-
-def test_confirm_all_policies_user_declines():
-    policies = assess_command.get_registered_policies()
-
-    with patch("builtins.input", return_value="n"):
-        result = assess_command.confirm_all_policies(policies)
-
-    assert result is False
-
-
-def test_confirm_all_policies_empty_response():
-    policies = assess_command.get_registered_policies()
-
-    with patch("builtins.input", return_value=""):
-        result = assess_command.confirm_all_policies(policies)
-
-    assert result is False
-
-
-def test_confirm_all_policies_invalid_response():
-    policies = assess_command.get_registered_policies()
-
-    with patch("builtins.input", return_value="maybe"):
+    with patch("builtins.input", return_value=response):
         result = assess_command.confirm_all_policies(policies)
 
     assert result is False
 
 
 # ============================================================
-# assess_command.resolve_policy_selection()
+# Policy selection
 # ============================================================
 
 
@@ -216,7 +186,7 @@ def test_resolve_policy_selection_no_registered_policies():
 
 
 # ============================================================
-# assess_command.summarize_assessment_results()
+# Assessment result summary
 # ============================================================
 
 
@@ -228,7 +198,10 @@ def test_summarize_assessment_results_all_completed(capsys):
 
     output_path = Path("data/assessments/results.json")
 
-    exit_code = assess_command.summarize_assessment_results(results, output_path)
+    exit_code = assess_command.summarize_assessment_results(
+        results,
+        output_path,
+    )
 
     captured = capsys.readouterr()
 
@@ -242,30 +215,12 @@ def test_summarize_assessment_results_all_completed(capsys):
     assert str(output_path) in captured.out
 
 
-def test_summarize_assessment_results_partial():
-    results = [make_assessment_run("completed", "partial")]
-
-    exit_code = assess_command.summarize_assessment_results(
-        results,
-        Path("data/assessments/results.json"),
-    )
-
-    assert exit_code == EXIT_PARTIAL
-
-
-def test_summarize_assessment_results_failed():
-    results = [make_assessment_run("completed", "failed")]
-
-    exit_code = assess_command.summarize_assessment_results(
-        results,
-        Path("data/assessments/results.json"),
-    )
-
-    assert exit_code == EXIT_PARTIAL
-
-
-def test_summarize_assessment_results_not_assessed():
-    results = [make_assessment_run("not_assessed")]
+@pytest.mark.parametrize(
+    "status",
+    ["partial", "failed", "not_assessed"],
+)
+def test_summarize_assessment_results_incomplete_statuses(status):
+    results = [make_assessment_run(status)]
 
     exit_code = assess_command.summarize_assessment_results(
         results,
@@ -298,8 +253,13 @@ def test_summarize_assessment_results_mixed_statuses(capsys):
     assert "Not assessed:           1" in captured.out
 
 
+# ============================================================
+# Assessment command execution
+# ============================================================
+
+
 def test_run_assess_success(monkeypatch):
-    """Test successful execution and verify workflow stage arguments."""
+    """Verify successful execution and workflow stage arguments."""
 
     args = Namespace(
         input="evidence.json",
@@ -340,18 +300,25 @@ def test_run_assess_success(monkeypatch):
     result = assess_command.run_assess(args)
 
     assert result == EXIT_SUCCESS
+
     mock_policy_selection.assert_called_once_with(args)
-    mock_output_path.assert_called_once_with(args.output)
+    mock_output_path.assert_called_once_with(
+        output_path=args.output,
+        allowed_extensions={".json"},
+    )
     mock_execute.assert_called_once_with(
         input_path=Path("evidence.json"),
         output_path=expected_output,
         policy_ids=["A1"],
     )
-    mock_summary.assert_called_once_with(expected_results, expected_output)
+    mock_summary.assert_called_once_with(
+        expected_results,
+        expected_output,
+    )
 
 
 def test_run_assess_invalid_policy_selection(monkeypatch, capsys):
-    """Test that invalid policy selection stops execution."""
+    """Stop execution when policy selection is invalid."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
@@ -371,7 +338,7 @@ def test_run_assess_invalid_policy_selection(monkeypatch, capsys):
 
 
 def test_run_assess_policy_selection_cancelled(monkeypatch, capsys):
-    """Test cancellation during policy selection."""
+    """Handle cancellation during policy selection."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
@@ -388,20 +355,19 @@ def test_run_assess_policy_selection_cancelled(monkeypatch, capsys):
 
 
 def test_run_assess_output_cancelled(monkeypatch, capsys):
-    """Test cancellation when approving the output destination."""
+    """Handle cancellation during output path approval."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
     monkeypatch.setattr(
         assess_command,
         "resolve_policy_selection",
-        lambda args: ["A1"],
+        Mock(return_value=["A1"]),
     )
-
     monkeypatch.setattr(
         assess_command,
         "resolve_output_path",
-        lambda output: None,
+        Mock(return_value=None),
     )
 
     result = assess_command.run_assess(args)
@@ -411,20 +377,19 @@ def test_run_assess_output_cancelled(monkeypatch, capsys):
 
 
 def test_run_assess_invalid_input(monkeypatch, capsys):
-    """Test handling of invalid assessment evidence."""
+    """Handle invalid assessment evidence."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
     monkeypatch.setattr(
         assess_command,
         "resolve_policy_selection",
-        lambda args: ["A1"],
+        Mock(return_value=["A1"]),
     )
-
     monkeypatch.setattr(
         assess_command,
         "resolve_output_path",
-        lambda output: Path(output),
+        Mock(return_value=Path("assessment.json")),
     )
 
     def raise_error(**kwargs):
@@ -443,20 +408,19 @@ def test_run_assess_invalid_input(monkeypatch, capsys):
 
 
 def test_run_assess_repository_error(monkeypatch, capsys):
-    """Test handling of repository errors during assessment."""
+    """Handle repository errors during assessment."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
     monkeypatch.setattr(
         assess_command,
         "resolve_policy_selection",
-        lambda args: ["A1"],
+        Mock(return_value=["A1"]),
     )
-
     monkeypatch.setattr(
         assess_command,
         "resolve_output_path",
-        lambda output: Path(output),
+        Mock(return_value=Path("assessment.json")),
     )
 
     def raise_error(**kwargs):
@@ -475,20 +439,19 @@ def test_run_assess_repository_error(monkeypatch, capsys):
 
 
 def test_run_assess_unexpected_error(monkeypatch, capsys):
-    """Test handling of unexpected assessment execution errors."""
+    """Handle unexpected assessment execution errors."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
 
     monkeypatch.setattr(
         assess_command,
         "resolve_policy_selection",
-        lambda args: ["A1"],
+        Mock(return_value=["A1"]),
     )
-
     monkeypatch.setattr(
         assess_command,
         "resolve_output_path",
-        lambda output: Path(output),
+        Mock(return_value=Path("assessment.json")),
     )
 
     def raise_error(**kwargs):
@@ -507,7 +470,7 @@ def test_run_assess_unexpected_error(monkeypatch, capsys):
 
 
 def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
-    """Test cancellation when policy selection is interrupted."""
+    """Handle keyboard interruption during policy selection."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
     mock_output_path = Mock()
@@ -521,8 +484,16 @@ def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
         "resolve_policy_selection",
         raise_interrupt,
     )
-    monkeypatch.setattr(assess_command, "resolve_output_path", mock_output_path)
-    monkeypatch.setattr(assess_command, "execute_assessment", mock_execute)
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_output_path",
+        mock_output_path,
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        mock_execute,
+    )
 
     result = assess_command.run_assess(args)
 
@@ -533,7 +504,7 @@ def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
 
 
 def test_run_assess_output_eoferror(monkeypatch, capsys):
-    """Test cancellation when output approval receives EOF."""
+    """Handle EOF while approving the output destination."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
     mock_execute = Mock()
@@ -544,7 +515,7 @@ def test_run_assess_output_eoferror(monkeypatch, capsys):
         Mock(return_value=["A1"]),
     )
 
-    def raise_eoferror(output):
+    def raise_eoferror(*, output_path, allowed_extensions):
         raise EOFError
 
     monkeypatch.setattr(
@@ -552,7 +523,11 @@ def test_run_assess_output_eoferror(monkeypatch, capsys):
         "resolve_output_path",
         raise_eoferror,
     )
-    monkeypatch.setattr(assess_command, "execute_assessment", mock_execute)
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        mock_execute,
+    )
 
     result = assess_command.run_assess(args)
 
@@ -562,7 +537,7 @@ def test_run_assess_output_eoferror(monkeypatch, capsys):
 
 
 def test_run_assess_propagates_partial_exit_code(monkeypatch):
-    """Test that a partial assessment exit code is propagated."""
+    """Propagate the partial assessment exit code."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
     expected_results = [make_assessment_run("partial")]

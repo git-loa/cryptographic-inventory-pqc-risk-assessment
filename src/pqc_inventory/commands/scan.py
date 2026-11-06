@@ -150,7 +150,10 @@ def run_scan(args: argparse.Namespace) -> int:
 
     # Step 2: Approve the output destination before network operations.
     try:
-        output_path = resolve_output_path(args.output)
+        output_path = resolve_output_path(
+            output_path=args.output,
+            allowed_extensions={".json"},
+        )
     except (EOFError, KeyboardInterrupt):
         print("\nScan cancelled.")
         return EXIT_CANCELLED
