@@ -20,6 +20,7 @@ from pqc_inventory.commands.assess import (
 )
 from pqc_inventory.commands.report import (
     register_parser as register_report_parser,
+    run_report,
 )
 
 from pqc_inventory.commands.run import (
@@ -36,11 +37,13 @@ COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "policies": run_policies,
     "scan": run_scan,
     "assess": run_assess,
+    "report": run_report,
 }
 
 WORKSPACE_COMMANDS: set[str] = {
     "scan",
     "assess",
+    "report",
 }
 
 
