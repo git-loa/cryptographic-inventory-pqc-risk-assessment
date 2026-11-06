@@ -12,7 +12,10 @@ from pqc_inventory.application.report_service import (
     REPORT_FILENAMES,
     ReportService,
 )
-from pqc_inventory.commands.common import resolve_output_path
+from pqc_inventory.commands.common import (
+    resolve_output_path,
+    resolve_output_directory,
+)
 from pqc_inventory.commands.constants import (
     EXIT_CANCELLED,
     EXIT_ERROR,
@@ -114,11 +117,17 @@ def generate_batch_report(
 ) -> int:
     """Generate reports in all registered formats."""
 
-    output_directory = (
-        Path(args.output_dir)
-        if args.output_dir is not None
-        else args.workspace.reports_dir
+    proposed_directory = (
+        args.output_dir if args.output_dir is not None else args.workspace.reports_dir
     )
+
+    output_directory = resolve_output_directory(
+        output_directory=proposed_directory,
+    )
+
+    if output_directory is None:
+        print("Report generation cancelled by user.")
+        return EXIT_CANCELLED
 
     if not confirm_batch_overwrite(output_directory, service):
         print("Report generation cancelled by user.")

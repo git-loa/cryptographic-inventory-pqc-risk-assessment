@@ -151,3 +151,70 @@ def resolve_output_path(
 
         else:
             print("Invalid choice. Enter 1, 2, or 3.")
+
+
+def validate_output_directory(
+    *,
+    output_directory: str | Path,
+) -> Path:
+    """Validate and normalize a generic output directory."""
+
+    raw_path = str(output_directory)
+
+    if not raw_path or not raw_path.strip():
+        raise ValueError("The output directory cannot be empty.")
+
+    if "\x00" in raw_path:
+        raise ValueError("The output directory cannot contain null bytes.")
+
+    path = Path(raw_path).expanduser()
+
+    if path.is_symlink():
+        raise ValueError(f"The output directory cannot be a symbolic link: {path}")
+
+    if path.exists() and not path.is_dir():
+        raise ValueError(
+            f"The output destination exists but is not a directory: {path}"
+        )
+
+    if path.parent.exists() and not path.parent.is_dir():
+        raise ValueError(
+            f"The parent path exists but is not a directory: {path.parent}"
+        )
+
+    return path
+
+
+def resolve_output_directory(
+    *,
+    output_directory: str | Path,
+) -> Path | None:
+    """Resolve an output directory and interactively handle invalid paths.
+
+    Returns:
+        The approved output directory, or None if the user cancels.
+
+    Raises:
+        EOFError: If standard input closes during user interaction.
+        KeyboardInterrupt: If the user interrupts the operation.
+    """
+
+    while True:
+        try:
+            directory = validate_output_directory(
+                output_directory=output_directory,
+            )
+
+        except ValueError as exc:
+            print(f"Invalid output directory: {exc}", file=sys.stderr)
+
+            output_directory = input(
+                "Enter a valid output directory, or press Enter to cancel: "
+            ).strip()
+
+            if not output_directory:
+                return None
+
+            continue
+
+        return directory

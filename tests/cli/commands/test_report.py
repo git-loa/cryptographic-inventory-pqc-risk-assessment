@@ -554,6 +554,9 @@ def test_run_report_does_not_suppress_unexpected_errors(
     monkeypatch,
     tmp_path,
 ):
+    """
+    Verify that unexpected errors during report generation are not suppressed.
+    """
     args = make_args(tmp_path)
 
     mock_service = Mock()
@@ -578,6 +581,9 @@ def test_run_report_does_not_suppress_unexpected_batch_errors(
     monkeypatch,
     tmp_path,
 ):
+    """
+    Verify batch generation does not suppress unexpected errors.
+    """
     args = make_args(tmp_path, all_formats=True)
 
     mock_service = Mock()
@@ -597,3 +603,64 @@ def test_run_report_does_not_suppress_unexpected_batch_errors(
         match="Unexpected batch failure",
     ):
         report_command.run_report(args)
+
+
+def test_run_report_batch_resolves_output_directory(
+    monkeypatch,
+    tmp_path,
+):
+    """Verify batch generation validates its output directory."""
+
+    args = make_args(tmp_path, all_formats=True)
+
+    mock_service = Mock()
+    mock_service.renderers = {"markdown": Mock()}
+    mock_service.generate_all_reports.return_value = []
+
+    mock_resolver = Mock(return_value=tmp_path)
+
+    monkeypatch.setattr(
+        report_command,
+        "resolve_output_directory",
+        mock_resolver,
+    )
+    monkeypatch.setattr(
+        report_command,
+        "ReportService",
+        Mock(return_value=mock_service),
+    )
+
+    result = report_command.run_report(args)
+
+    assert result == EXIT_SUCCESS
+
+    mock_resolver.assert_called_once_with(
+        output_directory=tmp_path,
+    )
+
+
+def test_run_report_batch_directory_cancelled(
+    monkeypatch,
+    tmp_path,
+):
+    """Verify cancellation prevents batch report generation."""
+
+    args = make_args(tmp_path, all_formats=True)
+
+    mock_service = Mock()
+
+    monkeypatch.setattr(
+        report_command,
+        "resolve_output_directory",
+        Mock(return_value=None),
+    )
+    monkeypatch.setattr(
+        report_command,
+        "ReportService",
+        Mock(return_value=mock_service),
+    )
+
+    result = report_command.run_report(args)
+
+    assert result == EXIT_CANCELLED
+    mock_service.generate_all_reports.assert_not_called()

@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from pqc_inventory.commands.common import resolve_output_path
+from pqc_inventory.commands.common import (
+    resolve_output_directory,
+    resolve_output_path,
+    validate_output_directory,
+)
 
 
 def test_accepts_new_json_path(tmp_path: Path) -> None:
@@ -133,3 +137,80 @@ def test_cancels_when_user_selects_cancel(
 
     assert result is None
     assert output_path.read_text(encoding="utf-8") == original_content
+
+
+def test_accepts_new_output_directory(tmp_path: Path) -> None:
+    """Accept a new output directory without creating it."""
+
+    output_directory = tmp_path / "reports"
+
+    result = validate_output_directory(
+        output_directory=output_directory,
+    )
+
+    assert result == output_directory
+    assert not output_directory.exists()
+
+
+def test_accepts_existing_output_directory(tmp_path: Path) -> None:
+    """Accept an existing directory."""
+
+    output_directory = tmp_path / "reports"
+    output_directory.mkdir()
+
+    result = validate_output_directory(
+        output_directory=output_directory,
+    )
+
+    assert result == output_directory
+
+
+def test_rejects_file_as_output_directory(tmp_path: Path) -> None:
+    """Reject an existing file as an output directory."""
+
+    output_file = tmp_path / "report.md"
+    output_file.write_text("Report", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="not a directory"):
+        validate_output_directory(
+            output_directory=output_file,
+        )
+
+
+def test_resolves_invalid_directory_until_valid_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prompt for a replacement after receiving an invalid directory."""
+
+    invalid_directory = tmp_path / "report.md"
+    invalid_directory.write_text("Report", encoding="utf-8")
+
+    valid_directory = tmp_path / "reports"
+
+    responses = iter([str(valid_directory)])
+    monkeypatch.setattr("builtins.input", lambda _: next(responses))
+
+    result = resolve_output_directory(
+        output_directory=invalid_directory,
+    )
+
+    assert result == valid_directory
+
+
+def test_cancels_invalid_output_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Return None when the user cancels directory selection."""
+
+    invalid_directory = tmp_path / "report.md"
+    invalid_directory.write_text("Report", encoding="utf-8")
+
+    monkeypatch.setattr("builtins.input", lambda _: "")
+
+    result = resolve_output_directory(
+        output_directory=invalid_directory,
+    )
+
+    assert result is None
