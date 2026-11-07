@@ -22,6 +22,7 @@ from pqc_inventory.collection.tls_utils import utc_now
 from pqc_inventory.reporting.interfaces import ReportRenderer
 from pqc_inventory.reporting.markdown_renderer import MarkdownReportRenderer
 from pqc_inventory.storage.json_repository import JSONRepository
+from pqc_inventory.storage.path_safety import contains_symlink
 
 REPORT_TITLE = "TLS Cryptographic Assessment Report"
 REPORT_VERSION = "1.0"
@@ -210,9 +211,32 @@ class ReportService:  # pylint: disable=too-few-public-methods
 
         Returns:
             Path to the saved report.
+
+        Raises:
+            ValueError: If the destination or any parent directory
+                contains a symbolic link, or the destination is not
+                a regular file.
+            OSError: If the report cannot be written to disk.
         """
         destination = Path(output_path)
+
+        if contains_symlink(destination):
+            raise ValueError(
+                "Report output path must not contain symbolic links: " f"{destination}"
+            )
+
+        if destination.exists() and not destination.is_file():
+            raise ValueError(
+                f"Report output destination is not a regular file: {destination}"
+            )
+
         destination.parent.mkdir(parents=True, exist_ok=True)
+
+        # Recheck after creating the parent directories.
+        if contains_symlink(destination):
+            raise ValueError(
+                "Report output path must not contain symbolic links: " f"{destination}"
+            )
 
         if isinstance(content, bytes):
             destination.write_bytes(content)

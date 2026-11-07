@@ -8,6 +8,7 @@ from pqc_inventory.commands.common import (
     resolve_output_directory,
     resolve_output_path,
     validate_output_directory,
+    validate_output_path,
 )
 
 
@@ -214,3 +215,53 @@ def test_cancels_invalid_output_directory(
     )
 
     assert result is None
+
+
+def test_rejects_symlink_in_output_path_parent(
+    tmp_path: Path,
+) -> None:
+    """Reject an output path containing a symbolic-link parent."""
+
+    target_directory = tmp_path / "actual_reports"
+    target_directory.mkdir()
+
+    symlink_directory = tmp_path / "reports"
+
+    try:
+        symlink_directory.symlink_to(
+            target_directory,
+            target_is_directory=True,
+        )
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symbolic links are unavailable: {exc}")
+
+    output_path = symlink_directory / "assessment_report.md"
+
+    with pytest.raises(ValueError, match="symbolic links"):
+        validate_output_path(output_path=output_path)
+
+
+def test_rejects_symlink_in_output_directory_parent(
+    tmp_path: Path,
+) -> None:
+    """Reject an output directory containing a symbolic-link ancestor."""
+
+    target_directory = tmp_path / "actual_reports"
+    target_directory.mkdir()
+
+    symlink_directory = tmp_path / "reports"
+
+    try:
+        symlink_directory.symlink_to(
+            target_directory,
+            target_is_directory=True,
+        )
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symbolic links are unavailable: {exc}")
+
+    output_directory = symlink_directory / "generated"
+
+    with pytest.raises(ValueError, match="symbolic links"):
+        validate_output_directory(
+            output_directory=output_directory,
+        )

@@ -11,6 +11,15 @@ from pqc_inventory.application.report_request import (
 from pqc_inventory.application.report_service import ReportService
 
 
+def create_symlink_or_skip(link_path, target_path):
+    """Create a symbolic link or skip when the OS does not permit it."""
+
+    try:
+        link_path.symlink_to(target_path)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symbolic links are unavailable: {exc}")
+
+
 def test_generate_report_successfully(
     tmp_path,
     assessment_run_factory,
@@ -213,3 +222,170 @@ def test_generate_all_reports_builds_report_data_once(
 
     assert markdown_data is html_data
     repository.load_json.assert_called_once()
+
+
+def test_generate_report_rejects_symlink_destination(
+    tmp_path,
+    assessment_run_factory,
+):
+    """Verify that single-report generation rejects symbolic links."""
+
+    repository = Mock()
+    repository.load_json.return_value = [assessment_run_factory()]
+
+    renderer = Mock()
+    renderer.render.return_value = "# Assessment Report"
+
+    service = ReportService(
+        repository=repository,
+        renderers={"markdown": renderer},
+    )
+
+    target_path = tmp_path / "protected.txt"
+    target_path.write_text("Original content", encoding="utf-8")
+
+    output_path = tmp_path / "reports" / "assessment_report.md"
+    output_path.parent.mkdir()
+
+    create_symlink_or_skip(output_path, target_path)
+
+    request = ReportRequest(
+        input_path=tmp_path / "assessment.json",
+        output_path=output_path,
+        author="Test Author",
+        organization="Test Organization",
+    )
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        service.generate_report(request)
+
+    assert target_path.read_text(encoding="utf-8") == "Original content"
+
+
+def test_generate_all_reports_rejects_symlink_destination(
+    tmp_path,
+    assessment_run_factory,
+):
+    """Verify that batch generation rejects symbolic-link destinations."""
+
+    repository = Mock()
+    repository.load_json.return_value = [assessment_run_factory()]
+
+    renderer = Mock()
+    renderer.render.return_value = "# Assessment Report"
+
+    service = ReportService(
+        repository=repository,
+        renderers={"markdown": renderer},
+    )
+
+    output_directory = tmp_path / "reports"
+    output_directory.mkdir()
+
+    target_path = tmp_path / "protected.txt"
+    target_path.write_text("Original content", encoding="utf-8")
+
+    output_path = output_directory / "assessment_report.md"
+
+    create_symlink_or_skip(output_path, target_path)
+
+    request = BatchReportRequest(
+        input_path=tmp_path / "assessment.json",
+        output_directory=output_directory,
+        author="Test Author",
+        organization="Test Organization",
+    )
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        service.generate_all_reports(request)
+
+    assert target_path.read_text(encoding="utf-8") == "Original content"
+
+
+def test_generate_report_rejects_symlink_in_parent_directory(
+    tmp_path,
+    assessment_run_factory,
+):
+    """Verify that report generation rejects a symlink in a parent directory."""
+
+    target_directory = tmp_path / "real_reports"
+    target_directory.mkdir()
+
+    symlink_directory = tmp_path / "reports_link"
+
+    try:
+        symlink_directory.symlink_to(
+            target_directory,
+            target_is_directory=True,
+        )
+    except OSError as exc:
+        pytest.skip(f"Cannot create directory symlink: {exc}")
+
+    repository = Mock()
+    repository.load_json.return_value = [assessment_run_factory()]
+
+    renderer = Mock()
+    renderer.render.return_value = "# Assessment Report"
+
+    service = ReportService(
+        repository=repository,
+        renderers={"markdown": renderer},
+    )
+
+    output_path = symlink_directory / "assessment_report.md"
+
+    request = ReportRequest(
+        input_path=tmp_path / "assessment.json",
+        output_path=output_path,
+        author="Test Author",
+        organization="Test Organization",
+        report_format="markdown",
+    )
+
+    with pytest.raises(ValueError, match="symbolic links"):
+        service.generate_report(request)
+
+    assert not (target_directory / "assessment_report.md").exists()
+
+
+def test_generate_all_reports_rejects_symlink_output_directory(
+    tmp_path,
+    assessment_run_factory,
+):
+    """Verify that batch generation rejects a symlink output directory."""
+
+    target_directory = tmp_path / "real_reports"
+    target_directory.mkdir()
+
+    symlink_directory = tmp_path / "reports_link"
+
+    try:
+        symlink_directory.symlink_to(
+            target_directory,
+            target_is_directory=True,
+        )
+    except OSError as exc:
+        pytest.skip(f"Cannot create directory symlink: {exc}")
+
+    repository = Mock()
+    repository.load_json.return_value = [assessment_run_factory()]
+
+    renderer = Mock()
+    renderer.render.return_value = "# Assessment Report"
+
+    service = ReportService(
+        repository=repository,
+        renderers={"markdown": renderer},
+    )
+
+    request = BatchReportRequest(
+        input_path=tmp_path / "assessment.json",
+        output_directory=symlink_directory,
+        author="Test Author",
+        organization="Test Organization",
+    )
+
+    with pytest.raises(ValueError, match="symbolic links"):
+        service.generate_all_reports(request)
+
+    assert not (target_directory / "assessment_report.md").exists()

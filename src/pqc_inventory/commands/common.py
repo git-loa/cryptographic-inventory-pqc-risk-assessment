@@ -4,6 +4,8 @@ import sys
 import argparse
 from pathlib import Path
 
+from pqc_inventory.storage.path_safety import contains_symlink
+
 
 def valid_port(value: str) -> int:
     """Validate and return a TCP port number."""
@@ -60,8 +62,8 @@ def validate_output_path(
                 f"{', '.join(sorted(normalized_extensions))}."
             )
 
-    if path.is_symlink():
-        raise ValueError(f"The output path cannot be a symbolic link: {path}")
+    if contains_symlink(path):
+        raise ValueError(f"The output path cannot contain symbolic links: {path}")
 
     if path.exists() and not path.is_file():
         raise ValueError(
@@ -169,8 +171,8 @@ def validate_output_directory(
 
     path = Path(raw_path).expanduser()
 
-    if path.is_symlink():
-        raise ValueError(f"The output directory cannot be a symbolic link: {path}")
+    if contains_symlink(path):
+        raise ValueError(f"The output directory cannot contain symbolic links: {path}")
 
     if path.exists() and not path.is_dir():
         raise ValueError(
