@@ -283,7 +283,7 @@ def test_run_assess_success(monkeypatch):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         mock_output_path,
     )
     monkeypatch.setattr(
@@ -366,7 +366,7 @@ def test_run_assess_output_cancelled(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=None),
     )
 
@@ -388,7 +388,7 @@ def test_run_assess_invalid_input(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=Path("assessment.json")),
     )
 
@@ -419,7 +419,7 @@ def test_run_assess_repository_error(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=Path("assessment.json")),
     )
 
@@ -450,7 +450,7 @@ def test_run_assess_unexpected_error(monkeypatch):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=Path("assessment.json")),
     )
 
@@ -483,7 +483,7 @@ def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         mock_output_path,
     )
     monkeypatch.setattr(
@@ -511,14 +511,10 @@ def test_run_assess_output_eoferror(monkeypatch, capsys):
         "resolve_policy_selection",
         Mock(return_value=["A1"]),
     )
-
-    def raise_eoferror(*, output_path, allowed_extensions):
-        raise EOFError
-
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
-        raise_eoferror,
+        "resolve_command_output_path",
+        Mock(return_value=None),
     )
     monkeypatch.setattr(
         assess_command,
@@ -547,7 +543,7 @@ def test_run_assess_propagates_partial_exit_code(monkeypatch):
     )
     monkeypatch.setattr(
         assess_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=expected_output),
     )
     monkeypatch.setattr(

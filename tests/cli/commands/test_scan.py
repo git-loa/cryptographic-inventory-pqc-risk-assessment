@@ -1,7 +1,12 @@
-import pytest
+"""
+Unit test for scan
+"""
+
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import Mock
+import pytest
+
 
 from pqc_inventory.commands import scan as scan_command
 
@@ -24,7 +29,7 @@ def test_run_scan_unexpected_error(monkeypatch):
 
     monkeypatch.setattr(
         scan_command,
-        "resolve_output_path",
+        "resolve_command_output_path",
         Mock(return_value=Path("evidence.json")),
     )
 

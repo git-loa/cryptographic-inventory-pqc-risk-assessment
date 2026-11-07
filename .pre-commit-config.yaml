@@ -20,3 +20,26 @@ repos:
   #   rev: v2.3.0
   #   hooks:
   #     - id: mypy
+
+  - repo: local
+    hooks:
+      - id: pylint-src
+        name: pylint (production)
+        entry: python -m pylint
+        language: system
+        types: [python]
+        files: ^src/
+        require_serial: true
+        args:
+          - --reports=n
+
+      - id: pylint-tests
+        name: pylint (tests)
+        entry: python -m pylint
+        language: system
+        types: [python]
+        files: ^tests/
+        require_serial: true
+        args:
+          - --reports=n
+          - --disable=duplicate-code

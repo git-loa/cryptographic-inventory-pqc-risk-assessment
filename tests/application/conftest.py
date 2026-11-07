@@ -11,6 +11,8 @@ from pqc_inventory.assessment.models import (
 )
 from pqc_inventory.collection.models import TLSScanResult
 
+# pylint: disable=missing-function-docstring,redefined-outer-name
+
 
 @pytest.fixture
 def tls_scan_factory():
@@ -53,7 +55,9 @@ def policy_metadata_factory():
         scope: list[str] | None = None,
         rules: list[dict] | None = None,
         references: list[dict] | None = None,
-    ) -> PolicyMetadataRecord:
+    ) -> (
+        PolicyMetadataRecord
+    ):  # pylint: disable=too-many-positional-arguments, too-many-arguments
 
         return {
             "policy_id": policy_id,

@@ -155,6 +155,28 @@ def resolve_output_path(
             print("Invalid choice. Enter 1, 2, or 3.")
 
 
+def resolve_command_output_path(
+    *,
+    output_path: str | Path,
+    allowed_extensions: set[str] | None = None,
+) -> Path | None:
+    """Resolve a command output path and handle user interruption.
+
+    Returns:
+        The approved output path, or None if the operation is cancelled.
+
+    Raises:
+        No exceptions for normal user cancellation or interruption.
+    """
+    try:
+        return resolve_output_path(
+            output_path=output_path,
+            allowed_extensions=allowed_extensions,
+        )
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+
 def validate_output_directory(
     *,
     output_directory: str | Path,

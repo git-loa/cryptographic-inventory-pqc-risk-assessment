@@ -1,3 +1,5 @@
+"""Unit test for target loader"""
+
 from pathlib import Path
 
 import pytest
@@ -5,12 +7,13 @@ import pytest
 from pqc_inventory.collection.target_loader import load_targets
 
 
+# pylint: disable=(missing-function-docstring
 def test_load_targets_accepts_domains_and_ip_addresses(
     tmp_path: Path,
 ) -> None:
     target_file = tmp_path / "targets.txt"
     target_file.write_text(
-        "example.com\n" "192.168.1.10\n" "2001:db8::1\n",
+        "example.com\n192.168.1.10\n2001:db8::1\n",
         encoding="utf-8",
     )
 
@@ -47,7 +50,7 @@ def test_load_targets_preserves_order_and_duplicates(
 ) -> None:
     target_file = tmp_path / "targets.txt"
     target_file.write_text(
-        "example.com\n" "cloudflare.com\n" "example.com\n",
+        "example.com\ncloudflare.com\nexample.com\n",
         encoding="utf-8",
     )
 
@@ -65,7 +68,7 @@ def test_load_targets_reports_invalid_target_and_line_number(
 ) -> None:
     target_file = tmp_path / "targets.txt"
     target_file.write_text(
-        "example.com\n" "\n" "invalid_target!\n",
+        "example.com\n\ninvalid_target!\n",
         encoding="utf-8",
     )
 

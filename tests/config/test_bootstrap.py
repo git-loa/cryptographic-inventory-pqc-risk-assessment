@@ -5,6 +5,8 @@ from pathlib import Path
 from pqc_inventory.config.bootstrap import initialize_workspace
 from pqc_inventory.config.workspace import Workspace
 
+# pylint: disable=missing-function-docstring
+
 
 def test_initialize_workspace_creates_default_directories(
     tmp_path: Path,

@@ -95,6 +95,7 @@ def registry():
     return AssessmentPolicyRegistry()
 
 
+# pylint: disable=redefined-outer-name
 def test_run_assess_returns_assessment_metadata(
     registry,
     assessment_context,
@@ -198,4 +199,4 @@ def test_run_assess_with_empty_registry_returns_no_assessments(
         created_at="2026-10-26T12:00:00Z",
     )
 
-    assert result["assessments"] == {}
+    assert not result["assessments"]

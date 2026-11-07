@@ -6,6 +6,7 @@ from pqc_inventory.config.workspace import Workspace
 from pqc_inventory.config.models import WorkspaceConfig
 
 
+# pylint: disable=missing-function-docstring
 def test_workspace_paths(tmp_path: Path) -> None:
     workspace = Workspace(base_dir=tmp_path / "pqc-assessment")
 

@@ -33,7 +33,7 @@ def list_policies() -> int:
     return EXIT_SUCCESS
 
 
-def run_policies(args: argparse.Namespace) -> int:
+def run_policies(args: argparse.Namespace) -> int:  # pylint: disable=unused-argument
     """Execute the policies command."""
     return list_policies()
 

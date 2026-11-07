@@ -16,7 +16,7 @@ def test_load_valid_configuration(tmp_path: Path) -> None:
     config_file = tmp_path / "config.yaml"
 
     config_file.write_text(
-        "application:\n" "  name: PQC Assessment\n" "  version: 0.1.0\n",
+        "application:\n" + "  name: PQC Assessment\n" + "  version: 0.1.0\n",
         encoding="utf-8",
     )
 

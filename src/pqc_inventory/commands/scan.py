@@ -5,13 +5,13 @@ import sys
 from pathlib import Path
 
 from pqc_inventory.application.scan_service import ScanService
-
 from pqc_inventory.collection.models import TLSScanResult
 from pqc_inventory.collection.target_loader import load_targets
 from pqc_inventory.collection.tls_utils import validate_target
-
-from pqc_inventory.commands.common import resolve_output_path
-from pqc_inventory.commands.common import valid_port
+from pqc_inventory.commands.common import (
+    resolve_command_output_path,
+    valid_port,
+)
 from pqc_inventory.commands.constants import (
     EXIT_SUCCESS,
     EXIT_ERROR,
@@ -148,16 +148,13 @@ def run_scan(args: argparse.Namespace) -> int:
         return EXIT_INVALID_INPUT
 
     # Step 2: Approve the output destination before network operations.
-    try:
-        output_path = resolve_output_path(
-            output_path=args.output,
-            allowed_extensions={".json"},
-        )
-    except (EOFError, KeyboardInterrupt):
-        print("\nScan cancelled.")
-        return EXIT_CANCELLED
+    output_path = resolve_command_output_path(
+        output_path=args.output,
+        allowed_extensions={".json"},
+    )
 
     if output_path is None:
+        print("\nScan cancelled.")
         return EXIT_CANCELLED
 
     # Step 3: Collect TLS evidence.

@@ -25,9 +25,7 @@ class Workspace:
 
     base_dir: Path = DEFAULT_BASE_DIR
 
-    directories: dict[str, str] = field(
-        default_factory=lambda: Workspace.DEFAULT_DIRECTORIES.copy()
-    )
+    directories: dict[str, str] = field(default_factory=DEFAULT_DIRECTORIES.copy)
 
     @property
     def config_dir(self) -> Path:

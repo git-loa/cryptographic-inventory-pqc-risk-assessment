@@ -209,7 +209,7 @@ def test_tls_scan_result_supports_minimal_result():
     assert result["scan_status"] == "failed"
     assert result["resolved_ip_address"] is None
     assert result["completed_at"] is None
-    assert result["diagnostics"] == []
+    assert not result["diagnostics"]
 
     assert "tls_version" not in result
     assert "public_key_algorithm" not in result

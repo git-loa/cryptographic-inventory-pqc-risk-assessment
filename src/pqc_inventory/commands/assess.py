@@ -8,7 +8,7 @@ from pqc_inventory.assessment.interfaces import AssessmentPolicy
 from pqc_inventory.assessment.models import AssessmentRun
 from pqc_inventory.assessment.policy_setup import create_default_registry
 from pqc_inventory.application.assessment_service import AssessmentService
-from pqc_inventory.commands.common import resolve_output_path
+from pqc_inventory.commands.common import resolve_command_output_path
 from pqc_inventory.commands.constants import (
     EXIT_CANCELLED,
     EXIT_ERROR,
@@ -200,8 +200,6 @@ def run_assess(  # pylint: disable=too-many-return-statements
 ) -> int:
     """Execute the assessment workflow and report its outcome."""
 
-    exit_code = EXIT_SUCCESS
-
     # Step 1: Resolve the assessment policies to execute.
     try:
         selected_policy_ids = resolve_policy_selection(args)
@@ -211,19 +209,17 @@ def run_assess(  # pylint: disable=too-many-return-statements
     except (EOFError, KeyboardInterrupt):
         print("\nAssessment cancelled by user.")
         return EXIT_CANCELLED
+
     if selected_policy_ids is None:
         print("Assessment cancelled by user.")
         return EXIT_CANCELLED
 
     # Step 2: Approve the output destination path.
-    try:
-        output_path = resolve_output_path(
-            output_path=args.output,
-            allowed_extensions={".json"},
-        )
-    except (EOFError, KeyboardInterrupt):
-        print("\nAssessment cancelled by user.")
-        return EXIT_CANCELLED
+    output_path = resolve_command_output_path(
+        output_path=args.output,
+        allowed_extensions={".json"},
+    )
+
     if output_path is None:
         print("Assessment cancelled by user.")
         return EXIT_CANCELLED
@@ -243,5 +239,4 @@ def run_assess(  # pylint: disable=too-many-return-statements
         return EXIT_ERROR
 
     # Step 4: Summarize the assessment results.
-    exit_code = summarize_assessment_results(results, output_path)
-    return exit_code
+    return summarize_assessment_results(results, output_path)

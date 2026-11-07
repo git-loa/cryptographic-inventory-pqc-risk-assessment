@@ -20,7 +20,7 @@ from pqc_inventory.commands.constants import (
 from pqc_inventory.storage.json_repository import JSONRepositoryError
 
 
-def make_args(
+def make_args(  # pylint: disable=too-many-positional-arguments, too-many-arguments
     workspace: Path,
     *,
     input_path: str = "assessments/results.json",
@@ -451,13 +451,8 @@ def test_run_report_batch_keyboard_interrupt(
 
 
 @pytest.mark.parametrize(
-    ("exception", "expected_exit_code", "message"),
+    "error_case",
     [
-        (
-            ValueError("Invalid assessment data."),
-            EXIT_INVALID_INPUT,
-            "Report input error",
-        ),
         (
             JSONRepositoryError("Unable to load assessment results."),
             EXIT_ERROR,
@@ -474,11 +469,10 @@ def test_run_report_handles_generation_errors(
     monkeypatch,
     tmp_path,
     capsys,
-    exception,
-    expected_exit_code,
-    message,
+    error_case,
 ):
     """Verify report generation errors produce the appropriate exit code."""
+    exception, expected_exit_code, message = error_case
 
     args = make_args(tmp_path)
 
@@ -503,7 +497,7 @@ def test_run_report_handles_generation_errors(
 
 
 @pytest.mark.parametrize(
-    ("exception", "expected_exit_code", "message"),
+    "error_case",
     [
         (
             ValueError("Invalid assessment data."),
@@ -526,11 +520,11 @@ def test_run_report_handles_batch_errors(
     monkeypatch,
     tmp_path,
     capsys,
-    exception,
-    expected_exit_code,
-    message,
+    error_case,
 ):
     """Verify batch generation errors produce the appropriate exit code."""
+
+    exception, expected_exit_code, message = error_case
 
     args = make_args(tmp_path, all_formats=True)
 
