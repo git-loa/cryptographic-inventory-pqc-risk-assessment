@@ -241,9 +241,6 @@ def run_assess(  # pylint: disable=too-many-return-statements
     except (JSONRepositoryError, KeyError) as exc:
         print(f"Assessment error: {exc}", file=sys.stderr)
         return EXIT_ERROR
-    except Exception as exc:
-        print(f"Unexpected assessment error: {exc}", file=sys.stderr)
-        return EXIT_ERROR
 
     # Step 4: Summarize the assessment results.
     exit_code = summarize_assessment_results(results, output_path)

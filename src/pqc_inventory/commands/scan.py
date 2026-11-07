@@ -72,8 +72,7 @@ def execute_scan(
         The collected TLS scan results.
 
     Raises:
-        Exception: If the scanning service encounters an unexpected
-            error that prevents the scan operation from completing.
+        ValueError: If the target collection is empty or invalid.
     """
     scanner = ScanService()
 
@@ -167,9 +166,9 @@ def run_scan(args: argparse.Namespace) -> int:
             targets=targets,
             port=args.port,
         )
-    except Exception as exc:
-        print(f"Scanning error: {exc}", file=sys.stderr)
-        return EXIT_ERROR
+    except ValueError as exc:
+        print(f"Scanning input error: {exc}", file=sys.stderr)
+        return EXIT_INVALID_INPUT
 
     # Step 4: Persist the collected evidence.
     try:

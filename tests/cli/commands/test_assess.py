@@ -438,7 +438,7 @@ def test_run_assess_repository_error(monkeypatch, capsys):
     assert "Assessment error" in capsys.readouterr().err
 
 
-def test_run_assess_unexpected_error(monkeypatch, capsys):
+def test_run_assess_unexpected_error(monkeypatch):
     """Handle unexpected assessment execution errors."""
 
     args = Namespace(input="evidence.json", output="assessment.json")
@@ -462,11 +462,8 @@ def test_run_assess_unexpected_error(monkeypatch, capsys):
         "execute_assessment",
         raise_error,
     )
-
-    result = assess_command.run_assess(args)
-
-    assert result == EXIT_ERROR
-    assert "Unexpected assessment error" in capsys.readouterr().err
+    with pytest.raises(RuntimeError, match="Unexpected failure."):
+        assess_command.run_assess(args)
 
 
 def test_run_assess_policy_selection_keyboard_interrupt(monkeypatch, capsys):
