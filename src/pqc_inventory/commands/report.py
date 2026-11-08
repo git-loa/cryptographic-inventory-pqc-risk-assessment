@@ -40,7 +40,9 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Path to the saved assessment results JSON file.",
     )
 
-    report_parser.add_argument(
+    destination_group = report_parser.add_mutually_exclusive_group()
+
+    destination_group.add_argument(
         "--output",
         default=None,
         help=(
@@ -49,7 +51,7 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
         ),
     )
 
-    report_parser.add_argument(
+    destination_group.add_argument(
         "--output-dir",
         default=None,
         help=(
@@ -84,6 +86,16 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
         default="Independent Research",
         help="Organization associated with the report.",
     )
+
+
+def validate_report_destination(args: argparse.Namespace) -> None:
+    """Validate the destination option for the selected report mode."""
+
+    if args.all_formats and args.output is not None:
+        raise ValueError("--all-formats requires --output-dir, not --output.")
+
+    if not args.all_formats and args.output_dir is not None:
+        raise ValueError("--output-dir is only valid with --all-formats.")
 
 
 def confirm_batch_overwrite(
@@ -190,6 +202,8 @@ def run_report(args: argparse.Namespace) -> int:
     exit_code = EXIT_SUCCESS
 
     try:
+        validate_report_destination(args)
+
         service = ReportService()
 
         generate = generate_batch_report if args.all_formats else generate_single_report

@@ -578,3 +578,52 @@ def test_run_assess_propagates_partial_exit_code(monkeypatch):
     result = assess_command.run_assess(args)
 
     assert result == EXIT_PARTIAL
+
+
+def test_run_assess_uses_workspace_default_output(tmp_path, monkeypatch):
+    """Use the workspace assessments directory when no output is supplied."""
+
+    workspace = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        assessments_dir=tmp_path / "assessments",
+    )
+
+    args = Namespace(
+        input="evidence.json",
+        output=None,
+        policies=["A1"],
+        yes=False,
+        workspace=workspace,
+    )
+
+    expected_output = workspace.assessments_dir / "assessment_runs.json"
+
+    mock_resolve = Mock(return_value=expected_output)
+
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_policy_selection",
+        Mock(return_value=["A1"]),
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "resolve_command_output_path",
+        mock_resolve,
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "execute_assessment",
+        Mock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        assess_command,
+        "summarize_assessment_results",
+        Mock(return_value=EXIT_SUCCESS),
+    )
+
+    assess_command.run_assess(args)
+
+    mock_resolve.assert_called_once_with(
+        output_path=expected_output,
+        allowed_extensions={".json"},
+    )

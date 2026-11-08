@@ -5,7 +5,6 @@ from jinja2 import (
     PackageLoader,
     StrictUndefined,
     Template,
-    select_autoescape,
 )
 
 from pqc_inventory.application.report_data import ReportData
@@ -20,9 +19,7 @@ class HTMLReportRenderer(ReportRenderer):  # pylint: disable=too-few-public-meth
 
         self.environment: Environment = Environment(
             loader=PackageLoader("pqc_inventory", "templates"),
-            autoescape=select_autoescape(
-                enabled_extensions=("html", "xml"),
-            ),
+            autoescape=True,
             undefined=StrictUndefined,
             trim_blocks=True,
             lstrip_blocks=True,

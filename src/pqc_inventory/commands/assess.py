@@ -36,10 +36,10 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
     assess_parser.add_argument(
         "--output",
-        default="data/assessments/assessment_runs.json",
+        default=None,
         help=(
             "Path where assessment results will be saved "
-            "(default: data/assessments/assessment_runs.json)."
+            "(default: workspace assessments directory/assessment_runs.json)."
         ),
     )
 
@@ -216,7 +216,11 @@ def run_assess(  # pylint: disable=too-many-return-statements
 
     # Step 2: Approve the output destination path.
     output_path = resolve_command_output_path(
-        output_path=args.output,
+        output_path=(
+            args.output
+            if args.output is not None
+            else args.workspace.assessments_dir / "assessment_runs.json"
+        ),
         allowed_extensions={".json"},
     )
 

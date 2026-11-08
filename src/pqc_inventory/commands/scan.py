@@ -149,7 +149,11 @@ def run_scan(args: argparse.Namespace) -> int:
 
     # Step 2: Approve the output destination before network operations.
     output_path = resolve_command_output_path(
-        output_path=args.output,
+        output_path=(
+            args.output
+            if args.output is not None
+            else args.workspace.evidence_dir / "tls_scans.json"
+        ),
         allowed_extensions={".json"},
     )
 
@@ -217,9 +221,9 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
     scan_parser.add_argument(
         "--output",
-        default="data/evidence/tls_scans.json",
+        default=None,
         help=(
             "Path where collected TLS evidence will be saved "
-            "(default: data/evidence/tls_scans.json)"
+            "(default: workspace evidence directory/tls_scans.json)"
         ),
     )
