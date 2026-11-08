@@ -3,7 +3,7 @@
 from pqc_inventory.assessment.models import (
     AssessmentContext,
     AssessmentRun,
-    PolicyResult,
+    PolicyExecutionRecord,
 )
 from pqc_inventory.assessment.registry import AssessmentPolicyRegistry
 from pqc_inventory.assessment.interfaces import AssessmentPolicyError
@@ -24,9 +24,10 @@ class AssessmentOrchestrator:
         schema_version: str = "1.0",
     ) -> AssessmentRun:
         """Execute all registered policies for one assessment context."""
-        assessments: dict[str, PolicyResult] = {}
+        assessments: dict[str, PolicyExecutionRecord] = {}
 
         for policy in self._registry.all():
+            metadata = policy.metadata.to_record()
             try:
                 result = policy.assess(context=context)
             except AssessmentPolicyError as exc:
@@ -39,7 +40,10 @@ class AssessmentOrchestrator:
                         f"Policy execution failed: {type(exc).__name__}: {exc}"
                     ],
                 }
-            assessments[policy.policy_id] = result
+            assessments[policy.policy_id] = {
+                "metadata": metadata,
+                "result": result,
+            }
 
         return {
             "schema_version": schema_version,

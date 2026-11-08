@@ -228,6 +228,7 @@ def mock_resolved_target():
     )
 
 
+# pylint: disable=missing-function-docstring
 @patch.object(
     tls_scanner,
     "resolve_target",
@@ -374,6 +375,7 @@ def test_scan_target_handles_certificate_verification_failure(
 @patch.object(tls_scanner, "resolve_target")
 @patch.object(tls_scanner.ssl, "create_default_context")
 @patch.object(tls_scanner.socket, "create_connection")
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def test_scan_target_successfully_coordinates_collection(
     mock_connection,
     mock_context,

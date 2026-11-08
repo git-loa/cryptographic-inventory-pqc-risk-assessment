@@ -4,7 +4,11 @@ Interfaces defining the contract for assessment policies.
 
 from typing import Protocol
 
-from pqc_inventory.assessment.models import AssessmentContext, PolicyResult
+from pqc_inventory.assessment.models import (
+    AssessmentContext,
+    PolicyMetadata,
+    PolicyResult,
+)
 
 
 class AssessmentPolicy(Protocol):
@@ -16,6 +20,11 @@ class AssessmentPolicy(Protocol):
     """
 
     # pylint: disable=unnecessary-ellipsis
+    @property
+    def metadata(self) -> PolicyMetadata:
+        """Return the descriptive metadata for this assessment policy."""
+        ...
+
     @property
     def policy_id(self) -> str:
         """Return the stable identifier for this policy."""

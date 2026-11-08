@@ -1,0 +1,450 @@
+{# -------------------------------------------------------------------------
+   Cryptographic Assessment Report — Markdown Renderer
+
+   Report context:
+       metadata
+       overview
+       assessment_runs
+
+   Design goals:
+       - Executive-first, concise presentation
+       - Policy metadata separated from policy execution results
+       - Traceability from policy to rule, reference, finding, and evidence
+       - No unsupported aggregate security or PQC-readiness score
+   ------------------------------------------------------------------------- #}
+
+{% macro md_cell(value) -%}
+{{- (value if value is not none and value != "" else "Not available") | string | replace("|", "\\|") | replace("\r", " ") | replace("\n", " ") -}}
+{%- endmacro %}
+
+{% macro classification_label(classification) -%}
+{%- if classification == "acceptable" -%}
+🟢 Acceptable
+{%- elif classification == "acceptable_with_review" -%}
+🟠 Acceptable with Review
+{%- elif classification == "unacceptable" -%}
+🔴 Unacceptable
+{%- else -%}
+⚪ Unknown
+{%- endif -%}
+{%- endmacro %}
+
+{% macro status_label(status) -%}
+{%- if status == "completed" -%}
+🟢 Completed
+{%- elif status == "partial" -%}
+🟠 Partial
+{%- elif status == "failed" -%}
+🔴 Failed
+{%- elif status == "not_assessed" -%}
+⚪ Not Assessed
+{%- else -%}
+⚪ {{ status | replace("_", " ") | title }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro render_references(references) -%}
+{% for reference in references %}
+- **{{ md_cell(reference.title) }}**{% if reference.publisher %} — {{ md_cell(reference.publisher) }}{% endif %}{% if reference.version is defined and reference.version %} ({{ md_cell(reference.version) }}){% endif %}
+  - Reference ID: `{{ md_cell(reference.reference_id) }}`
+  - Relevance: {{ md_cell(reference.relevance) }}
+  {% if reference.url %}- URL: {{ reference.url }}{% endif %}
+{% else %}
+- No references recorded.
+{% endfor %}
+{%- endmacro %}
+
+# {{ metadata.report_title }}
+
+**{{ metadata.organization }}**
+*Cryptographic inventory and TLS configuration assessment*
+
+| Report detail | Value |
+|---|---|
+| Report ID | `{{ metadata.report_id }}` |
+| Report version | {{ metadata.report_version }} |
+| Generated | {{ metadata.generated_at }} |
+| Prepared by | {{ metadata.author }} |
+| Organization | {{ metadata.organization }} |
+| Methodology version(s) | {{ overview.methodology_versions | join(", ") if overview.methodology_versions else "Not recorded" }} |
+
+---
+
+## Contents
+
+1. [Executive summary](#1-executive-summary)
+2. [Assessment overview](#2-assessment-overview)
+3. [Policy catalogue and methodology](#3-policy-catalogue-and-methodology)
+4. [Target assessment results](#4-target-assessment-results)
+{% for run in assessment_runs %}
+   - [{{ loop.index }}. {{ run.domain }}](#target-{{ loop.index }})
+{% endfor %}
+5. [Classification and interpretation](#5-classification-and-interpretation)
+6. [Limitations](#6-limitations)
+7. [Conclusion](#7-conclusion)
+
+---
+
+# 1. Executive summary
+
+This report records the TLS evidence collected for the listed targets and the results produced by the assessment policies configured for the assessment run. It is intended to support technical review, cryptographic inventory development, and prioritization of further investigation.
+
+### Assessment at a glance
+
+| Measure | Result |
+|---|---:|
+| Assessment runs | **{{ overview.total_assessment_runs }}** |
+| Distinct policy identifiers | **{{ overview.policies_executed | length }}** |
+| Policies represented | {{ overview.policies_executed | join(", ") if overview.policies_executed else "None" }} |
+| Methodology versions | {{ overview.methodology_versions | join(", ") if overview.methodology_versions else "Not recorded" }} |
+
+### Finding classifications
+
+| Classification | Findings |
+|---|---:|
+| 🟢 Acceptable | {{ overview.classification_counts.acceptable }} |
+| 🟠 Acceptable with Review | {{ overview.classification_counts.acceptable_with_review }} |
+| 🔴 Unacceptable | {{ overview.classification_counts.unacceptable }} |
+| ⚪ Unknown | {{ overview.classification_counts.unknown }} |
+
+> **Interpretation:** These counts summarize individual policy findings. They are not an aggregate security rating, a compliance determination, or a measure of overall post-quantum cryptography (PQC) readiness.
+
+---
+
+# 2. Assessment overview
+
+### Policy execution
+
+| Execution status | Count |
+|---|---:|
+| 🟢 Completed | {{ overview.policy_execution_counts.completed }} |
+| 🟠 Partial | {{ overview.policy_execution_counts.partial }} |
+| 🔴 Failed | {{ overview.policy_execution_counts.failed }} |
+| ⚪ Not assessed | {{ overview.policy_execution_counts.not_assessed }} |
+
+### TLS collection
+
+| Collection status | Count |
+|---|---:|
+| 🟢 Completed | {{ overview.scan_status_counts.completed }} |
+| 🟠 Partial | {{ overview.scan_status_counts.partial }} |
+| 🔴 Failed | {{ overview.scan_status_counts.failed }} |
+
+### Assessment coverage
+
+- **Methodology versions:** {{ overview.methodology_versions | join(", ") if overview.methodology_versions else "None recorded" }}
+- **Policy identifiers:** {{ overview.policies_executed | join(", ") if overview.policies_executed else "None recorded" }}
+
+---
+
+# 3. Policy catalogue and methodology
+
+This section describes each distinct policy represented in the assessment runs. Policy metadata is presented once; target-specific execution outcomes and findings appear in Section 4.
+
+{% set policy_catalogue = namespace(seen=[]) %}
+{% for run in assessment_runs %}
+{% for policy_id, policy_record in run.assessments.items() %}
+{% if policy_id not in policy_catalogue.seen %}
+{% set policy_catalogue.seen = policy_catalogue.seen + [policy_id] %}
+{% set policy_metadata = policy_record.metadata %}
+
+## 3.{{ policy_catalogue.seen | length }} {{ policy_metadata.name }} (`{{ policy_metadata.policy_id }}`)
+
+| Policy attribute | Description |
+|---|---|
+| Policy ID | `{{ policy_metadata.policy_id }}` |
+| Version | {{ policy_metadata.version }} |
+| Description | {{ md_cell(policy_metadata.description) }} |
+| Scope | {{ policy_metadata.scope | join("; ") if policy_metadata.scope else "Not specified" }} |
+
+### Assessment rules
+
+| Rule | Dimension | Description | Evaluation summary |
+|---|---|---|---|
+{% for rule in policy_metadata.rules %}
+| `{{ rule.rule_id }}` — {{ md_cell(rule.name) }} | {{ md_cell(rule.dimension) }} | {{ md_cell(rule.description) }} | {{ md_cell(rule.evaluation_summary) }} |
+{% else %}
+| — | — | No rule metadata recorded. | — |
+{% endfor %}
+
+{% if policy_metadata.references %}
+### Policy references
+
+{{ render_references(policy_metadata.references) }}
+{% endif %}
+
+{% for rule in policy_metadata.rules %}
+{% if rule.references %}
+### References for rule `{{ rule.rule_id }}` — {{ md_cell(rule.name) }}
+
+{{ render_references(rule.references) }}
+{% endif %}
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% if not policy_catalogue.seen %}
+No policy metadata is available for the assessment runs in this report.
+{% endif %}
+
+---
+
+# 4. Target assessment results
+
+{% for run in assessment_runs %}
+<a id="target-{{ loop.index }}"></a>
+
+## 4.{{ loop.index }} {{ run.domain }}
+
+**Collection status:** {{ status_label(run.evidence.scan_status) }}
+
+<details>
+<summary><strong>View assessment and collection details for {{ run.domain }}</strong></summary>
+
+### Assessment record
+
+| Attribute | Value |
+|---|---|
+| Assessment run ID | `{{ run.assessment_run_id }}` |
+| Target | {{ md_cell(run.evidence.target) }} |
+| Target type | {{ run.evidence.target_type }} |
+| Port | {{ run.evidence.port }} |
+| Assessment date | {{ run.created_at }} |
+| Methodology version | {{ run.methodology_version }} |
+| Collection status | {{ status_label(run.evidence.scan_status) }} |
+
+### Policy execution results
+
+{% for policy_id, policy_record in run.assessments.items() %}
+{% set policy_metadata = policy_record.metadata %}
+{% set policy_result = policy_record.result %}
+
+#### {{ policy_metadata.name }} (`{{ policy_id }}`)
+
+| Attribute | Result |
+|---|---|
+| Policy version | {{ policy_metadata.version }} |
+| Execution status | {{ status_label(policy_result.execution_status) }} |
+| Findings recorded | {{ policy_result.findings | length }} |
+| Policy description | {{ md_cell(policy_metadata.description) }} |
+
+{% if policy_result.findings %}
+**Findings summary**
+
+| Finding ID | Rule | Dimension | Observed value | Classification |
+|---|---|---|---|---|
+{% for finding in policy_result.findings %}
+| `{{ finding.finding_id }}` | `{{ finding.rule_id }}` | {{ md_cell(finding.dimension) }} | {{ md_cell(finding.observed_value) }} | {{ classification_label(finding.classification) }} |
+{% endfor %}
+
+**Finding details**
+
+{% for finding in policy_result.findings %}
+<details>
+<summary><strong>{{ finding.finding_id }}</strong> — {{ classification_label(finding.classification) }}</summary>
+
+| Attribute | Value |
+|---|---|
+| Rule ID | `{{ finding.rule_id }}` |
+| Dimension | {{ md_cell(finding.dimension) }} |
+| Classification | {{ classification_label(finding.classification) }} |
+| Observed value | {{ md_cell(finding.observed_value) }} |
+
+**Rationale**
+
+{{ finding.rationale }}
+
+**Evidence references**
+
+{% for reference in finding.evidence_references %}
+- `{{ reference }}`
+{% else %}
+- No evidence references recorded.
+{% endfor %}
+</details>
+{% endfor %}
+{% else %}
+No findings were recorded for this policy execution.
+{% endif %}
+
+{% if policy_result.limitations %}
+**Execution limitations**
+{% for limitation in policy_result.limitations %}
+- {{ limitation }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+
+{% if not run.assessments %}
+No policy execution results are available for this target.
+{% endif %}
+
+### TLS connection evidence
+
+| Property | Observed value |
+|---|---|
+| Negotiated TLS version | {{ md_cell(run.evidence.get("tls_version")) }} |
+| Cipher suite | {{ md_cell(run.evidence.get("cipher_suite")) }} |
+| Cipher strength | {{ md_cell(run.evidence.get("cipher_strength")) }} |
+| Key-establishment group | {{ md_cell(run.evidence.get("key_establishment_group")) }} |
+| Key-establishment evidence source | {{ md_cell(run.evidence.get("key_establishment_source")) }} |
+| Key-establishment evidence status | {{ md_cell(run.evidence.get("key_establishment_evidence_status")) }} |
+
+### Certificate evidence
+
+| Property | Observed value |
+|---|---|
+| Certificate version | {{ md_cell(run.evidence.get("certificate_version")) }} |
+| Serial number | {{ md_cell(run.evidence.get("certificate_serial_number")) }} |
+| Public-key algorithm | {{ md_cell(run.evidence.get("public_key_algorithm")) }} |
+| Public-key variant | {{ md_cell(run.evidence.get("public_key_variant")) }} |
+| Public-key algorithm OID | {{ md_cell(run.evidence.get("public_key_algorithm_oid")) }} |
+| Key size | {{ md_cell(run.evidence.get("key_size")) }} |
+| Public-key curve | {{ md_cell(run.evidence.get("public_key_curve")) }} |
+| RSA public exponent | {{ md_cell(run.evidence.get("rsa_public_exponent")) }} |
+| Certificate signature algorithm OID | {{ md_cell(run.evidence.get("certificate_signature_algorithm_oid")) }} |
+| Certificate signature hash algorithm | {{ md_cell(run.evidence.get("certificate_signature_hash_algorithm")) }} |
+| Valid from | {{ md_cell(run.evidence.get("not_before")) }} |
+| Valid until | {{ md_cell(run.evidence.get("not_after")) }} |
+| Certificate verification status | {{ md_cell(run.evidence.get("certificate_verification_status")) }} |
+
+### Certificate extensions
+
+**Subject alternative DNS names**
+
+{% for name in run.evidence.get("san_dns_names", []) %}
+- `{{ name }}`
+{% else %}
+- None recorded.
+{% endfor %}
+
+**Subject alternative IP addresses**
+
+{% for address in run.evidence.get("san_ip_addresses", []) %}
+- `{{ address }}`
+{% else %}
+- None recorded.
+{% endfor %}
+
+**Key usage**
+
+{% if run.evidence.get("key_usage") %}
+| Usage | State |
+|---|---|
+{% for usage, enabled in run.evidence.get("key_usage").items() %}
+| {{ md_cell(usage) }} | {{ "Enabled" if enabled else "Disabled" }} |
+{% endfor %}
+{% else %}
+No key-usage information recorded.
+{% endif %}
+
+**Extended key usage**
+
+{% for usage in run.evidence.get("extended_key_usage") or [] %}
+- {{ usage }}
+{% else %}
+- No extended key usage information recorded.
+{% endfor %}
+
+**Basic constraints**
+
+{% if run.evidence.get("basic_constraints") %}
+| Constraint | Value |
+|---|---|
+{% for constraint, value in run.evidence.get("basic_constraints").items() %}
+| {{ md_cell(constraint) }} | {{ md_cell(value) }} |
+{% endfor %}
+{% else %}
+No basic-constraints information recorded.
+{% endif %}
+
+### Certificate identity
+
+**Subject**
+
+{% if run.evidence.get("certificate_subject") %}
+| Attribute | Value |
+|---|---|
+{% for attribute, value in run.evidence.get("certificate_subject").items() %}
+| {{ md_cell(attribute) }} | {{ md_cell(value) }} |
+{% endfor %}
+{% else %}
+No certificate subject information recorded.
+{% endif %}
+
+**Issuer**
+
+{% if run.evidence.get("certificate_issuer") %}
+| Attribute | Value |
+|---|---|
+{% for attribute, value in run.evidence.get("certificate_issuer").items() %}
+| {{ md_cell(attribute) }} | {{ md_cell(value) }} |
+{% endfor %}
+{% else %}
+No certificate issuer information recorded.
+{% endif %}
+
+### Collection diagnostics
+
+{% if run.evidence.diagnostics %}
+| Severity | Category | Code | Stage | Message |
+|---|---|---|---|---|
+{% for diagnostic in run.evidence.diagnostics %}
+| {{ md_cell(diagnostic.severity) }} | {{ md_cell(diagnostic.category) }} | `{{ diagnostic.code }}` | {{ md_cell(diagnostic.stage) }} | {{ md_cell(diagnostic.message) }} |
+{% endfor %}
+{% else %}
+No collection diagnostics were recorded.
+{% endif %}
+
+</details>
+
+---
+{% else %}
+No assessment runs are available for this report.
+{% endfor %}
+
+# 5. Classification and interpretation
+
+| Classification | Interpretation |
+|---|---|
+| 🟢 Acceptable | The observed evidence meets the applicable implemented assessment rule. |
+| 🟠 Acceptable with Review | The result requires additional security review or contextual consideration. |
+| 🔴 Unacceptable | The observed evidence does not meet the applicable implemented assessment rule. |
+| ⚪ Unknown | The available evidence is insufficient or unsupported for a conclusive classification. |
+
+Classifications are policy-specific outcomes. Interpret them in the context of the applicable policy version, rule, evidence, and documented scope. They do not independently establish regulatory compliance or comprehensive cryptographic security.
+
+Missing or incomplete evidence must not automatically be interpreted as proof of either security or insecurity.
+
+---
+
+# 6. Limitations
+
+The following limitations should be considered when interpreting the results:
+
+- Findings are limited to the evidence collected for each target and the rules implemented by the represented policies.
+- Partial or failed collection may reduce the evidence available for assessment.
+- TLS endpoint observations do not enumerate every cryptographic dependency within an organization.
+- Certificate metadata alone does not establish complete certificate-chain trust or hostname validity.
+- Key-establishment observations depend on the collection method and recorded evidence source.
+- The absence of a finding does not establish that a system is secure.
+- PQC readiness requires broader evidence about applications, protocols, cryptographic dependencies, vendors, and migration plans.
+
+Further investigation may be required before making security, compliance, or migration decisions.
+
+---
+
+# 7. Conclusion
+
+This report provides a structured record of the TLS evidence collected and the policy results produced for the assessed targets. It is intended to support technical review, cryptographic inventory development, and prioritization of further investigation.
+
+Interpret findings within the documented scope and limitations of the assessment methodology. This report is not a substitute for a comprehensive cryptographic assessment or an independently validated security audit.
+
+---
+
+*End of report*
+
+**Report ID:** `{{ metadata.report_id }}` · **Version:** {{ metadata.report_version }} · **Generated:** {{ metadata.generated_at }}

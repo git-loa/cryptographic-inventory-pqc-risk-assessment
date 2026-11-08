@@ -1,0 +1,6 @@
+workspace:
+  directories:
+    evidence: "evidence"
+    assessments: "assessments"
+    reports: "reports"
+    logs: "logs"

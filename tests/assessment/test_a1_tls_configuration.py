@@ -40,12 +40,12 @@ def assessment_context():
         (
             "partial",
             "partial",
-            "The TLS scan completed partially; " "some evidence may be unavailable.",
+            "The TLS scan completed partially; some evidence may be unavailable.",
         ),
         (
             "failed",
             "partial",
-            "The TLS scan failed; " "available evidence may be incomplete.",
+            "The TLS scan failed; available evidence may be incomplete.",
         ),
         (
             None,
@@ -109,3 +109,35 @@ def test_findings_include_rationale_and_evidence_references(
         assert finding["classification"]
         assert finding["rationale"]
         assert finding["evidence_references"]
+
+
+def test_policy_metadata_describes_a1_rules(policy):
+    """A1 metadata should describe all four implemented assessment rules."""
+
+    metadata = policy.metadata
+
+    assert metadata.policy_id == "A1"
+    assert metadata.name == "TLS Configuration Quality"
+    assert metadata.version == "1.0.0"
+
+    assert [rule.rule_id for rule in metadata.rules] == [
+        "A1.1",
+        "A1.2",
+        "A1.3",
+        "A1.4",
+    ]
+
+    assert len(metadata.scope) == 4
+
+    for rule in metadata.rules:
+        assert rule.name
+        assert rule.description
+        assert rule.dimension
+        assert rule.evaluation_summary
+
+
+def test_policy_metadata_is_immutable(policy):
+    """Policy metadata should not allow accidental modification."""
+
+    with pytest.raises(AttributeError):
+        policy.metadata.name = "Modified Policy"

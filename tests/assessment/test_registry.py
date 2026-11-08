@@ -17,7 +17,9 @@ class StubPolicy:
     policy_name: str = "Stub policy"
     policy_description: str = "Policy used in registry tests."
 
-    def assess(self, context: AssessmentContext) -> PolicyResult:
+    def assess(
+        self, context: AssessmentContext  # pylint: disable=unused-argument
+    ) -> PolicyResult:
         """Return a minimal valid policy result."""
         return {
             "policy_id": self.policy_id,

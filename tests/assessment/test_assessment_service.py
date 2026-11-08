@@ -40,6 +40,7 @@ def service():
     )
 
 
+# pylint: disable=missing-function-docstring, redefined-outer-name
 def test_assess_evidence_returns_one_assessment_run(service, valid_evidence):
     runs = service.assess_evidence(valid_evidence)
 

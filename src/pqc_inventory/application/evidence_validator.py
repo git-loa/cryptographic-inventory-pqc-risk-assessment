@@ -1,80 +1,43 @@
 """Validation of TLS evidence before security assessment."""
 
 import math
-from typing import cast
 
-from pqc_inventory.collection.models import TLSScanResult
+from typing import cast, get_args
+
+from pqc_inventory.collection.models import (
+    CertificateVerificationStatus,
+    DiagnosticCategory,
+    DiagnosticSeverity,
+    KeyEstablishmentEvidenceStatus,
+    ScanDiagnostic,
+    ScanStatus,
+    TargetType,
+    TLSScanResult,
+)
+
 from pqc_inventory.collection.tls_utils import validate_target
 
 
 class EvidenceValidator:  # pylint: disable=too-few-public-methods
     """Validate the structure and fields of collected TLS evidence."""
 
-    REQUIRED_FIELDS = {
-        "schema_version",
-        "scan_id",
-        "target",
-        "target_type",
-        "port",
-        "resolved_ip_address",
-        "scan_status",
-        "started_at",
-        "completed_at",
-        "scan_time_seconds",
-        "certificate_verification_status",
-        "certificate_verification_error",
-        "key_establishment_evidence_status",
-        "diagnostics",
-    }
+    REQUIRED_FIELDS = frozenset(TLSScanResult.__required_keys__)
 
-    ALLOWED_SCAN_STATUSES = {
-        "completed",
-        "partial",
-        "failed",
-    }
+    REQUIRED_DIAGNOSTIC_FIELDS = frozenset(ScanDiagnostic.__required_keys__)
 
-    ALLOWED_CERTIFICATE_STATUSES = {
-        "verified",
-        "failed",
-        "not_performed",
-        "unknown",
-    }
+    ALLOWED_SCAN_STATUSES = frozenset(get_args(ScanStatus))
 
-    ALLOWED_KEY_ESTABLISHMENT_STATUSES = {
-        "observed",
-        "unavailable",
-        "not_attempted",
-    }
+    ALLOWED_CERTIFICATE_STATUSES = frozenset(get_args(CertificateVerificationStatus))
 
-    ALLOWED_TARGET_TYPES = {
-        "domain",
-        "ipv4",
-        "ipv6",
-    }
+    ALLOWED_KEY_ESTABLISHMENT_STATUSES = frozenset(
+        get_args(KeyEstablishmentEvidenceStatus)
+    )
 
-    ALLOWED_DIAGNOSTIC_CATEGORIES = {
-        "input_validation",
-        "connection",
-        "timeout",
-        "certificate",
-        "key_establishment",
-        "parsing",
-        "internal",
-    }
+    ALLOWED_TARGET_TYPES = frozenset(get_args(TargetType))
 
-    ALLOWED_DIAGNOSTIC_SEVERITIES = {
-        "info",
-        "warning",
-        "error",
-    }
+    ALLOWED_DIAGNOSTIC_CATEGORIES = frozenset(get_args(DiagnosticCategory))
 
-    REQUIRED_DIAGNOSTIC_FIELDS = {
-        "code",
-        "category",
-        "severity",
-        "message",
-        "stage",
-    }
+    ALLOWED_DIAGNOSTIC_SEVERITIES = frozenset(get_args(DiagnosticSeverity))
 
     @classmethod
     def validate(cls, data: object) -> list[TLSScanResult]:

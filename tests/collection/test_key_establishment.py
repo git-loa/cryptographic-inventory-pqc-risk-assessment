@@ -10,6 +10,7 @@ from pqc_inventory.collection import key_establishment
 # ---------------------------------------------------------
 
 
+# pylint: disable=(missing-function-docstring
 def test_parse_server_temp_key():
     output = "Server Temp Key: X25519, 253 bits"
 

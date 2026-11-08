@@ -9,25 +9,27 @@ description = "TLS cryptographic inventory scanner with PQC/HNDL risk assessment
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-{ name = "Leonard Okyere Afeke" }
+    { name = "Leonard Okyere Afeke" }
 ]
 dependencies = [
-"cryptography",
-"pyOpenSSL",
-"requests",
-"pydantic",
-"rich",
-"jinja2",
+    "cryptography",
+    "pyOpenSSL",
+    "requests",
+    "pydantic",
+    "rich",
+    "jinja2",
+    "PyYAML",
 ]
 
 [project.optional-dependencies]
 dev = [
-"pytest",
-"flake8",
-"black",
-"mypy",
-"hypothesis",
-"pre-commit",
+    "pytest",
+    "flake8",
+    "black",
+    "mypy",
+    "hypothesis",
+    "pre-commit",
+    "pylint>=4.1,<5",
 ]
 
 [project.scripts]
@@ -39,6 +41,13 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["pqc_inventory*"]
+
+[tool.setuptools.package-data]
+pqc_inventory = [
+    "templates/reports/*.j2",
+    "templates/reports/assets/*.css",
+    "templates/config/*.yaml",
+]
 
 [tool.black]
 line-length = 88
@@ -53,3 +62,15 @@ strict = true
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.pylint.typecheck]
+generated-members = [
+    "__required_keys__",
+    "__optional_keys__",
+]
+
+[tool.pylint.main]
+py-version = "3.10"
+
+[tool.pylint.format]
+max-line-length = 88

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ metadata.report_title }}</title>
+
+    <style>
+        {% include "reports/assets/report.css" %}
+    </style>
+</head>
+
+<body>
+
+<div class="report-container">
+
+    <header class="report-header">
+        <div class="report-label">CRYPTOGRAPHIC SECURITY ASSESSMENT</div>
+
+        <h1>{{ metadata.report_title }}</h1>
+
+        <p class="organization">{{ metadata.organization }}</p>
+
+        <p>
+            TLS cryptographic inventory and configuration assessment
+        </p>
+    </header>
+
+
+    <section class="metadata-section">
+        <h2>Report Information</h2>
+
+        <table>
+            <tr>
+                <th>Report ID</th>
+                <td>{{ metadata.report_id }}</td>
+            </tr>
+            <tr>
+                <th>Report Version</th>
+                <td>{{ metadata.report_version }}</td>
+            </tr>
+            <tr>
+                <th>Generated</th>
+                <td>{{ metadata.generated_at }}</td>
+            </tr>
+            <tr>
+                <th>Prepared By</th>
+                <td>{{ metadata.author }}</td>
+            </tr>
+            <tr>
+                <th>Organization</th>
+                <td>{{ metadata.organization }}</td>
+            </tr>
+            <tr>
+                <th>Methodology Versions</th>
+                <td>
+                    {{ overview.methodology_versions | join(", ")
+                       if overview.methodology_versions else "Not recorded" }}
+                </td>
+            </tr>
+        </table>
+    </section>
+
+
+    <section>
+        <h2>1. Executive Summary</h2>
+
+        <div class="summary-grid">
+
+            <div class="summary-card">
+                <span class="summary-value">
+                    {{ overview.total_assessment_runs }}
+                </span>
+                <span class="summary-label">Assessment Runs</span>
+            </div>
+
+            <div class="summary-card">
+                <span class="summary-value">
+                    {{ overview.policies_executed | length }}
+                </span>
+                <span class="summary-label">Policies Executed</span>
+            </div>
+
+            <div class="summary-card">
+                <span class="summary-value">
+                    {{ overview.scan_status_counts.completed }}
+                </span>
+                <span class="summary-label">Completed Scans</span>
+            </div>
+
+            <div class="summary-card">
+                <span class="summary-value">
+                    {{ overview.policy_execution_counts.failed }}
+                </span>
+                <span class="summary-label">Failed Policies</span>
+            </div>
+
+        </div>
+
+        <p>
+            This report records TLS evidence collected from the assessed
+            targets and the results produced by the configured assessment
+            policies.
+        </p>
+
+        <div class="notice">
+            Finding classifications are policy-specific outcomes.
+            They are not an aggregate security rating or a determination
+            of overall post-quantum cryptography readiness.
+        </div>
+    </section>
+
+
+    <section>
+        <h2>2. Assessment Overview</h2>
+
+        <h3>Policy Execution Status</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status, count in overview.policy_execution_counts.items() %}
+                <tr>
+                    <td>{{ status | replace("_", " ") | title }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>TLS Collection Status</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status, count in overview.scan_status_counts.items() %}
+                <tr>
+                    <td>{{ status | title }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Finding Classifications</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Classification</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for classification, count in overview.classification_counts.items() %}
+                <tr>
+                    <td>
+                        {{ classification | replace("_", " ") | title }}
+                    </td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+
+    <section>
+        <h2>3. Policy Catalogue and Methodology</h2>
+
+        {% set policy_catalogue = namespace(seen=[]) %}
+
+        {% for run in assessment_runs %}
+            {% for policy_id, record in run.assessments.items() %}
+
+                {% if policy_id not in policy_catalogue.seen %}
+
+                    {% set policy_catalogue.seen =
+                        policy_catalogue.seen + [policy_id] %}
+
+                    {% set policy = record.metadata %}
+
+                    <div class="policy-card">
+
+                        <h3>
+                            {{ policy.name }}
+                            <span class="policy-id">({{ policy.policy_id }})</span>
+                        </h3>
+
+                        <table>
+                            <tr>
+                                <th>Version</th>
+                                <td>{{ policy.version }}</td>
+                            </tr>
+                            <tr>
+                                <th>Description</th>
+                                <td>{{ policy.description }}</td>
+                            </tr>
+                            <tr>
+                                <th>Scope</th>
+                                <td>{{ policy.scope | join("; ") }}</td>
+                            </tr>
+                        </table>
+
+                        <h4>Assessment Rules</h4>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rule</th>
+                                    <th>Dimension</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rule in policy.rules %}
+                                <tr>
+                                    <td>{{ rule.rule_id }} — {{ rule.name }}</td>
+                                    <td>{{ rule.dimension }}</td>
+                                    <td>{{ rule.description }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        {% if policy.references %}
+                        <h4>References</h4>
+
+                        <ul>
+                            {% for reference in policy.references %}
+                            <li>
+                                <strong>{{ reference.title }}</strong>
+                                — {{ reference.publisher }}
+                                <br>
+                                <span class="reference-url">
+                                    {{ reference.url }}
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+
+                    </div>
+
+                {% endif %}
+
+            {% endfor %}
+        {% endfor %}
+    </section>
+
+
+    <section>
+        <h2>4. Target Assessment Results</h2>
+
+        {% for run in assessment_runs %}
+
+        <article class="target-section">
+
+            <h3>{{ loop.index }}. {{ run.domain }}</h3>
+
+            <p>
+                <strong>Collection Status:</strong>
+                <span class="status status--{{ run.evidence.scan_status }}">
+                    {{ run.evidence.scan_status | replace("_", " ") | title }}
+                </span>
+            </p>
+
+            <table>
+                <tr>
+                    <th>Assessment Run ID</th>
+                    <td>{{ run.assessment_run_id }}</td>
+                </tr>
+                <tr>
+                    <th>Target Type</th>
+                    <td>{{ run.evidence.target_type }}</td>
+                </tr>
+                <tr>
+                    <th>Port</th>
+                    <td>{{ run.evidence.port }}</td>
+                </tr>
+                <tr>
+                    <th>Assessment Date</th>
+                    <td>{{ run.created_at }}</td>
+                </tr>
+                <tr>
+                    <th>Methodology Version</th>
+                    <td>{{ run.methodology_version }}</td>
+                </tr>
+            </table>
+
+
+            <h4>Policy Execution Results</h4>
+
+            {% for policy_id, record in run.assessments.items() %}
+
+                {% set policy = record.metadata %}
+                {% set result = record.result %}
+
+                <div class="policy-result">
+
+                    <h4>
+                        {{ policy.name }}
+                        ({{ policy_id }})
+                    </h4>
+
+                    <p>
+                        <strong>Execution Status:</strong>
+                        <span class="status status--{{ result.execution_status }}">
+                            {{ result.execution_status | replace("_", " ") | title }}
+                        </span>
+                    </p>
+
+                    {% if result.findings %}
+
+                    <h5>Findings</h5>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Finding ID</th>
+                                <th>Rule</th>
+                                <th>Dimension</th>
+                                <th>Observed Value</th>
+                                <th>Classification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for finding in result.findings %}
+                            <tr>
+                                <td>{{ finding.finding_id }}</td>
+                                <td>{{ finding.rule_id }}</td>
+                                <td>{{ finding.dimension }}</td>
+                                <td>{{ finding.observed_value or "Not available" }}</td>
+                                <td>
+                                    {{ finding.classification
+                                       | replace("_", " ") | title }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    {% else %}
+                    <p>No findings were recorded for this policy.</p>
+                    {% endif %}
+
+                    {% if result.limitations %}
+                    <h5>Execution Limitations</h5>
+                    <ul>
+                        {% for limitation in result.limitations %}
+                        <li>{{ limitation }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+
+            <h4>TLS Connection Evidence</h4>
+
+            <table>
+                <tr>
+                    <th>TLS Version</th>
+                    <td>{{ run.evidence.get("tls_version") or "Not available" }}</td>
+                </tr>
+                <tr>
+                    <th>Cipher Suite</th>
+                    <td>{{ run.evidence.get("cipher_suite") or "Not available" }}</td>
+                </tr>
+                <tr>
+                    <th>Cipher Strength</th>
+                    <td>{{ run.evidence.get("cipher_strength") or "Not available" }}</td>
+                </tr>
+                <tr>
+                    <th>Key Establishment Group</th>
+                    <td>
+                        {{ run.evidence.get("key_establishment_group")
+                           or "Not available" }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Key Establishment Evidence</th>
+                    <td>
+                        {{ run.evidence.get("key_establishment_evidence_status")
+                           or "Not available" }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Certificate Verification</th>
+                    <td>
+                        {{ run.evidence.get("certificate_verification_status")
+                           or "Not available" }}
+                    </td>
+                </tr>
+            </table>
+
+
+            <h4>Certificate Evidence</h4>
+
+            <table>
+                <tr>
+                    <th>Certificate Version</th>
+                    <td>{{ run.evidence.get("certificate_version") or "Not available" }}</td>
+                </tr>
+                <tr>
+                    <th>Public-Key Algorithm</th>
+                    <td>
+                        {{ run.evidence.get("public_key_algorithm")
+                           or "Not available" }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Public-Key Variant</th>
+                    <td>
+                        {{ run.evidence.get("public_key_variant")
+                           or "Not available" }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Key Size</th>
+                    <td>{{ run.evidence.get("key_size") or "Not available" }}</td>
+                </tr>
+                <tr>
+                    <th>Certificate Signature Algorithm</th>
+                    <td>
+                        {{ run.evidence.get("certificate_signature_algorithm_oid")
+                           or "Not available" }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Valid Until</th>
+                    <td>{{ run.evidence.get("not_after") or "Not available" }}</td>
+                </tr>
+            </table>
+
+
+            <h4>Collection Diagnostics</h4>
+
+            {% if run.evidence.diagnostics %}
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Category</th>
+                        <th>Code</th>
+                        <th>Stage</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for diagnostic in run.evidence.diagnostics %}
+                    <tr>
+                        <td>{{ diagnostic.severity }}</td>
+                        <td>{{ diagnostic.category }}</td>
+                        <td>{{ diagnostic.code }}</td>
+                        <td>{{ diagnostic.stage }}</td>
+                        <td>{{ diagnostic.message }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% else %}
+            <p>No collection diagnostics were recorded.</p>
+            {% endif %}
+
+        </article>
+
+        {% endfor %}
+    </section>
+
+
+    <section>
+        <h2>5. Classification and Interpretation</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Classification</th>
+                    <th>Interpretation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Acceptable</td>
+                    <td>
+                        Observed evidence meets the applicable implemented
+                        assessment rule.
+                    </td>
+                </tr>
+                <tr>
+                    <td>Acceptable with Review</td>
+                    <td>
+                        Further security review or contextual consideration
+                        is required.
+                    </td>
+                </tr>
+                <tr>
+                    <td>Unacceptable</td>
+                    <td>
+                        Observed evidence does not meet the applicable
+                        implemented assessment rule.
+                    </td>
+                </tr>
+                <tr>
+                    <td>Unknown</td>
+                    <td>
+                        Available evidence is insufficient for a
+                        conclusive classification.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+
+    <section>
+        <h2>6. Limitations</h2>
+
+        <ul>
+            <li>
+                Findings are limited to collected evidence and implemented
+                assessment rules.
+            </li>
+            <li>
+                Partial or failed collection can reduce available evidence.
+            </li>
+            <li>
+                TLS endpoint observations do not enumerate every
+                organizational cryptographic dependency.
+            </li>
+            <li>
+                Certificate metadata alone does not establish complete
+                certificate-chain trust.
+            </li>
+            <li>
+                PQC readiness requires broader evidence about applications,
+                protocols, vendors, dependencies and migration plans.
+            </li>
+        </ul>
+    </section>
+
+
+    <section>
+        <h2>7. Conclusion</h2>
+
+        <p>
+            This report provides a structured record of TLS evidence and
+            policy assessment results for the specified targets. It supports
+            technical review, cryptographic inventory development and
+            prioritization of further investigation.
+        </p>
+
+        <p>
+            Findings should be interpreted within the documented scope and
+            limitations of the assessment methodology.
+        </p>
+    </section>
+
+
+    <footer class="report-footer">
+        <p>End of Report</p>
+        <p>
+            Report ID: {{ metadata.report_id }}
+            | Version: {{ metadata.report_version }}
+            | Generated: {{ metadata.generated_at }}
+        </p>
+    </footer>
+
+</div>
+
+</body>
+</html>

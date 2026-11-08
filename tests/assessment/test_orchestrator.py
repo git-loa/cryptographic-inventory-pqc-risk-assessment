@@ -8,6 +8,10 @@ from pqc_inventory.assessment.interfaces import (
 )
 from pqc_inventory.assessment.orchestrator import AssessmentOrchestrator
 from pqc_inventory.assessment.registry import AssessmentPolicyRegistry
+from pqc_inventory.assessment.models import (
+    PolicyMetadata,
+    PolicyRule,
+)
 
 
 class StubPolicy(AssessmentPolicy):
@@ -42,6 +46,27 @@ class StubPolicy(AssessmentPolicy):
             "limitations": [],
         }
 
+    @property
+    def metadata(self) -> PolicyMetadata:
+        """Return metadata describing the test policy."""
+
+        return PolicyMetadata(
+            policy_id=self.policy_id,
+            name=self.policy_name,
+            version=self.policy_version,
+            description=self.policy_description,
+            scope=("Test assessment scope",),
+            rules=(
+                PolicyRule(
+                    rule_id=f"{self.policy_id}.1",
+                    name="Test Rule",
+                    description="A rule used for testing.",
+                    dimension="test_dimension",
+                    evaluation_summary="Classifies test evidence.",
+                ),
+            ),
+        )
+
 
 class FailingPolicy(StubPolicy):
     """Policy that raises the expected assessment exception."""
@@ -70,6 +95,7 @@ def registry():
     return AssessmentPolicyRegistry()
 
 
+# pylint: disable=redefined-outer-name
 def test_run_assess_returns_assessment_metadata(
     registry,
     assessment_context,
@@ -96,7 +122,8 @@ def test_run_assess_collects_policy_results(
     registry,
     assessment_context,
 ):
-    """The orchestrator should collect results from registered policies."""
+    """The orchestrator should collect policy metadata and execution results."""
+
     registry.register(StubPolicy("TEST-1"))
     registry.register(StubPolicy("TEST-2"))
     orchestrator = AssessmentOrchestrator(registry)
@@ -108,15 +135,27 @@ def test_run_assess_collects_policy_results(
     )
 
     assert set(result["assessments"]) == {"TEST-1", "TEST-2"}
-    assert result["assessments"]["TEST-1"]["execution_status"] == "completed"
-    assert result["assessments"]["TEST-2"]["execution_status"] == "completed"
+
+    first_policy = result["assessments"]["TEST-1"]
+
+    assert first_policy["metadata"]["policy_id"] == "TEST-1"
+    assert first_policy["metadata"]["name"] == "Test Policy TEST-1"
+    assert first_policy["metadata"]["rules"][0]["rule_id"] == "TEST-1.1"
+
+    assert first_policy["result"]["execution_status"] == "completed"
+    assert first_policy["result"]["policy_id"] == "TEST-1"
+
+    assert result["assessments"]["TEST-2"]["result"]["execution_status"] == (
+        "completed"
+    )
 
 
 def test_policy_error_is_recorded_without_stopping_other_policies(
     registry,
     assessment_context,
 ):
-    """A policy error should be recorded while other policies still execute."""
+    """A policy error should be recorded without stopping other policies."""
+
     registry.register(FailingPolicy("FAIL-1"))
     registry.register(StubPolicy("TEST-2"))
     orchestrator = AssessmentOrchestrator(registry)
@@ -127,16 +166,24 @@ def test_policy_error_is_recorded_without_stopping_other_policies(
         created_at="2026-10-26T12:00:00Z",
     )
 
-    failed_result = result["assessments"]["FAIL-1"]
-    successful_result = result["assessments"]["TEST-2"]
+    failed_record = result["assessments"]["FAIL-1"]
+    successful_record = result["assessments"]["TEST-2"]
 
-    assert failed_result["execution_status"] == "failed"
-    assert failed_result["findings"] == []
+    # Metadata must be preserved even when execution fails.
+    assert failed_record["metadata"]["policy_id"] == "FAIL-1"
+    assert failed_record["metadata"]["name"] == "Test Policy FAIL-1"
+
+    # Failed execution result.
+    assert failed_record["result"]["execution_status"] == "failed"
+    assert failed_record["result"]["findings"] == []
+
     assert any(
         "Simulated policy failure." in limitation
-        for limitation in failed_result["limitations"]
+        for limitation in failed_record["result"]["limitations"]
     )
-    assert successful_result["execution_status"] == "completed"
+
+    # Other policies must continue executing.
+    assert successful_record["result"]["execution_status"] == "completed"
 
 
 def test_run_assess_with_empty_registry_returns_no_assessments(
@@ -152,4 +199,4 @@ def test_run_assess_with_empty_registry_returns_no_assessments(
         created_at="2026-10-26T12:00:00Z",
     )
 
-    assert result["assessments"] == {}
+    assert not result["assessments"]

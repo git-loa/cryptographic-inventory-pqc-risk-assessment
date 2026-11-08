@@ -13,6 +13,7 @@ from pqc_inventory.collection.scan_results import (
 )
 
 
+# pylint: disable=missing-function-docstring
 def make_state():
     return create_scan_state(
         target="example.com",

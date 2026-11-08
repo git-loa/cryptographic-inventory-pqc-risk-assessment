@@ -223,10 +223,15 @@ __marimo__/
 # -------------------------
 *.j2c
 
+# Generated runtime data
+/data/evidence/*.json
+
+# Generated runtime artifacts
+/artifacts/
+
 # -------------------------
 # Pipeline Outputs
 # -------------------------
-data/processed/*.json
 reports/*.json
 reports/*.md
 
@@ -243,3 +248,6 @@ temp/
 *.tmp
 *.log
 todos.txt
+
+# Application runtime workspace
+/pqc-assessment/

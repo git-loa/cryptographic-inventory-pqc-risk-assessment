@@ -267,7 +267,7 @@ def classify_public_key_algorithm(
         if algorithm == "ML-DSA":
             classification = "acceptable"
             reason = (
-                "ML-DSA is a standardized post-quantum " "digital-signature algorithm."
+                "ML-DSA is a standardized post-quantum digital-signature algorithm."
             )
 
         elif algorithm in {"RSA", "EC", "ED25519", "ED448"}:
