@@ -20,9 +20,27 @@ from pqc_inventory.storage.json_repository import JSONRepositoryError
 
 def make_assessment_run(*statuses: str) -> dict:
     """Create an assessment run containing the supplied policy statuses."""
+
     return {
         "assessments": {
-            f"A{index}": {"execution_status": status}
+            f"A{index}": {
+                "metadata": {
+                    "policy_id": f"A{index}",
+                    "name": f"Test Policy A{index}",
+                    "version": "1.0.0",
+                    "description": "Test assessment policy.",
+                    "scope": [],
+                    "rules": [],
+                    "references": [],
+                },
+                "result": {
+                    "policy_id": f"A{index}",
+                    "policy_version": "1.0.0",
+                    "execution_status": status,
+                    "findings": [],
+                    "limitations": [],
+                },
+            }
             for index, status in enumerate(statuses, start=1)
         }
     }

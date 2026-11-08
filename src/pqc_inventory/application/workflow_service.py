@@ -3,10 +3,13 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from pqc_inventory.application.scan_service import ScanService
 from pqc_inventory.application.assessment_service import AssessmentService
+from pqc_inventory.application.report_request import (
+    BatchReportRequest,
+    ReportRequest,
+)
 from pqc_inventory.application.report_service import ReportService
-from pqc_inventory.application.report_request import ReportRequest
+from pqc_inventory.application.scan_service import ScanService
 from pqc_inventory.application.workflow_request import WorkflowRequest
 from pqc_inventory.assessment.models import AssessmentRun
 from pqc_inventory.collection.models import TLSScanResult
@@ -19,7 +22,7 @@ class WorkflowResult:
 
     scan_results: tuple[TLSScanResult, ...]
     assessment_runs: tuple[AssessmentRun, ...]
-    report_path: Path
+    report_paths: tuple[Path, ...]
 
 
 class WorkflowService:  # pylint: disable=too-few-public-methods
@@ -59,7 +62,7 @@ class WorkflowService:  # pylint: disable=too-few-public-methods
 
         Returns:
             WorkflowResult containing scan evidence, assessment runs,
-            and the generated report path.
+            and generated report paths.
 
         Raises:
             ValueError: If workflow inputs or evidence are invalid.
@@ -86,22 +89,39 @@ class WorkflowService:  # pylint: disable=too-few-public-methods
             policy_ids=request.policy_ids,
         )
 
-        # Step 4: Generate the assessment report.
-        report_request = ReportRequest(
-            input_path=request.output_paths.assessment,
-            output_path=request.output_paths.report,
-            author=request.author,
-            organization=request.organization,
-            report_format="markdown",
-        )
+        # Step 4: Generate the requested reports.
+        if request.output_paths.report_directory is not None:
+            report_request = BatchReportRequest(
+                input_path=request.output_paths.assessment,
+                output_directory=request.output_paths.report_directory,
+                author=request.author,
+                organization=request.organization,
+            )
 
-        report_path = self._report_service.generate_report(
-            request=report_request,
-        )
+            report_paths = self._report_service.generate_all_reports(
+                request=report_request,
+            )
+
+        else:
+            assert request.output_paths.report is not None
+
+            report_request = ReportRequest(
+                input_path=request.output_paths.assessment,
+                output_path=request.output_paths.report,
+                author=request.author,
+                organization=request.organization,
+                report_format=request.report_format,
+            )
+
+            report_path = self._report_service.generate_report(
+                request=report_request,
+            )
+
+            report_paths = [report_path]
 
         # Step 5: Return the workflow results.
         return WorkflowResult(
             scan_results=tuple(scan_results),
             assessment_runs=tuple(assessment_runs),
-            report_path=report_path,
+            report_paths=tuple(report_paths),
         )

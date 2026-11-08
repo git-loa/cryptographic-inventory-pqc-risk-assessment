@@ -169,8 +169,8 @@ def summarize_assessment_results(
     }
 
     for result in results:
-        for policy_result in result["assessments"].values():
-            status = policy_result["execution_status"]
+        for policy_record in result["assessments"].values():
+            status = policy_record["result"]["execution_status"]
             status_counts[status] += 1
 
     total = sum(status_counts.values())

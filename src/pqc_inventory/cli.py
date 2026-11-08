@@ -25,6 +25,7 @@ from pqc_inventory.commands.report import (
 
 from pqc_inventory.commands.run import (
     register_parser as register_run_parser,
+    run_workflow,
 )
 
 from pqc_inventory.commands.constants import EXIT_ERROR, EXIT_SUCCESS
@@ -38,12 +39,14 @@ COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "scan": run_scan,
     "assess": run_assess,
     "report": run_report,
+    "run": run_workflow,
 }
 
 WORKSPACE_COMMANDS: set[str] = {
     "scan",
     "assess",
     "report",
+    "run",
 }
 
 

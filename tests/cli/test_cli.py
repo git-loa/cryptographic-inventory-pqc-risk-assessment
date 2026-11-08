@@ -156,3 +156,38 @@ def test_version_does_not_initialize_workspace(monkeypatch):
 
     assert exc_info.value.code == 0
     initialize_workspace.assert_not_called()
+
+
+def test_run_command_initializes_workspace(monkeypatch):
+    """Verify that the run command initializes the workspace."""
+
+    workspace = Mock()
+    initialize_workspace = Mock(return_value=workspace)
+    run_workflow = Mock(return_value=0)
+
+    monkeypatch.setattr(
+        cli,
+        "initialize_workspace",
+        initialize_workspace,
+    )
+
+    monkeypatch.setitem(
+        cli.COMMAND_HANDLERS,
+        "run",
+        run_workflow,
+    )
+
+    exit_code = cli.main(
+        [
+            "run",
+            "--targets",
+            "example.com",
+            "--yes",
+        ]
+    )
+
+    assert exit_code == 0
+    initialize_workspace.assert_called_once_with()
+
+    args = run_workflow.call_args.args[0]
+    assert args.workspace is workspace

@@ -248,3 +248,6 @@ temp/
 *.tmp
 *.log
 todos.txt
+
+# Application runtime workspace
+/pqc-assessment/

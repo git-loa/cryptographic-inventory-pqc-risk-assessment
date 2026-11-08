@@ -10,7 +10,14 @@ class WorkflowOutputPaths:
 
     evidence: Path
     assessment: Path
-    report: Path
+    report: Path | None = None
+    report_directory: Path | None = None
+
+    def __post_init__(self) -> None:
+        """Ensure exactly one report destination is configured."""
+
+        if (self.report is None) == (self.report_directory is None):
+            raise ValueError("Specify exactly one of report or report_directory.")
 
 
 @dataclass(frozen=True)
@@ -24,6 +31,7 @@ class WorkflowRequest:
         policy_ids: Assessment policies to execute. None selects all.
         author: Name of the report author.
         organization: Organization associated with the report.
+        report_format: Format used for single-report generation.
     """
 
     targets: tuple[str, ...]
@@ -34,3 +42,5 @@ class WorkflowRequest:
 
     author: str = "Unknown Author"
     organization: str = "Independent Research"
+
+    report_format: str = "markdown"

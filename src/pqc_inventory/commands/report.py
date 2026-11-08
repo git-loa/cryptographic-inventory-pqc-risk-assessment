@@ -62,7 +62,7 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
     format_group.add_argument(
         "--format",
-        choices=["markdown"],
+        choices=["markdown", "html"],
         default=None,
         help="Generate a report in the specified format (default: markdown).",
     )
@@ -155,11 +155,13 @@ def generate_single_report(
 ) -> int:
     """Generate a report in the requested format."""
 
-    default_output = args.workspace.reports_dir / "assessment_report.md"
+    report_format = args.format or "markdown"
+
+    default_output = args.workspace.reports_dir / REPORT_FILENAMES[report_format]
 
     output_path = resolve_output_path(
         output_path=args.output or default_output,
-        allowed_extensions={".md"},
+        allowed_extensions={Path(REPORT_FILENAMES[report_format]).suffix},
     )
 
     if output_path is None:
@@ -171,7 +173,7 @@ def generate_single_report(
         output_path=output_path,
         author=args.author,
         organization=args.organization,
-        report_format=args.format or "markdown",
+        report_format=report_format,
     )
 
     generated_path = service.generate_report(request)

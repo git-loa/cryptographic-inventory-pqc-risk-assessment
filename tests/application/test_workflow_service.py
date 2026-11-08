@@ -5,7 +5,10 @@ from unittest.mock import Mock, call
 
 import pytest
 
-from pqc_inventory.application.report_request import ReportRequest
+from pqc_inventory.application.report_request import (
+    BatchReportRequest,
+    ReportRequest,
+)
 from pqc_inventory.application.workflow_request import (
     WorkflowOutputPaths,
     WorkflowRequest,
@@ -60,6 +63,7 @@ def test_execute_completes_workflow_in_correct_order(
         ),
     ]
 
+    assert request.output_paths.report is not None
     expected_report_path = request.output_paths.report
 
     scan_service = Mock()
@@ -91,7 +95,7 @@ def test_execute_completes_workflow_in_correct_order(
 
     expected_report_request = ReportRequest(
         input_path=request.output_paths.assessment,
-        output_path=request.output_paths.report,
+        output_path=expected_report_path,
         author=request.author,
         organization=request.organization,
         report_format="markdown",
@@ -100,7 +104,7 @@ def test_execute_completes_workflow_in_correct_order(
     assert result == WorkflowResult(
         scan_results=tuple(scan_results),
         assessment_runs=tuple(assessment_runs),
-        report_path=expected_report_path,
+        report_paths=(expected_report_path,),
     )
 
     # Verify the complete execution sequence.
@@ -122,6 +126,73 @@ def test_execute_completes_workflow_in_correct_order(
             request=expected_report_request,
         ),
     ]
+
+
+def test_execute_generates_all_registered_reports(
+    tmp_path,
+    tls_scan_factory,
+    assessment_run_factory,
+):
+    """Verify that the workflow generates all registered report formats."""
+
+    output_paths = WorkflowOutputPaths(
+        evidence=tmp_path / "evidence" / "tls_scans.json",
+        assessment=tmp_path / "assessments" / "assessment_runs.json",
+        report_directory=tmp_path / "reports",
+    )
+
+    request = WorkflowRequest(
+        targets=("example.com",),
+        output_paths=output_paths,
+        policy_ids=("A1",),
+    )
+
+    scan_results = [tls_scan_factory()]
+    assessment_runs = [assessment_run_factory()]
+
+    generated_reports = [
+        output_paths.report_directory / "assessment_report.md",
+        output_paths.report_directory / "assessment_report.html",
+    ]
+
+    scan_service = Mock()
+    scan_service.scan_many.return_value = scan_results
+
+    repository = Mock()
+
+    assessment_service = Mock()
+    assessment_service.assess_file.return_value = assessment_runs
+
+    report_service = Mock()
+    report_service.generate_all_reports.return_value = generated_reports
+
+    service = WorkflowService(
+        scan_service=scan_service,
+        assessment_service=assessment_service,
+        report_service=report_service,
+        repository=repository,
+    )
+
+    result = service.execute(request)
+
+    expected_report_request = BatchReportRequest(
+        input_path=output_paths.assessment,
+        output_directory=output_paths.report_directory,
+        author=request.author,
+        organization=request.organization,
+    )
+
+    assert result == WorkflowResult(
+        scan_results=tuple(scan_results),
+        assessment_runs=tuple(assessment_runs),
+        report_paths=tuple(generated_reports),
+    )
+
+    report_service.generate_all_reports.assert_called_once_with(
+        request=expected_report_request,
+    )
+
+    report_service.generate_report.assert_not_called()
 
 
 @pytest.mark.parametrize(

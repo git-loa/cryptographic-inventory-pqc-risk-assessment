@@ -21,6 +21,7 @@ from pqc_inventory.application.report_request import (
 from pqc_inventory.collection.tls_utils import utc_now
 from pqc_inventory.reporting.interfaces import ReportRenderer
 from pqc_inventory.reporting.markdown_renderer import MarkdownReportRenderer
+from pqc_inventory.reporting.html_renderer import HTMLReportRenderer
 from pqc_inventory.storage.json_repository import JSONRepository
 from pqc_inventory.storage.path_safety import contains_symlink
 
@@ -55,7 +56,10 @@ class ReportService:  # pylint: disable=too-few-public-methods
         self.renderers = (
             dict(renderers)
             if renderers is not None
-            else {"markdown": MarkdownReportRenderer()}
+            else {
+                "markdown": MarkdownReportRenderer(),
+                "html": HTMLReportRenderer(),
+            }
         )
 
     def generate_report(self, request: ReportRequest) -> Path:

@@ -1,4 +1,4 @@
-"""Generate a sample TLS assessment and Markdown report."""
+"""Generate a sample TLS assessment with Markdown and HTML reports."""
 
 from pathlib import Path
 
@@ -10,13 +10,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 EVIDENCE_PATH = PROJECT_ROOT / "examples" / "sample_tls_evidence.json"
 
-ASSESSMENT_PATH = PROJECT_ROOT / "artifacts" / "sample_assessment_run.json"
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 
-REPORT_PATH = PROJECT_ROOT / "artifacts" / "sample_assessment_report.md"
+ASSESSMENT_PATH = ARTIFACTS_DIR / "sample_assessment_run.json"
+
+REPORT_PATHS = {
+    "markdown": ARTIFACTS_DIR / "sample_assessment_report.md",
+    "html": ARTIFACTS_DIR / "sample_assessment_report.html",
+}
 
 
 def main() -> None:
-    """Generate and save an assessment run and its Markdown report."""
+    """Generate an assessment run and reports in supported formats."""
 
     # Step 1: Validate TLS evidence and execute the registered policies.
     assessment_service = AssessmentService(
@@ -31,20 +36,21 @@ def main() -> None:
     print(f"Assessment runs generated: {len(assessment_runs)}")
     print(f"Assessment JSON: {ASSESSMENT_PATH}")
 
-    # Step 2: Generate the Markdown report from saved assessment data.
+    # Step 2: Generate Markdown and HTML reports from saved assessment data.
     report_service = ReportService()
 
-    request = ReportRequest(
-        input_path=ASSESSMENT_PATH,
-        output_path=REPORT_PATH,
-        author="PQC Assessment Framework",
-        organization="Sample Assessment",
-        report_format="markdown",
-    )
+    for report_format, output_path in REPORT_PATHS.items():
+        request = ReportRequest(
+            input_path=ASSESSMENT_PATH,
+            output_path=output_path,
+            author="PQC Assessment Framework",
+            organization="Sample Assessment",
+            report_format=report_format,
+        )
 
-    generated_report = report_service.generate_report(request)
+        generated_report = report_service.generate_report(request)
 
-    print(f"Markdown report generated: {generated_report}")
+        print(f"{report_format.upper()} report generated: {generated_report}")
 
 
 if __name__ == "__main__":
