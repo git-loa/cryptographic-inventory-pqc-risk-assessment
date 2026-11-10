@@ -8,160 +8,72 @@
 
 ## 1. Purpose
 
-This document defines the target Python package architecture for the framework.
+This document defines the framework's Python package structure, responsibilities and dependency boundaries.
 
-It establishes:
+The architecture follows the approved domain model and separates business concepts from collection technologies, application workflows and infrastructure implementations.
 
-- Package responsibilities.
-- Module organization.
-- Dependency boundaries.
-- Interface locations.
-- Integration points.
-- Source-code migration strategy.
-- Test organization.
+## 2. Architectural Organization
 
-The architecture is derived from the approved domain model, entity relationship specification and domain class design.
-
-The objective is to establish a modular application that accommodates new cryptographic technologies, collection methods, assessment policies and external inventory standards.
-
-## 2. Architectural Principles
-
-The package architecture follows these principles:
-
-1. Domain independence.
-2. Separation of concerns.
-3. Dependency inversion.
-4. Composition over unnecessary inheritance.
-5. Explicit interfaces between components.
-6. Independent collection and assessment.
-7. Interoperability through adapters.
-8. Runtime capability awareness.
-9. Testability and maintainability.
-10. Incremental implementation.
-
-The package structure must not be driven exclusively by the current TLS scanner implementation.
-
-## 3. High-Level Architecture
-
-The application is organized into the following logical components:
+The application is organized into the following components:
 
 | Component | Responsibility |
 |---|---|
-| Domain | Defines the framework's fundamental entities and value objects. |
-| Collection | Discovers assets and collects evidence. |
-| Runtime | Discovers execution environment and cryptographic capabilities. |
-| Inventory | Manages cryptographic assets and relationships. |
-| BOM | Provides standardized inventory import and export. |
-| Standards | Manages authoritative standards and their versions. |
-| Assessment | Evaluates evidence against versioned policies and rules. |
-| Risk | Evaluates technical findings against organizational context. |
-| Modernization | Coordinates cryptographic replacement and migration activities. |
+| Domain | Fundamental entities, value objects and domain rules. |
+| Collection | Asset discovery and evidence collection. |
+| Runtime | Execution environment and capability detection. |
+| Inventory | Asset registration, relationships and reconciliation. |
+| BOM | External inventory import and export. |
+| Standards | Standards references, editions and provisions. |
+| Assessment | Versioned policies, rules and findings. |
+| Risk | Contextual risk evaluation and prioritization. |
+| Modernization | Cryptographic replacement and migration planning. |
 | Application | Coordinates application workflows. |
-| Infrastructure | Implements persistence, configuration and external integrations. |
-| Reporting | Generates assessment and inventory reports. |
-| CLI | Provides command-line interaction. |
+| Infrastructure | Persistence, configuration and external integrations. |
+| Reporting | Human-readable reports. |
+| CLI | Command-line interaction. |
 
-## 4. Proposed Package Structure
+## 3. Proposed Package Structure
 
 ```text
 src/
 └── pqc_inventory/
     │
     ├── domain/
-    │   ├── __init__.py
-    │   │
     │   ├── organization/
-    │   │   ├── entities.py
-    │   │   └── values.py
-    │   │
     │   ├── inventory/
-    │   │   ├── entities.py
-    │   │   └── values.py
-    │   │
     │   ├── assets/
-    │   │   ├── entities.py
-    │   │   ├── identifiers.py
-    │   │   ├── specifications.py
-    │   │   └── relationships.py
-    │   │
+    │   ├── relationships/
     │   ├── evidence/
-    │   │   ├── entities.py
-    │   │   ├── provenance.py
-    │   │   ├── values.py
-    │   │   └── references.py
-    │   │
     │   ├── collection/
-    │   │   ├── entities.py
-    │   │   └── values.py
-    │   │
     │   ├── runtime/
-    │   │   ├── entities.py
-    │   │   └── capabilities.py
-    │   │
     │   ├── standards/
-    │   │   ├── entities.py
-    │   │   └── values.py
-    │   │
     │   ├── assessment/
-    │   │   ├── entities.py
-    │   │   ├── policies.py
-    │   │   ├── findings.py
-    │   │   └── values.py
-    │   │
-    │   └── risk/
-    │       ├── entities.py
-    │       └── values.py
+    │   ├── risk/
+    │   └── modernization/
     │
     ├── collection/
-    │   ├── __init__.py
     │   ├── interfaces.py
-    │   ├── services.py
-    │   │
     │   ├── common/
-    │   │   ├── target_resolution.py
-    │   │   ├── validation.py
-    │   │   └── diagnostics.py
-    │   │
     │   ├── tls/
-    │   │   ├── scanner.py
-    │   │   ├── handshake.py
-    │   │   ├── probes.py
-    │   │   ├── models.py
-    │   │   └── utilities.py
-    │   │
     │   ├── certificates/
-    │   │   ├── parser.py
-    │   │   ├── validation.py
-    │   │   └── chain.py
-    │   │
-    │   ├── software/
-    │   │   ├── discovery.py
-    │   │   └── dependencies.py
-    │   │
+    │   ├── key_establishment/
     │   ├── randomness/
-    │   │   ├── discovery.py
-    │   │   └── validation.py
-    │   │
+    │   ├── software/
     │   └── system/
-    │       ├── discovery.py
-    │       └── cryptographic_configuration.py
     │
     ├── runtime/
-    │   ├── __init__.py
     │   ├── detector.py
     │   ├── capabilities.py
     │   ├── environment.py
     │   └── backends/
     │
     ├── inventory/
-    │   ├── __init__.py
-    │   ├── services.py
-    │   ├── repositories.py
-    │   ├── discovery.py
+    │   ├── service.py
+    │   ├── repository.py
+    │   ├── resolver.py
     │   └── reconciliation.py
     │
     ├── bom/
-    │   ├── __init__.py
     │   ├── interfaces.py
     │   └── cyclonedx/
     │       ├── importer.py
@@ -170,289 +82,140 @@ src/
     │       └── validator.py
     │
     ├── standards/
-    │   ├── __init__.py
     │   ├── registry.py
     │   ├── repository.py
-    │   ├── applicability.py
     │   └── change_tracking.py
     │
     ├── assessment/
-    │   ├── __init__.py
     │   ├── interfaces.py
     │   ├── engine.py
     │   ├── context.py
     │   ├── registry.py
     │   ├── execution.py
-    │   │
-    │   ├── policies/
-    │   │   ├── a1_tls_configuration/
-    │   │   ├── a2_pki_trust/
-    │   │   ├── a3_algorithm_assurance/
-    │   │   ├── a4_key_establishment/
-    │   │   ├── a5_key_management/
-    │   │   ├── a6_randomness/
-    │   │   ├── a7_inventory/
-    │   │   ├── a8_crypto_agility/
-    │   │   └── a9_pqc_migration/
-    │   │
-    │   └── profiles/
+    │   ├── profiles/
+    │   └── policies/
+    │       ├── a1_tls_configuration/
+    │       ├── a2_pki_trust/
+    │       ├── a3_algorithm_assurance/
+    │       ├── a4_key_establishment/
+    │       ├── a5_key_management/
+    │       ├── a6_randomness/
+    │       ├── a7_inventory/
+    │       ├── a8_crypto_agility/
+    │       └── a9_pqc_migration/
     │
     ├── risk/
-    │   ├── __init__.py
-    │   ├── assessment.py
+    │   ├── context.py
     │   ├── evaluation.py
     │   └── prioritization.py
     │
     ├── modernization/
-    │   ├── __init__.py
     │   ├── planning.py
     │   ├── tasks.py
     │   └── validation.py
     │
     ├── application/
-    │   ├── __init__.py
-    │   ├── scan_service.py
+    │   ├── discovery_service.py
+    │   ├── collection_service.py
     │   ├── inventory_service.py
     │   ├── assessment_service.py
+    │   ├── modernization_service.py
     │   ├── report_service.py
     │   └── workflow_service.py
     │
     ├── infrastructure/
-    │   ├── __init__.py
     │   ├── persistence/
     │   ├── configuration/
     │   ├── filesystem/
-    │   ├── serialization/
+    │   ├── cryptographic_backends/
     │   └── external_services/
     │
     ├── reporting/
-    │   ├── __init__.py
-    │   ├── interfaces.py
-    │   ├── builders/
-    │   └── renderers/
-    │
     ├── cli/
-    │   ├── __init__.py
-    │   ├── parser.py
-    │   └── commands/
-    │
     ├── templates/
-    │   ├── config/
-    │   └── reports/
-    │
     ├── __init__.py
     └── __main__.py
 ```
 
-This is a target structure. Directories will be introduced when their responsibilities are defined and implementation is justified.
+This is the target structure. Packages and modules will be introduced when their responsibilities are justified.
 
-Empty directories and speculative modules should not be created merely to match the diagram.
+## 4. Package Responsibilities
 
-## 5. Package Responsibilities
+### Domain
 
-### 5.1 Domain
+Defines entities, value objects, enumerations and domain invariants.
 
-Defines the fundamental concepts of the framework.
+It includes asset identity, evidence, collection records, runtime profiles, standards and assessment concepts.
 
-It contains:
+It must remain independent of external libraries and infrastructure.
 
-- Entities.
-- Value objects.
-- Domain enumerations.
-- Domain-level invariants.
-- Domain identifiers.
+### Collection
 
-The domain must not depend on:
+Implements independent collectors for TLS, certificates, key establishment, software, randomness and system configuration.
 
-- OpenSSL.
-- Python SSL implementations.
-- Pydantic.
-- CycloneDX.
-- JSON persistence.
-- CLI commands.
-- Reporting frameworks.
+Collectors produce canonical evidence and collection results. They do not perform security assessments.
 
-### 5.2 Collection
+### Runtime
 
-Implements asset discovery and evidence collection.
+Identifies the collection environment and discovers available Python, SSL, OpenSSL and cryptographic capabilities.
 
-Individual collectors operate independently.
+Runtime detection must distinguish local collection capabilities from remote endpoint capabilities.
 
-Initial collection responsibilities include:
+### Inventory
 
-- TLS endpoint discovery.
-- Certificate inspection.
-- Software dependency discovery.
-- Cryptographic configuration discovery.
-- Randomness-related evidence collection.
+Manages asset registration, inventory membership, identifiers, relationships and inventory reconciliation.
 
-Collectors must produce evidence through established domain contracts.
+### BOM
 
-They must not make assessment decisions.
+Provides CycloneDX CBOM import and export through dedicated adapters.
 
-### 5.3 Runtime
+CycloneDX is an interoperability format, not the internal domain model.
 
-Discovers the environment in which collection occurs.
+### Standards
 
-Responsibilities include:
+Manages standards publications, editions, provisions and changes.
 
-- Python runtime identification.
-- Operating-system identification.
-- SSL backend identification.
-- OpenSSL version discovery.
-- Cryptographic library discovery.
-- Available API detection.
-- Runtime capability profiles.
+Standards updates require controlled review before affecting assessment rules.
 
-Runtime capabilities describe the collector rather than remote endpoint capabilities.
+### Assessment
 
-### 5.4 Inventory
+Executes versioned assessment policies and rules against canonical evidence.
 
-Coordinates asset registration and inventory management.
+Each policy owns distinct assessment responsibilities and produces traceable findings.
 
-Responsibilities include:
+### Risk and Modernization
 
-- Asset registration.
-- Identifier resolution.
-- Inventory membership.
-- Relationship management.
-- Duplicate detection.
-- Historical inventory snapshots.
-- Inventory reconciliation.
+Risk evaluates technical findings against organizational context.
 
-### 5.5 BOM
+Modernization coordinates cryptographic replacement, migration activities and validation.
 
-Provides external BOM interoperability.
+These components must not modify historical technical findings.
 
-The CycloneDX integration will support:
+### Application
 
-- CBOM generation.
-- CBOM import.
-- Asset mapping.
-- Relationship mapping.
-- Schema validation.
-- Import diagnostics.
+Coordinates discovery, collection, inventory, assessment, modernization and reporting workflows.
 
-The BOM layer must not become the internal domain model.
+Application services depend on interfaces rather than concrete infrastructure implementations.
 
-### 5.6 Standards
+### Infrastructure
 
-Manages standards references and their versions.
+Implements persistence, configuration, filesystem operations and external integrations.
 
-Responsibilities include:
+### Reporting and CLI
 
-- Standards publication registration.
-- Edition management.
-- Provision references.
-- Standards applicability.
-- Supersession relationships.
-- Standards change tracking.
+Reporting prepares human-readable outputs.
 
-Standards updates must not automatically modify assessment classifications.
+The CLI validates user input and delegates operations to application services.
 
-### 5.7 Assessment
+Neither component should contain assessment methodology.
 
-Executes versioned assessment policies and rules.
-
-Responsibilities include:
-
-- Policy registration.
-- Policy selection.
-- Rule evaluation.
-- Evidence requirement checking.
-- Finding generation.
-- Assessment execution.
-- Historical policy snapshots.
-
-Assessment logic must remain independent of collection implementations.
-
-### 5.8 Risk
-
-Evaluates technical findings against organizational context.
-
-Responsibilities include:
-
-- Exposure evaluation.
-- Impact analysis.
-- Likelihood rationale.
-- Risk prioritization.
-- Residual exposure analysis.
-
-Risk methodology must be documented independently of individual technical policies.
-
-### 5.9 Modernization
-
-Coordinates cryptographic replacement activities.
-
-Responsibilities include:
-
-- Modernization planning.
-- Affected asset identification.
-- Proposed cryptographic replacements.
-- Migration task tracking.
-- Validation planning.
-- Residual risk tracking.
-
-Modernization activities must not modify historical assessment findings.
-
-### 5.10 Application
-
-Coordinates use cases across the framework.
-
-Examples:
-
-- Scan endpoints.
-- Discover cryptographic assets.
-- Generate inventory.
-- Run assessments.
-- Generate reports.
-- Execute complete workflows.
-
-Application services should depend on interfaces rather than concrete infrastructure implementations wherever practical.
-
-### 5.11 Infrastructure
-
-Implements technical mechanisms required by the application.
-
-Responsibilities include:
-
-- JSON and other persistence implementations.
-- Configuration loading.
-- Filesystem operations.
-- External API integrations.
-- Serialization adapters.
-- Logging.
-
-Infrastructure implements application-facing interfaces.
-
-### 5.12 Reporting
-
-Transforms inventory and assessment results into human-readable outputs.
-
-Initial formats:
-
-- JSON.
-- Markdown.
-- HTML.
-
-Future formats may include PDF and machine-readable compliance reports.
-
-### 5.13 CLI
-
-Provides command-line interaction.
-
-The CLI should validate user input and delegate actual operations to application services.
-
-It must not contain assessment logic or collection implementations.
-
-## 6. Dependency Architecture
+## 5. Dependency Architecture
 
 The intended dependency direction is:
 
-```mermaid
+```mermaid id="qv6tx4"
 flowchart TD
     CLI --> Application
-
     Application --> Domain
     Application --> Collection
     Application --> Inventory
@@ -468,110 +231,55 @@ flowchart TD
     Inventory --> Domain
     Assessment --> Domain
     Assessment --> Standards
+    BOM --> Domain
+    Standards --> Domain
     Risk --> Domain
     Risk --> Assessment
     Modernization --> Domain
     Modernization --> Risk
 
-    BOM --> Domain
-    Standards --> Domain
-
-    Infrastructure --> Domain
-    Infrastructure --> Collection
-    Infrastructure --> Inventory
-    Infrastructure --> Assessment
-    Infrastructure --> Standards
+    Infrastructure -. implements interfaces .-> Application
+    Infrastructure -. implements interfaces .-> Inventory
+    Infrastructure -. implements interfaces .-> Standards
 ```
 
-The diagram represents logical dependencies. Exact Python imports will be constrained further through interfaces and dependency injection.
+The infrastructure implementations are connected through dependency injection at application startup.
 
 ### Dependency rules
 
-1. Domain must not import application or infrastructure packages.
-2. Domain must not import collectors or external inventory libraries.
-3. Collection must not import assessment policies.
-4. Assessment must not import TLS scanner implementations.
-5. Assessment must not perform network operations.
-6. BOM adapters must not contain assessment classifications.
-7. Risk must consume assessment outputs rather than duplicate technical policy rules.
-8. Modernization must not directly modify historical findings.
-9. CLI must delegate business operations to application services.
-10. Infrastructure must implement defined interfaces rather than control domain behaviour.
-11. Circular imports between packages must be avoided.
-12. New dependencies must be justified and documented.
+1. Domain must not depend on application or infrastructure.
+2. Collection must not depend on assessment policies.
+3. Assessment must not perform network collection.
+4. Assessment must consume canonical evidence.
+5. BOM adapters must not implement assessment classifications.
+6. Risk must consume assessment findings.
+7. Modernization must preserve historical assessment results.
+8. CLI must delegate business operations to application services.
+9. Circular package dependencies are prohibited.
 
-## 7. Interface Placement
+## 6. Interface Placement
 
-Interfaces should be placed according to the responsibility they protect.
+Interfaces belong to the component requiring the capability.
 
-| Interface | Proposed location |
+| Interface | Responsibility |
 |---|---|
-| Collector | `collection/interfaces.py` |
-| AssessmentPolicy | `assessment/interfaces.py` |
-| AssetRepository | Inventory application boundary |
-| EvidenceRepository | Collection or evidence application boundary |
-| StandardsRepository | `standards/` application boundary |
-| BOMImporter | `bom/interfaces.py` |
-| BOMExporter | `bom/interfaces.py` |
-| ReportRenderer | `reporting/interfaces.py` |
+| `Collector` | Executes evidence collection. |
+| `AssetRepository` | Manages asset persistence. |
+| `EvidenceRepository` | Manages evidence persistence. |
+| `AssessmentPolicy` | Defines policy execution. |
+| `PolicyRegistry` | Resolves policy versions. |
+| `StandardsRepository` | Retrieves standards references and provisions. |
+| `BOMImporter` | Imports external inventory documents. |
+| `BOMExporter` | Exports standardized inventory documents. |
 
-Concrete implementations belong in their respective infrastructure or adapter packages.
+Concrete implementations belong in the relevant adapters or infrastructure packages.
 
-## 8. Data and Serialization Boundaries
+## 7. Test Organization
 
-The framework will maintain separate representations for:
-
-1. Domain objects.
-2. Native evidence records.
-3. Assessment result records.
-4. CycloneDX BOM documents.
-5. Configuration documents.
-
-Dedicated serializers and adapters must translate between these representations.
-
-Domain objects must not contain database-specific or CycloneDX-specific logic.
-
-External documents must be validated before their contents enter the domain.
-
-Persisted historical records must retain their original schema versions.
-
-## 9. Existing Source Migration Map
-
-The existing implementation will be migrated incrementally.
-
-| Existing module | Proposed destination |
-|---|---|
-| `collection/models.py` | Split between domain evidence and `collection/tls/models.py` |
-| `collection/tls_scanner.py` | `collection/tls/scanner.py` |
-| `collection/certificate_parser.py` | `collection/certificates/parser.py` |
-| `collection/key_establishment.py` | `collection/tls/` or dedicated key-establishment collector |
-| `collection/scan_results.py` | `collection/tls/` |
-| `collection/tls_utils.py` | `collection/tls/` and `collection/common/` |
-| `collection/target_loader.py` | `collection/common/` |
-| `collection/domain_loader.py` | `collection/common/` |
-| `assessment/models.py` | Split between `domain/assessment/` and assessment execution contracts |
-| `assessment/interfaces.py` | `assessment/interfaces.py` |
-| `assessment/orchestrator.py` | `assessment/engine.py` |
-| `assessment/registry.py` | `assessment/registry.py` |
-| `assessment/policies/` | `assessment/policies/` |
-| `application/` | Retain and evolve |
-| `commands/` | `cli/commands/` |
-| `config/` | `infrastructure/configuration/` |
-| `storage/` | `infrastructure/persistence/` |
-| `reporting/` | Retain and evolve |
-| `utils/logger.py` | Infrastructure logging |
-
-A source module may be split into several modules when it currently combines unrelated responsibilities.
-
-Files must not be moved solely to match directory names.
-
-## 10. Test Organization
-
-Tests will evolve toward the following structure:
+Tests will follow the architectural boundaries:
 
 ```text
 tests/
-│
 ├── unit/
 │   ├── domain/
 │   ├── collection/
@@ -599,141 +307,40 @@ tests/
     └── workflows/
 ```
 
-Tests should be migrated alongside their corresponding source components.
+Tests will migrate alongside their corresponding source modules.
 
-The existing 324-test suite remains the initial regression baseline.
+Python 3.12 and 3.15.2 must remain supported during the initial migration.
 
-Additional compatibility tests will run under Python 3.12 and Python 3.15.2.
+## 8. Migration Strategy
 
-## 11. Configuration and Runtime Support
+The restructuring will follow this sequence:
 
-The package architecture must support different Python and cryptographic library environments.
+| Stage | Focus |
+|---|---|
+| 1 | Domain models and contracts |
+| 2 | Runtime detection and capabilities |
+| 3 | TLS and certificate collection |
+| 4 | Inventory and evidence management |
+| 5 | Assessment engine and policies |
+| 6 | Standards registry |
+| 7 | CycloneDX integration |
+| 8 | Risk and modernization |
+| 9 | Application, infrastructure and CLI integration |
+| 10 | Reporting and continuous assurance |
 
-The application will use runtime capability detection rather than rigid version-based assumptions.
+Existing functionality, persisted evidence and CLI behaviour must remain compatible where practical.
 
-The supported development environments initially include:
+Legacy data will be handled through explicit version-aware adapters.
 
-- Python 3.12.
-- Python 3.15.2.
+## 9. Architectural Constraints
 
-Runtime differences must be recorded with collection provenance.
-
-An unavailable collection capability must be represented explicitly.
-
-## 12. Migration Strategy
-
-Restructuring will proceed incrementally.
-
-### Stage 1: Domain foundations
-
-Introduce:
-
-- Asset models.
-- Inventory models.
-- Evidence models.
-- Provenance models.
-- Runtime models.
-
-### Stage 2: Collection migration
-
-Move and refine:
-
-- TLS scanning.
-- Certificate parsing.
-- Handshake observations.
-- Capability probes.
-- Collection execution.
-
-### Stage 3: Assessment migration
-
-Introduce:
-
-- Versioned policy models.
-- Rule versions.
-- Assessment contexts.
-- Assessment runs.
-- Findings.
-
-### Stage 4: Standards integration
-
-Introduce:
-
-- Standards references.
-- Standards editions.
-- Standards provisions.
-- Standards registry.
-
-### Stage 5: Inventory and CBOM
-
-Introduce:
-
-- Inventory services.
-- Asset relationship management.
-- CycloneDX import/export.
-- Inventory validation.
-
-### Stage 6: Risk and modernization
-
-Introduce:
-
-- Risk assessment models.
-- Migration prioritization.
-- Modernization plans.
-- Validation workflows.
-
-### Stage 7: Application and infrastructure integration
-
-Reorganize existing services, persistence, configuration, reporting and CLI modules.
-
-Each stage must preserve existing functionality and pass its relevant tests before proceeding.
-
-## 13. Migration Safeguards
-
-The following safeguards are mandatory:
-
-1. Existing CLI commands must remain functional during migration.
-2. Existing TLS evidence must remain readable through explicit schema adapters.
-3. Historical assessment results must retain their original policy metadata.
-4. Source files must not be deleted before replacements are validated.
-5. Tests must be migrated with their corresponding components.
-6. Both supported Python environments must be tested.
-7. Public interfaces must be changed deliberately.
-8. Persisted schema changes must be documented.
-9. Circular dependencies must be prevented.
-10. Each meaningful migration stage must have a checkpoint commit.
-
-## 14. Architectural Acceptance Criteria
-
-The package architecture will be considered established when:
-
-- Each package has a documented responsibility.
-- Domain models are independent of infrastructure.
+- Domain models remain technology-independent.
 - Collectors produce canonical evidence.
-- Runtime capabilities are independently discoverable.
-- Assessment policies consume canonical evidence.
-- Standards references are independently versioned.
-- CycloneDX operates through adapters.
-- Application services coordinate workflows.
-- Historical evidence and results remain reproducible.
-- Automated tests protect package boundaries and compatibility.
+- Historical evidence and findings remain immutable.
+- Assessment policies are independently versioned.
+- Standards references preserve publication editions.
+- CycloneDX is isolated behind adapters.
+- Runtime capabilities are detected rather than assumed.
+- New functionality must respect established package boundaries.
 
-## 15. Future Extensibility
-
-The architecture must accommodate future additions without requiring changes to unrelated components.
-
-Examples include:
-
-- SSH and IPsec collectors.
-- New TLS implementations.
-- Additional PQC algorithms.
-- New entropy-source evidence providers.
-- Cloud KMS integrations.
-- HSM inventory adapters.
-- Additional BOM formats.
-- New standards registries.
-- Organizational assessment profiles.
-- Continuous cryptographic assurance capabilities.
-
-New functionality should integrate through established domain contracts and interfaces.
-
-**Guiding principle:** Organize the application around stable domain responsibilities and explicit dependency boundaries, allowing collection technologies, cryptographic standards and external integrations to evolve independently.
+**Guiding principle:** Organize the application around stable domain responsibilities, with independently replaceable collectors, assessment policies and infrastructure integrations.

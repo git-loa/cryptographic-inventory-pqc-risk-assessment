@@ -8,369 +8,228 @@
 
 ## 1. Purpose
 
-This document defines the dependency boundaries, interface contracts and migration strategy for restructuring the framework.
+This document defines package dependency boundaries, interface ownership and the migration strategy for restructuring the framework.
 
-Its objectives are to:
-
-- Prevent circular dependencies.
-- Maintain domain independence.
-- Establish dependency inversion.
-- Separate collection from assessment.
-- Protect existing application functionality.
-- Preserve historical evidence and assessment records.
-- Provide a controlled source-code migration process.
+The objectives are to preserve domain independence, prevent circular dependencies, support replaceable implementations and migrate existing functionality without losing compatibility.
 
 ## 2. Dependency Principles
 
 The architecture follows these principles:
 
 1. Dependencies point towards stable abstractions.
-2. Domain models remain independent of external infrastructure.
-3. Collection implementations do not perform assessments.
-4. Assessment implementations do not perform collection.
-5. Infrastructure implements application-facing interfaces.
+2. Domain models remain independent of infrastructure.
+3. Collection and assessment remain separate.
+4. Application services coordinate workflows through interfaces.
+5. Infrastructure implements interfaces defined by application boundaries.
 6. External formats are handled through dedicated adapters.
-7. Application services coordinate operations without implementing domain rules.
-8. Circular imports are prohibited.
-9. Package boundaries must be independently testable.
-10. Existing functionality must remain operational throughout migration.
+7. Historical evidence and assessment records remain reproducible.
+8. Existing functionality is replaced only after its successor is validated.
 
-## 3. Package Dependency Rules
+## 3. Dependency Architecture
 
-| Package | Permitted dependencies | Prohibited dependencies |
-|---|---|---|
-| domain | Python standard library and internal domain modules | Collection implementations, infrastructure, CycloneDX |
-| collection | Domain contracts, runtime abstractions, required external libraries | Assessment policies, reporting |
-| runtime | Domain runtime contracts and operating-system interfaces | Assessment policies |
-| inventory | Domain models and repository interfaces | Specific collection implementations |
-| standards | Domain standards models and repository interfaces | TLS scanners and assessment executables |
-| assessment | Domain models and standards interfaces | Network scanners and external collection implementations |
-| bom | Domain inventory models and inventory interfaces | Assessment classification logic |
-| risk | Domain and assessment interfaces | Collection implementations |
-| modernization | Domain and risk interfaces | Collection implementations |
-| application | Domain and application-facing interfaces | Concrete infrastructure implementations |
-| infrastructure | Domain contracts and application-facing interfaces | Domain-owned assessment rules |
-| reporting | Application result contracts and domain references | Collection implementations |
-| cli | Application services and composition root | Direct business-rule implementation |
-
-## 4. Dependency Direction
-
-The intended dependency direction is:
-
-```mermaid
+```mermaid id="iv9kza"
 flowchart TD
     CLI --> Application
 
     Application --> Domain
     Application --> CollectionPorts
-    Application --> AssessmentPorts
     Application --> InventoryPorts
+    Application --> AssessmentPorts
+    Application --> StandardsPorts
+    Application --> BOMPorts
     Application --> ReportingPorts
 
     CollectionAdapters --> Domain
     CollectionAdapters --> Runtime
-    AssessmentEngine --> Domain
-    AssessmentEngine --> StandardsPorts
 
-    InfrastructureAdapters --> Domain
-    InfrastructureAdapters --> ApplicationPorts
+    InventoryServices --> Domain
+    AssessmentEngine --> Domain
+    AssessmentEngine --> StandardsContracts
 
     BOMAdapters --> Domain
-    BOMAdapters --> InventoryPorts
-
+    StandardsServices --> Domain
     RiskEngine --> Domain
-    RiskEngine --> AssessmentPorts
-
     Modernization --> Domain
-    Modernization --> RiskPorts
+
+    InfrastructureAdapters -. implement ports .-> CollectionPorts
+    InfrastructureAdapters -. implement ports .-> InventoryPorts
+    InfrastructureAdapters -. implement ports .-> AssessmentPorts
+    InfrastructureAdapters -. implement ports .-> StandardsPorts
+    InfrastructureAdapters -. implement ports .-> BOMPorts
+    InfrastructureAdapters -. implement ports .-> ReportingPorts
 ```
 
-This diagram represents logical dependencies.
+The composition root connects application services to concrete implementations through dependency injection.
 
-Concrete implementations must be injected through interfaces rather than instantiated throughout application services.
+The arrows represent logical dependencies, not necessarily direct Python imports. In particular, infrastructure adapters depend on the interfaces they implement, while application services depend on those interfaces rather than adapter implementations.
+
+## 4. Package Dependency Rules
+
+| Package | May depend on | Must not depend on |
+|---|---|---|
+| Domain | Python standard library and domain modules | Collectors, infrastructure, CycloneDX |
+| Collection | Domain contracts, runtime capabilities | Assessment policies |
+| Runtime | Domain runtime contracts and system interfaces | Assessment |
+| Inventory | Domain and repository interfaces | Specific collectors |
+| Standards | Domain and repository interfaces | Collection implementations |
+| Assessment | Domain and assessment interfaces | Network scanners |
+| BOM | Domain and inventory interfaces | Assessment classifications |
+| Risk | Domain and assessment interfaces | Collection implementations |
+| Modernization | Domain and risk interfaces | Collection implementations |
+| Application | Domain and application-facing interfaces | Concrete infrastructure implementations |
+| Infrastructure | Domain contracts and application-facing interfaces | Domain-owned business rules |
+| Reporting | Application result contracts and domain references | Collection implementations |
+| CLI | Application services and composition root | Direct business-rule implementation |
+
+A package must not import another package merely because it currently contains a convenient utility. Shared functionality should have an explicitly defined owner.
 
 ## 5. Interface Ownership
 
-Interfaces should be defined by the component that requires the capability.
+Interfaces are defined by the component requiring the capability.
 
-For example:
-
-| Interface | Owner |
+| Interface | Responsibility |
 |---|---|
-| Collector | Collection application boundary |
-| AssetRepository | Inventory application boundary |
-| EvidenceRepository | Evidence application boundary |
-| AssessmentPolicy | Assessment application boundary |
-| PolicyRegistry | Assessment application boundary |
-| StandardsRepository | Standards application boundary |
-| BOMImporter | BOM application boundary |
-| BOMExporter | BOM application boundary |
-| ReportRenderer | Reporting application boundary |
+| `Collector` | Executes evidence collection. |
+| `AssetRepository` | Retrieves and persists assets. |
+| `EvidenceRepository` | Retrieves and persists evidence. |
+| `InventoryRepository` | Manages inventory records. |
+| `AssessmentPolicy` | Defines policy evaluation. |
+| `PolicyRegistry` | Resolves available policy versions. |
+| `StandardsRepository` | Retrieves standards editions and provisions. |
+| `BOMImporter` | Imports external inventory documents. |
+| `BOMExporter` | Exports standardized inventory documents. |
+| `ReportRenderer` | Produces a requested report format. |
 
-Infrastructure packages provide concrete implementations of the relevant interfaces.
+Concrete implementations belong in the relevant adapter or infrastructure package.
 
 ## 6. Composition Root
 
-The application composition root is responsible for creating and connecting implementations.
+The application composition root is responsible for constructing and connecting implementations.
 
-It should:
+It will:
 
-- Initialize configuration.
+- Load and validate configuration.
 - Detect runtime capabilities.
-- Initialize persistence implementations.
-- Register collectors.
-- Register assessment policies.
-- Configure BOM adapters.
+- Initialize repositories and persistence.
+- Register collectors and assessment policies.
+- Configure standards and BOM adapters.
 - Construct application services.
-- Connect CLI commands to application services.
+- Connect CLI commands to application workflows.
 
-Composition should occur at application startup rather than inside domain objects.
+Domain objects and individual policies must not construct infrastructure dependencies themselves.
 
-## 7. Existing Implementation Migration Map
+## 7. Existing Implementation Migration
 
-| Current module | Target responsibility |
+The existing implementation will be treated as migration source material, not as the target architecture.
+
+| Existing component | Target responsibility |
 |---|---|
-| collection/models.py | Split into TLS collection contracts and canonical domain evidence |
-| collection/tls_scanner.py | TLS collection adapter |
-| collection/certificate_parser.py | Certificate collection adapter |
-| collection/key_establishment.py | TLS handshake and capability-probe collection |
-| collection/scan_results.py | TLS collection result construction |
-| collection/tls_utils.py | Shared collection utilities |
-| collection/target_loader.py | Target validation and resolution |
-| collection/domain_loader.py | Domain target handling |
-| assessment/models.py | Split between domain assessment entities and persistence contracts |
-| assessment/interfaces.py | Assessment policy interface |
-| assessment/orchestrator.py | Assessment engine |
-| assessment/registry.py | Policy registry |
-| assessment/policies/ | Versioned policy implementations |
-| application/ | Application orchestration |
-| commands/ | CLI command handlers |
-| config/ | Infrastructure configuration |
-| storage/ | Infrastructure persistence |
-| reporting/ | Reporting adapters |
-| utils/logger.py | Infrastructure logging |
+| `collection/models.py` | Split into canonical domain evidence and TLS-specific contracts |
+| `collection/tls_scanner.py` | TLS collection adapter |
+| `collection/certificate_parser.py` | Certificate collection adapter |
+| `collection/key_establishment.py` | Handshake and capability-probe collection |
+| `collection/scan_results.py` | TLS observation and result construction |
+| `assessment/models.py` | Domain assessment entities and execution contracts |
+| `assessment/interfaces.py` | Assessment policy interface |
+| `assessment/orchestrator.py` | Assessment engine |
+| `assessment/registry.py` | Policy registry |
+| `assessment/policy_setup.py` | Application composition and default registration |
+| `application/` | Retain and adapt application services |
+| `commands/` | CLI command handlers |
+| `config/` | Infrastructure configuration |
+| `storage/` | Infrastructure persistence |
+| `reporting/` | Retain and adapt report generation |
+| `utils/logger.py` | Infrastructure logging |
 
-A module may be split when it combines responsibilities that belong to different architectural layers.
+Modules containing unrelated responsibilities may be split. Existing behaviour must be understood before files are moved.
 
 ## 8. Migration Stages
 
-### Stage 1 — Domain Foundations
+| Stage | Focus | Deliverables |
+|---|---|---|
+| 1 | Current-state audit | File inventory, import dependencies and migration matrix |
+| 2 | Domain foundations | Asset, inventory, evidence and assessment contracts |
+| 3 | Runtime | Runtime profiles and capability detection |
+| 4 | Collection | Refactored TLS and certificate collectors |
+| 5 | Inventory | Asset registration, relationships and evidence management |
+| 6 | Assessment | Versioned policies, rules and findings |
+| 7 | Standards and BOM | Standards registry and CycloneDX adapters |
+| 8 | Risk and modernization | Risk assessment and migration planning |
+| 9 | Application integration | Services, persistence, configuration and CLI |
+| 10 | Continuous assurance | Change detection and reassessment |
 
-Introduce:
-
-- Asset and identifier models.
-- Inventory membership.
-- Asset relationships.
-- Evidence records.
-- Evidence provenance.
-- Runtime profiles.
-- Assessment domain contracts.
-
-Acceptance criteria:
-
-- Domain models are independently testable.
-- No infrastructure imports exist in the domain.
-- Existing TLS evidence remains readable through adapters.
-
-### Stage 2 — TLS Collection Migration
-
-Introduce:
-
-- TLS collector interface.
-- TLS handshake observation.
-- TLS capability probes.
-- Certificate collection.
-- Collection execution and diagnostics.
-
-Acceptance criteria:
-
-- Negotiated evidence comes from one identified handshake.
-- Capability probes remain separate.
-- Collection provenance is preserved.
-- Existing TLS scanning functionality remains operational.
-
-### Stage 3 — Runtime Capability Management
-
-Introduce:
-
-- Runtime detection.
-- Python and OpenSSL discovery.
-- Available SSL API detection.
-- Local cryptographic capability detection.
-
-Acceptance criteria:
-
-- Runtime capabilities are independently discoverable.
-- Unsupported collection methods are explicitly reported.
-- Python 3.12 and 3.15.2 remain supported.
-
-### Stage 4 — Assessment Migration
-
-Introduce:
-
-- Policy identities.
-- Policy versions.
-- Rule identities.
-- Rule versions.
-- General assessment contexts.
-- Assessment runs and findings.
-
-Acceptance criteria:
-
-- Policies consume canonical evidence.
-- Policies remain independent of collectors.
-- Historical findings retain their exact rule versions.
-- Existing A1 assessment outputs remain available through appropriate compatibility adapters.
-
-### Stage 5 — Standards Management
-
-Introduce:
-
-- Standards references.
-- Standards editions.
-- Standards provisions.
-- Standards registry.
-- Change tracking.
-
-Acceptance criteria:
-
-- Assessment rules identify exact applicable provisions.
-- Historical editions remain identifiable.
-- Standards updates require controlled review.
-
-### Stage 6 — Inventory and CycloneDX
-
-Introduce:
-
-- Asset repositories.
-- Inventory services.
-- Asset relationship management.
-- CycloneDX import and export adapters.
-- CBOM validation.
-
-Acceptance criteria:
-
-- Internal inventory models remain independent of CycloneDX.
-- Imported documents are validated.
-- Unsupported information is not silently discarded.
-- Inventory relationships are preserved where the external format supports them.
-
-### Stage 7 — Application and Infrastructure Migration
-
-Introduce or reorganize:
-
-- Application services.
-- Persistence adapters.
-- Configuration adapters.
-- Logging.
-- Filesystem services.
-- External integrations.
-
-Acceptance criteria:
-
-- Existing CLI operations remain functional.
-- Existing output paths remain compatible where practical.
-- Application services depend on interfaces.
-
-### Stage 8 — Reporting and Testing Migration
-
-Reorganize:
-
-- Markdown reporting.
-- HTML reporting.
-- CLI commands.
-- Unit tests.
-- Integration tests.
-- Contract tests.
-- System tests.
-
-Acceptance criteria:
-
-- Existing report generation works.
-- CLI command behaviour is preserved.
-- Full regression suite passes.
-- Both supported Python environments pass.
+Each stage must pass its acceptance checks before the next stage begins.
 
 ## 9. Compatibility Strategy
 
-The framework must preserve compatibility with previously generated evidence and assessment records.
+Existing evidence and assessment files must remain readable during migration.
 
-The migration will use:
+Compatibility will be provided through:
 
 - Explicit schema versions.
-- Legacy input adapters.
 - Version-aware deserialization.
+- Legacy input adapters.
 - Controlled output schema changes.
 - Regression fixtures.
-- Historical assessment snapshots.
+- Immutable historical assessment references.
 
-Legacy structures must not be silently reinterpreted as the new canonical domain model.
+Legacy structures must not be silently reinterpreted as canonical domain objects. Missing information and conversion limitations must remain explicit.
 
-Where information is missing, adapters must preserve that limitation explicitly.
+Existing CLI commands and output behaviour should be preserved where practical.
 
-## 10. Test and Validation Strategy
+## 10. Testing and Validation
 
-Every migration stage must include:
+Each migration stage requires:
 
 1. Focused unit tests.
-2. Relevant integration tests.
+2. Relevant integration and contract tests.
 3. Import and dependency checks.
 4. Existing regression tests.
 5. Python 3.12 compatibility tests.
 6. Python 3.15.2 compatibility tests.
 7. Pre-commit validation.
 
-The existing 324-test suite is the initial regression baseline.
+The existing 324-test suite is the initial regression baseline. Additional tests are expected as the architecture expands.
 
-Test counts may increase as new functionality is introduced. Acceptance should depend on test correctness, not simply maintaining a fixed count.
+Test acceptance depends on correctness and coverage, not maintaining a fixed test count.
 
-## 11. Git Strategy
+## 11. Git and Migration Safeguards
 
-The architectural restructuring will use the branch:
+Development will continue on `refactor/domain-architecture`.
 
-`refactor/domain-architecture`
+Each meaningful migration stage requires a checkpoint commit.
 
-Each meaningful migration stage must have its own checkpoint commit.
+Commit categories:
 
-Recommended commit categories:
-
-- `docs:` Architectural documentation.
-- `refactor:` Source organization and responsibility changes.
-- `feat:` New domain capabilities.
-- `test:` Regression and contract coverage.
+- `docs:` Architecture and specification changes.
+- `refactor:` Structural and responsibility changes.
+- `feat:` New functionality.
+- `test:` Test coverage and regression protection.
 - `fix:` Correctness and compatibility fixes.
 
-Changes should be reviewed before merging into the main development branch.
+The following safeguards apply:
 
-## 12. Migration Safeguards
+- Do not delete working implementations before replacements are validated.
+- Avoid combining unrelated migrations.
+- Run focused tests after each change.
+- Run the full test suite at meaningful checkpoints.
+- Preserve existing evidence and assessment compatibility.
+- Review import dependencies to prevent circular relationships.
+- Document changes to public interfaces and persisted schemas.
 
-The following requirements are mandatory:
+## 12. Completion Criteria
 
-1. Never delete a working implementation before its replacement is validated.
-2. Avoid combining unrelated migrations in one commit.
-3. Preserve the current CLI behaviour.
-4. Preserve existing evidence through compatibility adapters.
-5. Protect historical assessment records.
-6. Run targeted tests after every module migration.
-7. Run the complete test suite at each meaningful checkpoint.
-8. Avoid circular dependencies.
-9. Record architectural decisions that change package boundaries.
-10. Keep both Python environments operational.
+The restructuring is complete when:
 
-## 13. Completion Criteria
-
-The architecture migration will be considered complete when:
-
-- Domain objects are independent of collection implementations.
-- Collection modules produce canonical evidence.
+- Domain models are independent of implementation technologies.
+- Collectors produce canonical evidence.
 - Runtime capabilities are independently detected.
 - Assessment policies consume canonical evidence.
-- Standards references are versioned.
-- Inventory and CBOM are independently managed.
-- Application services coordinate functionality through interfaces.
-- Infrastructure implements required persistence and integration contracts.
-- Historical evidence and assessments remain reproducible.
-- Existing CLI functionality is preserved.
-- Automated tests verify package boundaries and compatibility.
+- Standards and policies are versioned.
+- Inventory and CycloneDX are independently managed.
+- Application services use defined interfaces.
+- Infrastructure implementations are replaceable.
+- Historical records remain reproducible.
+- Existing CLI functionality and supported Python environments remain operational.
 
-**Guiding principle:** Restructure incrementally around stable domain responsibilities, preserve existing functionality and prevent implementation details from becoming permanent architectural dependencies.
+**Guiding principle:** Build around stable domain responsibilities, migrate incrementally and preserve the integrity of existing evidence and assessment results.
