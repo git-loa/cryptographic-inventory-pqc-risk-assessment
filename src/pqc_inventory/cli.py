@@ -1,39 +1,43 @@
-"""
-Command-line interface for TLS cryptographic inventory and assessment.
-"""
+"""Command-line interface for cryptographic inventory and assessment."""
 
 import argparse
 from collections.abc import Callable, Sequence
 
-from pqc_inventory.config.bootstrap import initialize_workspace
-from pqc_inventory.commands.policies import (
-    register_parser as register_policies_parser,
-    run_policies,
-)
-from pqc_inventory.commands.scan import (
-    register_parser as register_scan_parser,
-    run_scan,
+from pqc_inventory.application.logging_configuration import (
+    resolve_logging_config,
 )
 from pqc_inventory.commands.assess import (
     register_parser as register_assess_parser,
     run_assess,
 )
+from pqc_inventory.commands.constants import EXIT_ERROR, EXIT_SUCCESS
+from pqc_inventory.commands.policies import (
+    register_parser as register_policies_parser,
+    run_policies,
+)
 from pqc_inventory.commands.report import (
     register_parser as register_report_parser,
     run_report,
 )
-
 from pqc_inventory.commands.run import (
     register_parser as register_run_parser,
     run_workflow,
 )
-
-from pqc_inventory.commands.constants import EXIT_ERROR, EXIT_SUCCESS
+from pqc_inventory.commands.scan import (
+    register_parser as register_scan_parser,
+    run_scan,
+)
+from pqc_inventory.config.bootstrap import initialize_workspace
+from pqc_inventory.infrastructure.logging.setup import (
+    setup_logging,
+    shutdown_logging,
+)
 
 APP_NAME = "pqc-assessment"
 APP_VERSION = "0.1.0"
 
 CommandHandler = Callable[[argparse.Namespace], int]
+
 COMMAND_HANDLERS: dict[str, CommandHandler] = {
     "policies": run_policies,
     "scan": run_scan,
@@ -49,22 +53,40 @@ WORKSPACE_COMMANDS: set[str] = {
     "run",
 }
 
+LOGGING_LEVELS = [
+    "DEBUG",
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+]
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the command-line argument parser."""
+
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
         description=(
             "Collect TLS cryptographic evidence, assess selected "
             "configuration properties, and generate reports."
         ),
-        epilog=("Use '<command> --help' for command-specific options."),
+        epilog="Use '<command> --help' for command-specific options.",
     )
+
     parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {APP_VERSION}",
         help="Display the application version and exit.",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=LOGGING_LEVELS,
+        default=None,
+        help="Set the application logging level (default: INFO).",
     )
 
     subparsers = parser.add_subparsers(
@@ -84,7 +106,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Parse command-line arguments and dispatch the requested command."""
+    """Parse arguments, initialize logging, and execute the command."""
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -97,16 +120,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     if handler is None:
         parser.error(f"No handler registered for command '{args.command}'.")
 
-    if args.command in WORKSPACE_COMMANDS:
-        try:
-            args.workspace = initialize_workspace()
-        except (OSError, ValueError) as exc:
-            parser.exit(
-                EXIT_ERROR,
-                f"Workspace initialization failed: {exc}\n",
-            )
+    # Resolve logging configuration before initializing the logging system.
+    try:
+        logging_config = resolve_logging_config(args.log_level)
+    except ValueError as error:
+        parser.error(f"Invalid logging configuration: {error}")
 
-    return handler(args)
+    # Initialize logging before workspace initialization and command execution.
+    try:
+        setup_logging(logging_config)
+    except (OSError, ValueError) as error:
+        parser.exit(
+            EXIT_ERROR,
+            f"Logging initialization failed: {error}\n",
+        )
+
+    try:
+        if args.command in WORKSPACE_COMMANDS:
+            try:
+                args.workspace = initialize_workspace()
+            except (OSError, ValueError) as error:
+                parser.exit(
+                    EXIT_ERROR,
+                    f"Workspace initialization failed: {error}\n",
+                )
+
+        return handler(args)
+
+    finally:
+        shutdown_logging()
 
 
 if __name__ == "__main__":

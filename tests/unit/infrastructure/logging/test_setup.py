@@ -378,3 +378,42 @@ def test_reinitialization_does_not_duplicate_log_messages(tmp_path):
 
     finally:
         shutdown_logging()
+
+
+def test_shutdown_restores_original_logger_settings(tmp_path):
+    """Restore the logger's original level and propagation setting."""
+
+    logger = logging.getLogger(APPLICATION_LOGGER_NAME)
+
+    original_level = logger.level
+    original_propagate = logger.propagate
+
+    logger.setLevel(logging.WARNING)
+    logger.propagate = True
+
+    config = LoggingConfig(
+        log_directory=tmp_path,
+        level="DEBUG",
+        outputs=LogOutputConfig(
+            console_enabled=False,
+            file_enabled=True,
+        ),
+    )
+
+    try:
+        setup_logging(config)
+
+        assert logger.level == logging.DEBUG
+        assert logger.propagate is False
+
+        shutdown_logging()
+
+        assert logger.level == logging.WARNING
+        assert logger.propagate is True
+
+    finally:
+        shutdown_logging()
+
+        # Restore the test's original environment.
+        logger.setLevel(original_level)
+        logger.propagate = original_propagate

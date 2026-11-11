@@ -1,11 +1,11 @@
 """Load and validate domain names and IP addresses from a target file."""
 
+import logging
 from pathlib import Path
 
 from pqc_inventory.collection.tls_utils import validate_target
-from pqc_inventory.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def load_targets(path: str | Path) -> list[str]:

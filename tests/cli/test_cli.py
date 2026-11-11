@@ -191,3 +191,70 @@ def test_run_command_initializes_workspace(monkeypatch):
 
     args = run_workflow.call_args.args[0]
     assert args.workspace is workspace
+
+
+@pytest.mark.parametrize(
+    "level",
+    ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+)
+def test_cli_accepts_log_level(level):
+    """Accept supported logging levels."""
+
+    args = cli.build_parser().parse_args(
+        ["--log-level", level, "scan", "--targets", "example.com"]
+    )
+
+    assert args.log_level == level
+
+
+def test_cli_normalizes_log_level():
+    """Normalize lowercase logging levels."""
+
+    args = cli.build_parser().parse_args(
+        ["--log-level", "debug", "scan", "--targets", "example.com"]
+    )
+
+    assert args.log_level == "DEBUG"
+
+
+def test_cli_rejects_invalid_log_level():
+    """Reject unsupported logging levels."""
+
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(
+            ["--log-level", "TRACE", "scan", "--targets", "example.com"]
+        )
+
+
+def test_cli_log_level_defaults_to_none():
+    """Leave the logging level unspecified when not provided."""
+
+    args = cli.build_parser().parse_args(["scan", "--targets", "example.com"])
+
+    assert args.log_level is None
+
+
+def test_cli_passes_resolved_logging_config_to_setup(monkeypatch):
+    """Pass resolved logging configuration to the logging manager."""
+
+    logging_config = Mock(level="DEBUG")
+    resolve_config = Mock(return_value=logging_config)
+    setup = Mock()
+    shutdown = Mock()
+
+    monkeypatch.setattr(cli, "resolve_logging_config", resolve_config)
+    monkeypatch.setattr(cli, "setup_logging", setup)
+    monkeypatch.setattr(cli, "shutdown_logging", shutdown)
+
+    monkeypatch.setitem(
+        cli.COMMAND_HANDLERS,
+        "policies",
+        lambda args: 0,
+    )
+
+    result = cli.main(["--log-level", "DEBUG", "policies"])
+
+    assert result == 0
+    resolve_config.assert_called_once_with("DEBUG")
+    setup.assert_called_once_with(logging_config)
+    shutdown.assert_called_once_with()

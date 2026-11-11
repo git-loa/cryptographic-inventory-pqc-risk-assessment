@@ -2,11 +2,11 @@
 Module for loading domain names from a text file.
 """
 
+import logging
 import re
 from pathlib import Path
-from pqc_inventory.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Simple regex for domain validation (not exhaustive, but practical)
 DOMAIN_REGEX = re.compile(r"^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$")

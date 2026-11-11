@@ -19,6 +19,9 @@ class LoggingManager:
         self._managed_handlers: list[logging.Handler] = []
         self._active_config: LoggingConfig | None = None
 
+        self._previous_logger_level: int | None = None
+        self._previous_propagate: bool | None = None
+
     def configure(
         self,
         config: LoggingConfig | None = None,
@@ -39,9 +42,20 @@ class LoggingManager:
         ):
             return logger
 
+        # Preserve the original logger state when starting a new lifecycle.
+        if self._active_config is None:
+            self._previous_logger_level = logger.level
+            self._previous_propagate = logger.propagate
+
         self._remove_managed_handlers(logger)
 
-        handlers = build_handlers(config)
+        try:
+            handlers = build_handlers(config)
+        except Exception:
+            if self._active_config is None:
+                self._restore_logger_state(logger)
+
+            raise
 
         logger.setLevel(getattr(logging, config.level))
         logger.propagate = False
@@ -55,11 +69,16 @@ class LoggingManager:
         return logger
 
     def shutdown(self) -> None:
-        """Remove and close handlers managed by this instance."""
+        """Remove managed handlers and restore the original logger state."""
 
         logger = logging.getLogger(APPLICATION_LOGGER_NAME)
 
+        if self._active_config is None:
+            return
+
         self._remove_managed_handlers(logger)
+        self._restore_logger_state(logger)
+
         self._active_config = None
 
     def _remove_managed_handlers(
@@ -75,6 +94,21 @@ class LoggingManager:
             handler.close()
 
         self._managed_handlers.clear()
+
+    def _restore_logger_state(
+        self,
+        logger: logging.Logger,
+    ) -> None:
+        """Restore the logger's settings from before initialization."""
+
+        if self._previous_logger_level is not None:
+            logger.setLevel(self._previous_logger_level)
+
+        if self._previous_propagate is not None:
+            logger.propagate = self._previous_propagate
+
+        self._previous_logger_level = None
+        self._previous_propagate = None
 
 
 # Shared application logging manager.

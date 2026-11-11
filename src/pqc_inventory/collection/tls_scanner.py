@@ -7,6 +7,8 @@ endpoint is secure or post-quantum cryptography (PQC) ready.
 
 from __future__ import annotations
 
+
+import logging
 import socket
 import ssl
 
@@ -34,9 +36,8 @@ from pqc_inventory.collection.tls_utils import (
     validate_target,
     validate_timeout,
 )
-from pqc_inventory.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def collect_tls_details(state: ScanState, tls_socket: ssl.SSLSocket) -> bool:
