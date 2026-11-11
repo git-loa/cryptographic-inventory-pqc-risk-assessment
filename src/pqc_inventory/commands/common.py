@@ -4,7 +4,10 @@ import sys
 import argparse
 from pathlib import Path
 
-from pqc_inventory.storage.path_safety import contains_symlink
+
+from pqc_inventory.infrastructure.filesystem.path_safety import (
+    contains_symlink,
+)
 
 
 def valid_port(value: str) -> int:

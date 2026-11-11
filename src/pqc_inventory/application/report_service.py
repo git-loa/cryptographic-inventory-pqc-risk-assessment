@@ -23,7 +23,9 @@ from pqc_inventory.reporting.interfaces import ReportRenderer
 from pqc_inventory.reporting.markdown_renderer import MarkdownReportRenderer
 from pqc_inventory.reporting.html_renderer import HTMLReportRenderer
 from pqc_inventory.storage.json_repository import JSONRepository
-from pqc_inventory.storage.path_safety import contains_symlink
+from pqc_inventory.infrastructure.filesystem.path_safety import (
+    contains_symlink,
+)
 
 REPORT_TITLE = "TLS Cryptographic Assessment Report"
 REPORT_VERSION = "1.0"

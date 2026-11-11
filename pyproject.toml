@@ -1,16 +1,17 @@
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptographic-inventory-pqc-risk-assessment"
 version = "0.1.0"
-description = "TLS cryptographic inventory scanner with PQC/HNDL risk assessment."
+description = "Cryptographic inventory, security assessment, and modernization framework."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
     { name = "Leonard Okyere Afeke" }
 ]
+
 dependencies = [
     "cryptography",
     "pyOpenSSL",
@@ -70,7 +71,7 @@ generated-members = [
 ]
 
 [tool.pylint.main]
-py-version = "3.10"
+py-version = "3.12"
 
 [tool.pylint.format]
 max-line-length = 88
