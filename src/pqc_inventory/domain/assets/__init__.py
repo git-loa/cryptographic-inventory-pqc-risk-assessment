@@ -7,9 +7,13 @@ from pqc_inventory.domain.assets.asset import (
 from pqc_inventory.domain.assets.enums import (
     AssetLifecycleStatus,
     AssetType,
+    RelationshipType,
 )
 from pqc_inventory.domain.assets.identifiers import (
     AssetIdentifier,
+)
+from pqc_inventory.domain.assets.relationships import (
+    AssetRelationship,
 )
 from pqc_inventory.domain.assets.specifications import (
     AssetSpecification,
@@ -26,6 +30,7 @@ __all__ = [
     "AssetIdentifier",
     "AssetLifecycle",
     "AssetLifecycleStatus",
+    "AssetRelationship",
     "AssetSpecification",
     "AssetType",
     "CertificateSpecification",
@@ -33,5 +38,6 @@ __all__ = [
     "CryptographicKeyReferenceSpecification",
     "NetworkEndpointSpecification",
     "PublicKeyInfo",
+    "RelationshipType",
     "SoftwareComponentSpecification",
 ]

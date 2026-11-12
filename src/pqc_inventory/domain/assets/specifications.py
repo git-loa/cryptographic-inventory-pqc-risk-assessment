@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import TypeAlias
 
 from pqc_inventory.domain.assets._validation import (
-    validate_aware_datetime,
+    validate_datetime_interval,
     validate_optional_text,
     validate_positive_integer,
     validate_required_text,
@@ -44,15 +44,12 @@ class CertificateValidity:
     def __post_init__(self) -> None:
         """Validate certificate validity dates."""
 
-        validate_aware_datetime(self.not_before, "not_before")
-        validate_aware_datetime(self.not_after, "not_after")
-
-        if (
-            self.not_before is not None
-            and self.not_after is not None
-            and self.not_before > self.not_after
-        ):
-            raise ValueError("not_before cannot be later than not_after.")
+        validate_datetime_interval(
+            self.not_before,
+            self.not_after,
+            "not_before",
+            "not_after",
+        )
 
 
 @dataclass(frozen=True, slots=True)

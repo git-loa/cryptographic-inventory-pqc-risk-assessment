@@ -24,3 +24,17 @@ class AssetLifecycleStatus(StrEnum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     DECOMMISSIONED = "decommissioned"
+
+
+class RelationshipType(StrEnum):
+    """Classify directed relationships between cryptographic assets."""
+
+    HOSTS = "hosts"
+    RUNS = "runs"
+    EXPOSES = "exposes"
+    PRESENTS = "presents"
+    USES = "uses"
+    IMPLEMENTS = "implements"
+    DEPENDS_ON = "depends_on"
+    MANAGED_BY = "managed_by"
+    CONTAINS = "contains"

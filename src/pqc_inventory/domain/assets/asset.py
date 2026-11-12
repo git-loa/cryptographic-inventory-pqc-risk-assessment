@@ -6,8 +6,10 @@ from uuid import UUID, uuid4
 
 from pqc_inventory.domain.assets._validation import (
     validate_aware_datetime,
+    validate_datetime_interval,
     validate_optional_text,
     validate_required_text,
+    validate_uuid,
 )
 from pqc_inventory.domain.assets.enums import (
     AssetLifecycleStatus,
@@ -43,11 +45,12 @@ class AssetLifecycle:
         if not isinstance(self.status, AssetLifecycleStatus):
             raise TypeError("status must be an AssetLifecycleStatus.")
 
-        validate_aware_datetime(self.created_at, "created_at")
-        validate_aware_datetime(self.updated_at, "updated_at")
-
-        if self.updated_at < self.created_at:
-            raise ValueError("updated_at cannot be earlier than created_at.")
+        validate_datetime_interval(
+            self.created_at,
+            self.updated_at,
+            "created_at",
+            "updated_at",
+        )
 
 
 # Maps currently supported asset specifications to their asset categories.
@@ -83,9 +86,7 @@ class Asset:
     def _validate_identity(self) -> None:
         """Validate asset identity and descriptive attributes."""
 
-        if not isinstance(self.asset_id, UUID):
-            raise TypeError("asset_id must be a UUID.")
-
+        validate_uuid(self.asset_id, "asset_id")
         validate_required_text(self.name, "name")
         validate_optional_text(self.description, "description")
 
