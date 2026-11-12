@@ -128,8 +128,8 @@ class SoftwareComponentSpecification:
 
 
 @dataclass(frozen=True, slots=True)
-class CryptographicKeySpecification:
-    """Describe cryptographic key metadata without storing key material."""
+class CryptographicKeyReferenceSpecification:
+    """Describe cryptographic key reference without storing key material."""
 
     algorithm: str
     key_size_bits: int | None = None
@@ -159,5 +159,5 @@ AssetSpecification: TypeAlias = (
     NetworkEndpointSpecification
     | CertificateSpecification
     | SoftwareComponentSpecification
-    | CryptographicKeySpecification
+    | CryptographicKeyReferenceSpecification
 )

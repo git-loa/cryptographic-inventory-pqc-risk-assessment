@@ -41,54 +41,169 @@ Domain classes must not depend on OpenSSL, CycloneDX, database implementations o
 
 An asset may participate in multiple inventories without duplication.
 
+
 ## 4. Asset Models
 
 ### Asset
 
 **Type:** Entity
 
-Maintains stable asset identity and lifecycle.
+Represents an identifiable computing or cryptographic asset with stable internal identity.
 
-Principal attributes:
+Attributes:
 
 - `asset_id: UUID`
 - `asset_type: AssetType`
 - `name: str`
 - `description: str | None`
 - `identifiers: tuple[AssetIdentifier, ...]`
-- `specification: AssetSpecification`
-- `lifecycle_status: AssetLifecycleStatus`
-- `created_at: datetime`
-- `updated_at: datetime`
+- `specification: AssetSpecification | None`
+- `lifecycle: AssetLifecycle`
+
+The asset identifier is generated using UUID4 unless explicitly supplied.
+
+Asset identifiers and specifications are immutable value objects composed by the Asset entity.
+
+External identifiers are not substitutes for internal asset identity.
+
+The Asset entity validates identifier types, uniqueness and specification compatibility with its primary asset classification.
+
+An asset may have no specification when its technical characteristics are unavailable.
 
 ### AssetIdentifier
 
 **Type:** Immutable value object.
 
-Represents a namespaced external identifier, including its namespace, value, issuer and optional validity period.
+Represents a namespaced external identifier associated with an asset.
+
+Attributes:
+
+- `namespace: str`
+- `value: str`
+- `issuer: str | None`
+- `valid_from: datetime | None`
+- `valid_until: datetime | None`
+
+Validity timestamps must be timezone-aware when provided.
+
+When both timestamps exist, `valid_from` must not be later than `valid_until`.
+
+The validity period describes the association between the identifier and asset, not the time of evidence collection.
 
 ### AssetSpecification
 
-**Type:** Typed immutable value-object contract.
+**Type:** Union of typed immutable value objects.
 
 Represents attributes specific to an asset category.
 
-Initial specifications may include:
+Currently supported specifications:
 
-- `NetworkEndpointSpecification`
-- `CertificateSpecification`
-- `SoftwareComponentSpecification`
-- `CryptographicKeySpecification`
-- `CryptographicModuleSpecification`
-- `RandomnessComponentSpecification`
+| Specification | Associated asset type |
+|---|---|
+| `NetworkEndpointSpecification` | `NETWORK_SERVICE` |
+| `CertificateSpecification` | `CERTIFICATE` |
+| `SoftwareComponentSpecification` | `SOFTWARE_COMPONENT` |
+| `CryptographicKeyReferenceSpecification` | `CRYPTOGRAPHIC_KEY_REFERENCE` |
 
-Specialized specifications should be introduced when collection requirements justify them.
+The `AssetSpecification` type alias defines the supported specification types.
+
+An Asset may contain a specification only when the specification is compatible with its asset classification.
+
+Additional specification types will be introduced when their domain attributes and collection requirements are established.
+
+#### CertificateSpecification
+
+Represents X.509 certificate metadata.
+
+Its attributes include:
+
+- `serial_number: str`
+- `subject: str | None`
+- `issuer: str | None`
+- `validity: CertificateValidity | None`
+- `signature_algorithm: str | None`
+- `public_key: PublicKeyInfo | None`
+
+`CertificateValidity` represents the certificate validity period.
+
+`PublicKeyInfo` represents public-key characteristics, including algorithm, optional key size and optional curve.
+
+#### CryptographicKeyReferenceSpecification
+
+Represents metadata associated with an identifiable cryptographic key reference without storing secret key material.
+
+Its attributes include:
+
+- `algorithm: str`
+- `key_size_bits: int | None`
+- `curve: str | None`
+- `key_usage: tuple[str, ...]`
+
+`PublicKeyInfo` and `CryptographicKeyReferenceSpecification` represent distinct concepts.
+
+The former describes public-key characteristics. The latter describes a cryptographic key reference.
+
+### AssetLifecycle
+
+**Type:** Immutable value object.
+
+Represents the current lifecycle state of an asset.
+
+Attributes:
+
+- `status: AssetLifecycleStatus`
+- `created_at: datetime`
+- `updated_at: datetime`
+
+Both timestamps must be timezone-aware.
+
+`updated_at` must not precede `created_at`.
+
+The Asset entity exposes lifecycle information through read-only properties:
+
+- `lifecycle_status`
+- `created_at`
+- `updated_at`
+
+Lifecycle changes are performed through controlled methods that return a new Asset instance.
+
+The internal asset identifier and original creation timestamp remain unchanged.
+
+Historical persistence and retrieval are responsibilities of the inventory repository.
 
 ### AssetRelationship
 
 **Type:** Entity.
 
-References source and target asset identifiers and records the relationship type, validity and supporting evidence references.
+References source and target asset identifiers and records:
+
+- Relationship identifier.
+- Source asset identifier.
+- Target asset identifier.
+- Relationship type.
+- Validity period.
+- Supporting evidence references.
+
+Relationships are independently identifiable and do not own the referenced Asset entities.
+
+### Asset Identity Resolution
+
+**Type:** Application-level capability.
+
+Determines whether a discovered asset corresponds to an existing inventory asset.
+
+Identity resolution considers:
+
+- Identifier namespaces and values.
+- Identifier validity periods.
+- Asset classification.
+- Discovery context.
+- Supporting evidence.
+
+Uncertain identity matches must not automatically merge assets.
+
+Identity resolution is separate from Asset construction and will be implemented when inventory persistence and discovery integration are established.
+
 
 ## 5. Evidence Models
 

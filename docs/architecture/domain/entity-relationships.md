@@ -29,21 +29,12 @@ An asset may belong to multiple inventories without duplicating its identity.
 
 ## 3. Asset Relationships
 
+Assets are independently identifiable entities. Relationships connect assets without embedding complete Asset objects.
+
 ```mermaid
 erDiagram
     ASSET ||--o{ ASSET_RELATIONSHIP : source
     ASSET ||--o{ ASSET_RELATIONSHIP : target
-```
-
-An asset may have multiple identifiers, one type-specific specification and multiple relationships.
-
-| Concept | Ownership |
-|---|---|
-| AssetIdentifier | Composed by Asset |
-| AssetSpecification | Composed by Asset |
-| AssetRelationship | Independent entity referencing two assets |
-
-Asset relationships are directed and independently identifiable because they have their own validity and supporting evidence.
 
 ## 4. Evidence and Collection
 
@@ -143,7 +134,7 @@ Risk assessments and modernization activities do not modify historical assessmen
 |---|---|
 | Organization | Organizational metadata |
 | Inventory | Inventory metadata and membership records |
-| Asset | Identifiers and asset specification |
+| Asset | Asset identifiers, specification and lifecycle |
 | AssetRelationship | Relationship information |
 | EvidenceRecord | Evidence value and provenance |
 | CollectionExecution | Collection operations |

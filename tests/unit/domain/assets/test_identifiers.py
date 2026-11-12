@@ -1,5 +1,6 @@
 """Tests for asset identifiers."""
 
+from datetime import datetime, timezone
 import pytest
 
 from pqc_inventory.domain.assets.identifiers import AssetIdentifier
@@ -160,3 +161,90 @@ def test_different_namespaces_produce_unequal_identifiers():
     )
 
     assert first != second
+
+
+def test_create_identifier_with_validity_period():
+    """Create an identifier with a defined validity period."""
+
+    valid_from = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    valid_until = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+    identifier = AssetIdentifier(
+        namespace="ip_address",
+        value="192.0.2.10",
+        valid_from=valid_from,
+        valid_until=valid_until,
+    )
+
+    assert identifier.valid_from == valid_from
+    assert identifier.valid_until == valid_until
+
+
+def test_identifier_allows_open_ended_validity_period():
+    """Allow an identifier association without an end date."""
+
+    identifier = AssetIdentifier(
+        namespace="hostname",
+        value="example.com",
+        valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+
+    assert identifier.valid_until is None
+
+
+def test_identifier_allows_unknown_validity_period():
+    """Allow identifiers without known validity information."""
+
+    identifier = AssetIdentifier(
+        namespace="hostname",
+        value="example.com",
+    )
+
+    assert identifier.valid_from is None
+    assert identifier.valid_until is None
+
+
+def test_identifier_rejects_naive_validity_datetime():
+    """Require timezone-aware validity timestamps."""
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        AssetIdentifier(
+            namespace="hostname",
+            value="example.com",
+            valid_from=datetime(2026, 1, 1),
+        )
+
+
+def test_identifier_rejects_invalid_validity_datetime():
+    """Require validity timestamps to be datetime objects."""
+
+    with pytest.raises(TypeError, match="datetime"):
+        AssetIdentifier(
+            namespace="hostname",
+            value="example.com",
+            valid_from="2026-01-01",
+        )
+
+
+def test_identifier_rejects_reversed_validity_period():
+    """Reject validity periods whose end precedes their start."""
+
+    with pytest.raises(ValueError, match="valid_from"):
+        AssetIdentifier(
+            namespace="hostname",
+            value="example.com",
+            valid_from=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            valid_until=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+
+
+def test_identifier_validity_fields_are_immutable():
+    """Prevent modification of identifier validity timestamps."""
+
+    identifier = AssetIdentifier(
+        namespace="hostname",
+        value="example.com",
+    )
+
+    with pytest.raises(AttributeError):
+        identifier.valid_from = datetime(2026, 1, 1, tzinfo=timezone.utc)

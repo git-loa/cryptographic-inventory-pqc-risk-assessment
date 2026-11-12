@@ -15,8 +15,9 @@ from pqc_inventory.domain.assets.enums import (
 )
 from pqc_inventory.domain.assets.identifiers import AssetIdentifier
 from pqc_inventory.domain.assets.specifications import (
+    AssetSpecification,
     CertificateSpecification,
-    CryptographicKeySpecification,
+    CryptographicKeyReferenceSpecification,
     NetworkEndpointSpecification,
     SoftwareComponentSpecification,
 )
@@ -54,7 +55,7 @@ _SPECIFICATION_TYPES = {
     AssetType.NETWORK_SERVICE: NetworkEndpointSpecification,
     AssetType.CERTIFICATE: CertificateSpecification,
     AssetType.SOFTWARE_COMPONENT: SoftwareComponentSpecification,
-    AssetType.CRYPTOGRAPHIC_KEY_REFERENCE: CryptographicKeySpecification,
+    AssetType.CRYPTOGRAPHIC_KEY_REFERENCE: CryptographicKeyReferenceSpecification,
 }
 
 
@@ -64,19 +65,10 @@ class Asset:
 
     asset_type: AssetType
     name: str
-
     asset_id: UUID = field(default_factory=uuid4)
     description: str | None = None
-
     identifiers: tuple[AssetIdentifier, ...] = ()
-    specification: (
-        NetworkEndpointSpecification
-        | CertificateSpecification
-        | SoftwareComponentSpecification
-        | CryptographicKeySpecification
-        | None
-    ) = None
-
+    specification: AssetSpecification | None = None
     lifecycle: AssetLifecycle = field(default_factory=AssetLifecycle)
 
     def __post_init__(self) -> None:
@@ -171,6 +163,7 @@ class Asset:
         """Return a new asset with an updated lifecycle status.
 
         The internal asset identity and creation timestamp remain unchanged.
+        Lifecycle timestamps cannot move backwards.
         """
 
         if not isinstance(status, AssetLifecycleStatus):
@@ -180,6 +173,13 @@ class Asset:
             return self
 
         timestamp = updated_at if updated_at is not None else _utc_now()
+
+        validate_aware_datetime(timestamp, "updated_at")
+
+        if timestamp < self.lifecycle.updated_at:
+            raise ValueError(
+                "updated_at cannot be earlier than the previous update timestamp."
+            )
 
         updated_lifecycle = replace(
             self.lifecycle,

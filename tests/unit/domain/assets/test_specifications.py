@@ -7,7 +7,7 @@ import pytest
 from pqc_inventory.domain.assets.specifications import (
     CertificateSpecification,
     CertificateValidity,
-    CryptographicKeySpecification,
+    CryptographicKeyReferenceSpecification,
     NetworkEndpointSpecification,
     PublicKeyInfo,
     SoftwareComponentSpecification,
@@ -453,7 +453,7 @@ def test_software_component_is_immutable():
 def test_create_cryptographic_key_specification():
     """Create cryptographic key metadata."""
 
-    specification = CryptographicKeySpecification(
+    specification = CryptographicKeyReferenceSpecification(
         algorithm="RSA",
         key_size_bits=2048,
         key_usage=("digital_signature", "key_encipherment"),
@@ -471,7 +471,7 @@ def test_create_cryptographic_key_specification():
 def test_cryptographic_key_allows_missing_optional_metadata():
     """Allow unavailable key size and curve information."""
 
-    specification = CryptographicKeySpecification(
+    specification = CryptographicKeyReferenceSpecification(
         algorithm="ML-KEM-768",
     )
 
@@ -484,7 +484,7 @@ def test_cryptographic_key_usage_requires_tuple():
     """Require immutable key usage collections."""
 
     with pytest.raises(TypeError, match="key_usage"):
-        CryptographicKeySpecification(
+        CryptographicKeyReferenceSpecification(
             algorithm="RSA",
             key_usage=["digital_signature"],
         )
@@ -498,7 +498,7 @@ def test_cryptographic_key_rejects_empty_usage(usage):
     """Reject empty key usage entries."""
 
     with pytest.raises(ValueError):
-        CryptographicKeySpecification(
+        CryptographicKeyReferenceSpecification(
             algorithm="RSA",
             key_usage=(usage,),
         )
@@ -508,7 +508,7 @@ def test_cryptographic_key_rejects_non_string_usage():
     """Require key usage entries to be strings."""
 
     with pytest.raises(TypeError):
-        CryptographicKeySpecification(
+        CryptographicKeyReferenceSpecification(
             algorithm="RSA",
             key_usage=(123,),
         )
@@ -518,7 +518,7 @@ def test_cryptographic_key_size_must_be_positive():
     """Reject invalid cryptographic key sizes."""
 
     with pytest.raises(ValueError):
-        CryptographicKeySpecification(
+        CryptographicKeyReferenceSpecification(
             algorithm="RSA",
             key_size_bits=0,
         )
@@ -527,7 +527,7 @@ def test_cryptographic_key_size_must_be_positive():
 def test_cryptographic_key_specification_is_immutable():
     """Prevent modification of cryptographic key metadata."""
 
-    specification = CryptographicKeySpecification(
+    specification = CryptographicKeyReferenceSpecification(
         algorithm="RSA",
         key_size_bits=2048,
     )

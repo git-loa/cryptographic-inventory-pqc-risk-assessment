@@ -104,18 +104,56 @@ They enable dependency analysis and help identify assets affected by cryptograph
 
 Every discovered asset receives a stable internal UUID.
 
-External identifiers remain separate and may include:
+The internal identifier remains independent of external identifiers.
+
+External identifiers may include:
 
 - Hostnames and IP addresses.
 - Certificate fingerprints.
-- Package identifiers.
+- Certificate issuer and serial-number combinations.
+- Software package identifiers.
 - Vendor and product identifiers.
 - Cloud resource identifiers.
 - Hardware identifiers.
 
-Asset resolution must account for changing identifiers to avoid unnecessary duplication.
+An AssetIdentifier represents a namespaced external identifier.
 
-Uncertain identity matches must be recorded rather than automatically merged.
+It may include an issuer and optional validity period. Validity describes the period during which the identifier is associated with the asset.
+
+External identifiers have different identity characteristics.
+
+For example:
+
+- Hostnames may resolve to different addresses over time.
+- IP addresses may be reassigned or shared.
+- Certificate fingerprints identify specific certificate representations.
+- Certificate serial numbers are not globally unique by themselves.
+- Package identifiers must retain their namespace and relevant qualifiers.
+
+### Asset Identity Resolution
+
+Asset identity resolution determines whether a newly discovered asset corresponds to an existing inventory asset.
+
+Resolution considers multiple identifiers, asset classification, validity information and supporting discovery evidence.
+
+The framework must distinguish:
+
+- Confirmed identity matches.
+- Probable identity matches.
+- Uncertain identity matches.
+- No established match.
+
+Names or individual external identifiers must not be treated as universally reliable proof of identity.
+
+Uncertain matches must be recorded for review rather than automatically merged.
+
+Identity resolution must preserve distinct assets when they represent different resources, even when they share identifiers.
+
+For example, two TLS endpoints using the same hostname but different ports may represent distinct assets.
+
+Likewise, two endpoints presenting the same certificate remain distinct endpoint assets, while referencing a shared certificate asset.
+
+Certificate renewal creates a new certificate asset when the certificate representation changes, even when the subject and public key remain the same.
 
 ## 7. Discovery and Evidence Requirements
 

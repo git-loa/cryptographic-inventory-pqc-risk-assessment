@@ -69,31 +69,75 @@ erDiagram
 
 ### Asset
 
-Represents an identifiable computing system, application, service, software component or cryptographic object that provides, uses, stores or depends on cryptographic functionality.
+Represents an identifiable entity or component within an organizational environment that provides, consumes, stores, processes or depends on cryptographic functionality and is relevant to the organization's cryptographic inventory, security assessment or cryptographic modernization activities.
 
-Every asset has a stable internal UUID.
+An asset may directly implement cryptographic functionality or depend on other assets that provide it.
+
+Every asset has a stable internal UUID independent of its external identifiers.
 
 Principal attributes include:
 
-- Asset identifier.
-- Asset type.
+- Internal asset identifier.
+- Primary asset classification.
 - Name and description.
 - External identifiers.
-- Type-specific specification.
-- Lifecycle status.
-- Creation and update timestamps.
+- Optional type-specific specification.
+- Lifecycle information.
 
 ### AssetIdentifier
 
-Represents a namespaced external identifier, such as a hostname, IP address, certificate fingerprint or software package identifier.
+Represents a namespaced external identifier associated with an asset.
+
+Examples include hostnames, IP addresses, certificate fingerprints, software package identifiers and vendor-assigned resource identifiers.
+
+An identifier contains:
+
+- Namespace.
+- Value.
+- Optional issuer.
+- Optional association validity period.
+
+The validity period describes when the identifier is considered associated with the asset. It is distinct from the time at which evidence about that association was collected.
 
 External identifiers do not replace internal asset identity.
 
 ### AssetSpecification
 
-Contains attributes specific to an asset type.
+Contains attributes specific to an asset category.
 
-Examples include network endpoints, certificates, software components, cryptographic keys, cryptographic modules and randomness components.
+Specifications are represented as typed, immutable value objects.
+
+Currently implemented specifications include:
+
+- `NetworkEndpointSpecification`
+- `CertificateSpecification`
+- `SoftwareComponentSpecification`
+- `CryptographicKeyReferenceSpecification`
+
+Certificate and public-key metadata are further represented through:
+
+- `CertificateValidity`
+- `PublicKeyInfo`
+
+Additional specifications for computing systems, applications, cryptographic modules, randomness components and cryptographic services will be introduced when their collection requirements are established.
+
+An asset may initially have no specification when its technical characteristics are not yet known.
+
+### AssetLifecycle
+
+Represents the current lifecycle status and timestamps of an asset.
+
+It contains:
+
+- Lifecycle status.
+- Creation timestamp.
+- Last-update timestamp.
+
+Lifecycle information is separate from evidence freshness and collection outcomes.
+
+Assets are immutable domain objects. Lifecycle changes produce updated asset instances while preserving the internal asset identifier and original creation timestamp.
+
+Historical versions are maintained by the future inventory persistence mechanism, not by the Asset entity itself.
 
 ### AssetRelationship
 
@@ -102,6 +146,19 @@ Represents a directed relationship between two assets.
 Examples include `hosts`, `runs`, `exposes`, `presents`, `uses`, `implements`, `depends_on` and `managed_by`.
 
 Relationships have independent identities and may preserve historical validity and supporting evidence.
+
+### Asset Identity Resolution
+
+Asset identity resolution determines whether a newly discovered asset corresponds to an existing inventory asset.
+
+It considers external identifiers, asset classification, supporting evidence and the context in which discovery occurred.
+
+Identity resolution is separate from Asset construction.
+
+Matching must distinguish confirmed identities from probable or uncertain matches. Uncertain matches must be recorded for review rather than automatically merged.
+
+External identifiers alone must not be treated as universally reliable proof of asset identity.
+
 
 ## 6. Evidence Domain
 

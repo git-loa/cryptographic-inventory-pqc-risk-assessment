@@ -17,7 +17,7 @@ from pqc_inventory.domain.assets.enums import (
 from pqc_inventory.domain.assets.identifiers import AssetIdentifier
 from pqc_inventory.domain.assets.specifications import (
     CertificateSpecification,
-    CryptographicKeySpecification,
+    CryptographicKeyReferenceSpecification,
     NetworkEndpointSpecification,
     SoftwareComponentSpecification,
 )
@@ -220,7 +220,7 @@ def test_asset_rejects_duplicate_identifiers():
         ),
         (
             AssetType.CRYPTOGRAPHIC_KEY_REFERENCE,
-            CryptographicKeySpecification(
+            CryptographicKeyReferenceSpecification(
                 algorithm="RSA",
                 key_size_bits=2048,
             ),
@@ -473,4 +473,31 @@ def test_asset_lifecycle_update_rejects_earlier_timestamp():
         asset.with_lifecycle_status(
             AssetLifecycleStatus.ACTIVE,
             updated_at=earlier,
+        )
+
+
+def test_asset_lifecycle_update_rejects_timestamp_before_previous_update():
+    """Prevent lifecycle update timestamps from moving backwards."""
+
+    created = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    previous_update = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    earlier_update = datetime(2026, 1, 15, tzinfo=timezone.utc)
+
+    asset = Asset(
+        asset_type=AssetType.APPLICATION,
+        name="Payment Application",
+        lifecycle=AssetLifecycle(
+            status=AssetLifecycleStatus.ACTIVE,
+            created_at=created,
+            updated_at=previous_update,
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="previous update timestamp",
+    ):
+        asset.with_lifecycle_status(
+            AssetLifecycleStatus.INACTIVE,
+            updated_at=earlier_update,
         )

@@ -54,19 +54,58 @@ classDiagram
         +UUID asset_id
         +AssetType asset_type
         +str name
-        +AssetLifecycleStatus lifecycle_status
-        +datetime created_at
-        +datetime updated_at
+        +str description
+        +tuple identifiers
+        +AssetSpecification specification
+        +AssetLifecycle lifecycle
+        +lifecycle_status
+        +created_at
+        +updated_at
     }
 
     class AssetIdentifier {
         +str namespace
         +str value
         +str issuer
+        +datetime valid_from
+        +datetime valid_until
     }
 
     class AssetSpecification {
-        <<ValueObject>>
+        <<TypeAlias>>
+    }
+
+    class CertificateSpecification {
+        +str serial_number
+        +str subject
+        +str issuer
+        +CertificateValidity validity
+        +str signature_algorithm
+        +PublicKeyInfo public_key
+    }
+
+    class CertificateValidity {
+        +datetime not_before
+        +datetime not_after
+    }
+
+    class PublicKeyInfo {
+        +str algorithm
+        +int key_size_bits
+        +str curve
+    }
+
+    class CryptographicKeyReferenceSpecification {
+        +str algorithm
+        +int key_size_bits
+        +str curve
+        +tuple key_usage
+    }
+
+    class AssetLifecycle {
+        +AssetLifecycleStatus status
+        +datetime created_at
+        +datetime updated_at
     }
 
     class AssetRelationship {
@@ -80,11 +119,24 @@ classDiagram
 
     Asset "1" *-- "0..*" AssetIdentifier : contains
     Asset "1" *-- "0..1" AssetSpecification : describes
+    Asset "1" *-- "1" AssetLifecycle : maintains
+
+    CertificateSpecification *-- CertificateValidity
+    CertificateSpecification *-- PublicKeyInfo
+
     AssetRelationship "*" --> "1" Asset : source
     AssetRelationship "*" --> "1" Asset : target
 ```
 
-`AssetSpecification` has typed implementations for asset categories such as certificates, endpoints, software components and cryptographic modules.
+`AssetSpecification` is a type alias for the currently supported typed specifications.
+
+An Asset may have no specification when its technical characteristics are not yet established.
+
+`AssetIdentifier` values are composed by Asset and may retain optional validity periods.
+
+`AssetLifecycle` represents the current lifecycle state and timestamps.
+
+`AssetRelationship` references independently identifiable assets and does not own them.
 
 ## 4. Evidence and Collection
 

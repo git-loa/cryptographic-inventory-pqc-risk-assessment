@@ -78,7 +78,11 @@ erDiagram
 
 Each relationship connects two assets and has its own identity and lifecycle.
 
-`AssetIdentifier` and `AssetSpecification` are value objects composed into an asset. They are not independent domain entities.
+`AssetIdentifier`, `AssetSpecification` and `AssetLifecycle` are value objects composed by Asset. They are not independent domain entities.
+
+Asset identifiers may have validity periods. The Asset maintains a stable internal UUID independently of those external identifiers.
+
+Lifecycle information represents the current asset state. Historical lifecycle versions are maintained by the inventory persistence mechanism.
 
 ## 4. Evidence and Collection
 
