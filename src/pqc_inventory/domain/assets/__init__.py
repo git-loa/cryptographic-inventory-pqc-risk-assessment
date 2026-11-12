@@ -24,6 +24,9 @@ from pqc_inventory.domain.assets.specifications import (
     PublicKeyInfo,
     SoftwareComponentSpecification,
 )
+from pqc_inventory.domain.assets.relationship_rules import (
+    validate_relationship_compatibility,
+)
 
 __all__ = [
     "Asset",
@@ -40,4 +43,5 @@ __all__ = [
     "PublicKeyInfo",
     "RelationshipType",
     "SoftwareComponentSpecification",
+    "validate_relationship_compatibility",
 ]
