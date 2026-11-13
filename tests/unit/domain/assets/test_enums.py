@@ -25,10 +25,20 @@ def test_asset_lifecycle_statuses_are_string_enums():
 
 
 def test_relationship_types_are_string_enums():
-    """Relationship types should behave as string."""
+    """Verify relationship types and their string values."""
 
-    assert RelationshipType.HOSTS == "hosts"
-    assert RelationshipType.RUNS == "runs"
+    expected = {
+        "HOSTS",
+        "RUNS",
+        "EXPOSES",
+        "PRESENTS",
+        "USES",
+        "PROVIDES",
+        "DEPENDS_ON",
+        "MANAGED_BY",
+        "CONTAINS",
+    }
 
-    assert isinstance(RelationshipType.HOSTS, str)
-    assert isinstance(RelationshipType.RUNS, str)
+    assert {item.name for item in RelationshipType} == expected
+
+    assert all(isinstance(item, str) for item in RelationshipType)

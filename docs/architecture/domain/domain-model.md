@@ -8,304 +8,224 @@
 
 ## 1. Purpose
 
-The domain model defines the fundamental concepts underlying cryptographic discovery, inventory management, evidence collection, security assessment and cryptographic modernization.
+This document describes the main concepts represented by the framework and how they relate to one another.
 
-It provides a technology-independent foundation for the framework. Collection tools, cryptographic libraries, storage implementations and external inventory formats interact with these concepts through defined interfaces.
+The framework helps organizations discover cryptographic assets, record supporting evidence, assess security configurations and plan cryptographic modernization, including migration to post-quantum cryptography (PQC).
 
-## 2. Architectural Principles
+The domain model is independent of collection tools, databases and external inventory formats.
 
-The domain follows these principles:
+## 2. Main Domains
 
-1. Assets have stable internal identities independent of external identifiers.
-2. Evidence preserves its subject, value, origin and provenance.
-3. Collection activities are separate from the evidence they produce.
-4. Runtime capabilities are distinct from remote system capabilities.
-5. Assessment policies consume canonical evidence rather than collector-specific models.
-6. Standards and assessment rules are independently versioned.
-7. Historical evidence and assessment results remain reproducible.
-8. Domain models are independent of persistence and external inventory formats.
-9. Cryptographic secrets are not collected or stored by default.
-
-## 3. Domain Overview
-
-The framework consists of the following interconnected domains:
+The framework consists of the following domains:
 
 | Domain | Responsibility |
 |---|---|
-| Organization and Inventory | Defines organizational boundaries and asset inventories. |
-| Assets | Represents systems, components, services and cryptographic objects. |
-| Relationships | Represents dependencies and associations between assets. |
-| Evidence | Records observations, declarations and derived information. |
-| Collection | Records discovery and evidence collection activities. |
-| Runtime | Describes collection environments and capabilities. |
-| Standards | Maintains authoritative publications and provisions. |
-| Assessment | Evaluates evidence against versioned policies and rules. |
-| Risk and Modernization | Supports risk analysis and cryptographic replacement planning. |
+| Organization and Inventory | Defines organizations and their inventory scope. |
+| Assets | Represents systems, applications, services and cryptographic components. |
+| Relationships | Records how assets are connected. |
+| Evidence | Stores observations, declarations and derived information. |
+| Collection | Records discovery activities and their results. |
+| Runtime | Describes the environment used for collection. |
+| Standards | Maintains standards and their requirements. |
+| Assessment | Evaluates evidence against defined security requirements. |
+| Risk and Modernization | Supports risk decisions and cryptographic migration planning. |
 
-## 4. Organization and Inventory
+## 3. Organization and Inventory
 
-### Organization
+An **Organization** represents an entity responsible for one or more inventories.
 
-Represents an organization responsible for one or more cryptographic inventories.
+An **Inventory** defines the scope of assets being discovered and assessed.
 
-### Inventory
+An asset may belong to multiple inventories without creating duplicate asset records. Inventory membership is maintained separately from asset identity.
 
-Defines an organizational scope for discovering, registering and assessing assets.
+## 4. Asset Domain
 
-### InventoryMembership
-
-Associates an asset with an inventory without duplicating its identity.
-
-An asset may belong to multiple inventories.
-
-```mermaid
-erDiagram
-    ORGANIZATION ||--o{ INVENTORY : maintains
-    INVENTORY ||--o{ INVENTORY_MEMBERSHIP : contains
-    ASSET ||--o{ INVENTORY_MEMBERSHIP : participates_in
-```
-
-## 5. Asset Domain
+The Asset domain represents identifiable entities or components that provide, use, store, process or depend on cryptographic functionality.
 
 ### Asset
 
-Represents an identifiable entity or component within an organizational environment that provides, consumes, stores, processes or depends on cryptographic functionality and is relevant to the organization's cryptographic inventory, security assessment or cryptographic modernization activities.
+An Asset represents a computing system, application, network service, software component, certificate, key reference, cryptographic module, randomness component or cryptographic service.
 
-An asset may directly implement cryptographic functionality or depend on other assets that provide it.
-
-Every asset has a stable internal UUID independent of its external identifiers.
-
-Principal attributes include:
-
-- Internal asset identifier.
-- Primary asset classification.
-- Name and description.
-- External identifiers.
-- Optional type-specific specification.
-- Lifecycle information.
+Every asset has a stable internal UUID, a primary classification, a name and an optional technical specification.
 
 ### AssetIdentifier
 
-Represents a namespaced external identifier associated with an asset.
+Represents an external identifier associated with an asset.
 
-Examples include hostnames, IP addresses, certificate fingerprints, software package identifiers and vendor-assigned resource identifiers.
+Examples include:
 
-An identifier contains:
+- Hostnames and IP addresses.
+- Certificate fingerprints.
+- Software package identifiers.
+- Vendor or hardware identifiers.
+- Cloud resource identifiers.
 
-- Namespace.
-- Value.
-- Optional issuer.
-- Optional association validity period.
-
-The validity period describes when the identifier is considered associated with the asset. It is distinct from the time at which evidence about that association was collected.
-
-External identifiers do not replace internal asset identity.
+An identifier has a namespace and value, with optional issuer and validity timestamps. External identifiers do not replace the asset's internal UUID.
 
 ### AssetSpecification
 
-Contains attributes specific to an asset category.
+Contains technical information specific to an asset category.
 
-Specifications are represented as typed, immutable value objects.
+The initial specifications cover:
 
-Currently implemented specifications include:
+- Network endpoints.
+- X.509 certificates.
+- Software components.
+- Cryptographic key references.
 
-- `NetworkEndpointSpecification`
-- `CertificateSpecification`
-- `SoftwareComponentSpecification`
-- `CryptographicKeyReferenceSpecification`
-
-Certificate and public-key metadata are further represented through:
-
-- `CertificateValidity`
-- `PublicKeyInfo`
-
-Additional specifications for computing systems, applications, cryptographic modules, randomness components and cryptographic services will be introduced when their collection requirements are established.
-
-An asset may initially have no specification when its technical characteristics are not yet known.
+Additional specifications will be introduced as collection requirements are established.
 
 ### AssetLifecycle
 
-Represents the current lifecycle status and timestamps of an asset.
+Records the current lifecycle status of an asset, including its creation and last-update timestamps.
 
-It contains:
+Changing an asset's lifecycle produces an updated asset instance while preserving its identity.
 
-- Lifecycle status.
-- Creation timestamp.
-- Last-update timestamp.
-
-Lifecycle information is separate from evidence freshness and collection outcomes.
-
-Assets are immutable domain objects. Lifecycle changes produce updated asset instances while preserving the internal asset identifier and original creation timestamp.
-
-Historical versions are maintained by the future inventory persistence mechanism, not by the Asset entity itself.
+Asset lifecycle is separate from evidence freshness and collection status.
 
 ### AssetRelationship
 
-Represents a directed relationship between two assets.
+Represents a directed connection between two assets.
 
-Examples include `hosts`, `runs`, `exposes`, `presents`, `uses`, `implements`, `depends_on` and `managed_by`.
+The framework supports nine relationship types:
 
-Relationships have independent identities and may preserve historical validity and supporting evidence.
+| Relationship | Meaning |
+|---|---|
+| HOSTS | Provides a deployment environment for another asset. |
+| RUNS | Executes an application. |
+| EXPOSES | Makes a network service available. |
+| PRESENTS | Presents a certificate during communication. |
+| USES | Directly uses another asset. |
+| PROVIDES | Provides a cryptographic service. |
+| DEPENDS_ON | Requires another asset to operate. |
+| MANAGED_BY | Is operationally managed by another asset. |
+| CONTAINS | Contains another asset as a component. |
+
+Each relationship has a source and target. The framework checks whether their asset classifications are compatible.
+
+Supporting evidence is required to establish that a relationship actually exists.
 
 ### Asset Identity Resolution
 
-Asset identity resolution determines whether a newly discovered asset corresponds to an existing inventory asset.
+Identity resolution determines whether a newly discovered asset already exists in the inventory.
 
-It considers external identifiers, asset classification, supporting evidence and the context in which discovery occurred.
+It considers identifiers, asset classification and supporting evidence.
 
-Identity resolution is separate from Asset construction.
+Uncertain matches must be recorded for review rather than automatically merging assets.
 
-Matching must distinguish confirmed identities from probable or uncertain matches. Uncertain matches must be recorded for review rather than automatically merged.
+## 5. Cryptographic Mechanisms
 
-External identifiers alone must not be treated as universally reliable proof of asset identity.
+Cryptographic algorithms, protocols, cipher suites and parameter sets are distinct from organizational assets.
 
+Examples include:
+
+- RSA and ECDSA.
+- AES-GCM and ChaCha20-Poly1305.
+- SHA-256 and SHA-3.
+- ML-KEM, ML-DSA and SLH-DSA.
+- Hybrid key-establishment mechanisms.
+
+A software component such as OpenSSL is an asset. RSA is a cryptographic mechanism supported or used by that asset.
+
+Mechanism support and actual mechanism usage must be recorded separately.
+
+This distinction is important for cryptographic inventories and CBOM generation.
 
 ## 6. Evidence Domain
 
-### EvidenceRecord
+Evidence records what the framework knows about an asset or another domain object.
 
-Represents a finalized observation, demonstrated capability, external declaration or derived result.
-
-Evidence may describe an asset, organization, runtime or collection activity.
-
-Evidence types:
+Four evidence types are distinguished:
 
 | Type | Meaning |
 |---|---|
-| `observed` | Directly observed behaviour or configuration |
-| `capability` | Demonstrated capability |
-| `declared` | Information supplied by an organization or vendor |
-| `derived` | Result of documented analysis or transformation |
+| Observed | Directly observed behaviour or configuration. |
+| Capability | A demonstrated capability. |
+| Declared | Information supplied by an organization or vendor. |
+| Derived | Information produced through documented analysis. |
 
-An evidence record contains:
+Each evidence record identifies its subject, property, value, source and observation time.
 
-- Evidence identifier.
-- Subject reference.
-- Evidence type and property.
-- Typed value.
-- Provenance.
-- Observation timestamp.
-- Lifecycle status.
-- Known limitations.
+Evidence must retain its origin and known limitations.
 
-### EvidenceProvenance
+Finalized evidence is immutable. New observations create new records rather than silently replacing historical information.
 
-Identifies the origin of evidence, including its source, collection operation, runtime or derivation process where applicable.
-
-### EvidenceValue
-
-Represents a semantically typed evidence payload, such as TLS observations, certificate metadata or software component information.
-
-Evidence values must not rely on unrestricted, unvalidated dictionaries as their default representation.
-
-Evidence lifecycle is distinct from collection outcome. Finalized evidence records are immutable; subsequent observations create new records.
+Evidence lifecycle is separate from collection outcome.
 
 ## 7. Collection Domain
 
-### CollectionExecution
+Collection records how information is discovered.
 
-Represents one execution of a collector. It records collector identity, version, runtime, timestamps, overall status and diagnostics.
+A **CollectionExecution** represents one execution of a collector.
 
-### CollectionOperation
+A **CollectionOperation** represents an individual activity within that execution.
 
-Represents an individual activity within a collection execution.
+An operation may produce zero or more evidence records.
 
-An execution may contain zero or more operations. An operation may produce zero or more evidence records.
+TLS collection distinguishes:
 
-Collection outcomes include success, partial completion, inconclusive results, unsupported client capabilities, timeouts and failures.
+- `TLSHandshakeObservation`: Records an actual negotiated TLS connection.
+- `TLSCapabilityProbeResult`: Records the outcome of a controlled capability test.
 
-### TLS-specific observations
+Negotiated properties must come from the same identified handshake. Controlled probes must remain separate from ordinary connection observations.
 
-Two distinct concepts are required:
+Collection may succeed, partially complete, produce inconclusive results or fail.
 
-- `TLSHandshakeObservation`: Records one actual negotiated TLS connection.
-- `TLSCapabilityProbeResult`: Records an independent controlled probe.
-
-Negotiated protocol, cipher suite and key-establishment group must originate from the same identified handshake.
-
-Capability probes must preserve their client configuration, outcome and limitations.
+A failed collection must not be interpreted as proof that an asset or capability does not exist.
 
 ## 8. Runtime Domain
 
-### RuntimeProfile
+A RuntimeProfile describes the environment used to perform collection.
 
-Represents an immutable snapshot of the collection environment.
-
-It records:
+It records relevant information such as:
 
 - Operating system and architecture.
 - Python implementation and version.
 - SSL backend and OpenSSL version.
-- Relevant cryptographic library versions.
-- Runtime capability information.
-- Capture timestamp.
+- Available cryptographic APIs and collection capabilities.
 
-### RuntimeCapabilities
-
-Describes locally available APIs, cryptographic groups, protocols and collection methods.
-
-**Local capabilities must never be interpreted as proof of remote endpoint capabilities.**
+Local runtime capabilities must not be interpreted as proof of remote endpoint capabilities.
 
 ## 9. Standards Domain
 
-### StandardsReference
+The Standards domain maintains authoritative publications and their requirements.
 
-Represents the stable identity of an authoritative publication, including publisher, document identifier and title.
+A **StandardsReference** identifies a publication.
 
-### StandardsEdition
+A **StandardsEdition** represents a particular revision.
 
-Represents a specific publication revision, including publication date, effective date, status and official URL.
+A **StandardsProvision** represents an individual requirement or recommendation within that edition.
 
-### StandardsProvision
-
-Represents an immutable requirement, recommendation or other relevant provision within a specific edition.
-
-```mermaid
-erDiagram
-    STANDARDS_REFERENCE ||--o{ STANDARDS_EDITION : identifies
-    STANDARDS_EDITION ||--o{ STANDARDS_PROVISION : contains
-```
-
-Historical editions remain available for assessment reproducibility.
+Historical editions remain available so that previous assessments can be understood and reproduced.
 
 ## 10. Assessment Domain
 
-The assessment domain interprets canonical evidence against versioned requirements.
+The Assessment domain evaluates evidence against defined, versioned security requirements.
+
+Its main concepts are:
 
 | Concept | Responsibility |
 |---|---|
-| PolicyIdentity | Maintains a stable policy identity. |
-| PolicyVersion | Defines an immutable policy specification. |
-| PolicyRuleIdentity | Maintains a stable rule identity. |
-| PolicyRuleVersion | Defines an immutable version of a rule. |
-| AssessmentContext | Supplies assets, evidence and assessment configuration. |
-| AssessmentRun | Represents an assessment execution. |
-| PolicyResult | Records an individual policy execution. |
-| AssessmentFinding | Records an individual assessment conclusion. |
+| PolicyIdentity | Identifies a policy. |
+| PolicyVersion | Defines a particular version of a policy. |
+| PolicyRuleIdentity | Identifies an assessment rule. |
+| PolicyRuleVersion | Defines a particular version of a rule. |
+| AssessmentContext | Supplies the assets, evidence and configuration for assessment. |
+| AssessmentRun | Records an assessment execution. |
+| PolicyResult | Records the outcome of a policy execution. |
+| AssessmentFinding | Records an individual conclusion. |
 
-Each rule version belongs to exactly one policy version.
+Every finding must identify its originating rule version and supporting evidence.
 
-Every finding identifies its originating rule version, affected assets, supporting evidence and applicable standards provisions.
-
-```mermaid
-flowchart TD
-    A[Canonical Evidence] --> B[Assessment Context]
-    B --> C[Assessment Run]
-    C --> D[Versioned Policies]
-    D --> E[Versioned Rules]
-    E --> F[Assessment Findings]
-    F --> G[Risk Analysis]
-```
-
-Policy execution status is independent of finding classification. A successfully executed policy may produce `unknown` findings when evidence is insufficient.
+Missing evidence must not automatically be treated as proof of security or insecurity.
 
 ## 11. Risk and Modernization
 
 ### RiskAssessment
 
-Evaluates technical findings against organizational context.
+Evaluates technical findings in the context of an organization's environment.
 
-Relevant considerations include:
+Considerations include:
 
 - Data sensitivity.
 - Information protection lifetime.
@@ -313,41 +233,29 @@ Relevant considerations include:
 - Cryptographic exposure.
 - Migration feasibility.
 
-Risk decisions must preserve their assumptions and rationale.
+Risk decisions must retain their assumptions and rationale.
 
 ### ModernizationPlan
 
-Coordinates cryptographic replacement and modernization activities.
+Coordinates cryptographic replacement activities.
 
-It identifies affected assets, proposed replacements, migration tasks, validation requirements and residual exposure.
+It identifies affected assets, proposed replacements, migration tasks, validation requirements and remaining risks.
 
-Risk assessment and modernization remain separate from technical policy execution.
+This domain supports activities such as replacing vulnerable algorithms, improving cryptographic configurations and planning PQC migration.
 
-## 12. Domain Invariants
+## 12. Domain Principles
 
-The implementation must enforce:
+The framework follows these principles:
 
 1. Every asset has a stable internal identity.
-2. Inventory membership does not duplicate assets.
-3. Evidence preserves its subject and provenance where applicable.
-4. Collection outcomes are distinct from evidence values.
-5. TLS negotiated properties belong to one identified handshake.
-6. Scanner and target runtime information remain distinct.
-7. Historical evidence and findings cannot be silently overwritten.
-8. Every finding references its originating rule version.
-9. Every rule version belongs to one policy version.
-10. Standards provisions belong to a specific edition.
-11. Missing evidence does not automatically imply security or insecurity.
-12. Private keys and secret material are excluded from ordinary inventory evidence.
+2. External identifiers do not replace internal asset identity.
+3. Assets and their relationships are separate concepts.
+4. Cryptographic mechanisms are not automatically treated as independent assets.
+5. Evidence retains its source and observation history.
+6. Collection outcomes are separate from evidence values.
+7. Historical evidence and assessment results are preserved.
+8. Assessment policies operate on canonical evidence, not collector-specific objects.
+9. Domain concepts remain independent of databases and external formats.
+10. Private keys and secret material are not collected as ordinary inventory data.
 
-## 13. Interoperability and Implementation Boundaries
-
-Domain objects remain independent of JSON, databases, Pydantic models and CycloneDX structures.
-
-Dedicated adapters translate between domain objects and external representations.
-
-CycloneDX provides inventory interoperability; it does not define the framework's internal domain model or assessment methodology.
-
-Implementation details, including Python classes and interfaces, are specified separately in `domain-class-design.md`.
-
-**Guiding principle:** Assets represent what exists; evidence represents what is known; collection records how knowledge was obtained; standards define applicable requirements; assessment interprets evidence; risk and modernization support organizational decisions.
+**Guiding principle:** Assets represent what exists; relationships describe how assets connect; evidence records what is known; collection explains how information was obtained; assessment evaluates that information; risk and modernization support organizational decisions.

@@ -8,11 +8,9 @@
 
 ## 1. Purpose
 
-This document provides a visual representation of the framework's proposed Python domain classes, their composition and references.
+This document illustrates the main domain classes, their attributes and how they connect.
 
-It complements `domain-class-design.md` and `entity-relationship-diagram.md`.
-
-The diagrams represent logical class relationships rather than prescribing database structures.
+The diagrams represent the logical design, not a database schema. Class responsibilities are described in `domain-class-design.md`.
 
 ## 2. Organization and Inventory
 
@@ -35,16 +33,14 @@ classDiagram
         +UUID membership_id
         +UUID inventory_id
         +UUID asset_id
-        +datetime valid_from
-        +datetime valid_until
     }
 
     Organization "1" --> "0..*" Inventory : maintains
-    Inventory "1" --> "0..*" InventoryMembership : contains
+    Inventory "1" *-- "0..*" InventoryMembership : contains
     InventoryMembership "*" --> "1" Asset : references
 ```
 
-`InventoryMembership` connects an existing asset to an inventory without duplicating its identity.
+An asset may participate in multiple inventories without duplicating its identity.
 
 ## 3. Asset Domain
 
@@ -58,9 +54,6 @@ classDiagram
         +tuple identifiers
         +AssetSpecification specification
         +AssetLifecycle lifecycle
-        +lifecycle_status
-        +created_at
-        +updated_at
     }
 
     class AssetIdentifier {
@@ -73,6 +66,12 @@ classDiagram
 
     class AssetSpecification {
         <<TypeAlias>>
+    }
+
+    class NetworkEndpointSpecification {
+        +str service_protocol
+        +int port
+        +str transport_protocol
     }
 
     class CertificateSpecification {
@@ -95,6 +94,13 @@ classDiagram
         +str curve
     }
 
+    class SoftwareComponentSpecification {
+        +str name
+        +str version
+        +str vendor
+        +str ecosystem
+    }
+
     class CryptographicKeyReferenceSpecification {
         +str algorithm
         +int key_size_bits
@@ -108,6 +114,25 @@ classDiagram
         +datetime updated_at
     }
 
+    Asset "1" *-- "0..*" AssetIdentifier : contains
+    Asset "1" *-- "0..1" AssetSpecification : describes
+    Asset "1" *-- "1" AssetLifecycle : maintains
+
+    AssetSpecification <|.. NetworkEndpointSpecification
+    AssetSpecification <|.. CertificateSpecification
+    AssetSpecification <|.. SoftwareComponentSpecification
+    AssetSpecification <|.. CryptographicKeyReferenceSpecification
+
+    CertificateSpecification *-- CertificateValidity
+    CertificateSpecification *-- PublicKeyInfo
+```
+
+An Asset owns its identifiers, optional specification and lifecycle information.
+
+## 4. Asset Relationships
+
+```mermaid
+classDiagram
     class AssetRelationship {
         +UUID relationship_id
         +UUID source_asset_id
@@ -115,30 +140,34 @@ classDiagram
         +RelationshipType relationship_type
         +datetime valid_from
         +datetime valid_until
+        +tuple evidence_references
     }
 
-    Asset "1" *-- "0..*" AssetIdentifier : contains
-    Asset "1" *-- "0..1" AssetSpecification : describes
-    Asset "1" *-- "1" AssetLifecycle : maintains
+    class RelationshipType {
+        <<enumeration>>
+        HOSTS
+        RUNS
+        EXPOSES
+        PRESENTS
+        USES
+        PROVIDES
+        DEPENDS_ON
+        MANAGED_BY
+        CONTAINS
+    }
 
-    CertificateSpecification *-- CertificateValidity
-    CertificateSpecification *-- PublicKeyInfo
+    class Asset
 
+    AssetRelationship --> RelationshipType : classified by
     AssetRelationship "*" --> "1" Asset : source
     AssetRelationship "*" --> "1" Asset : target
 ```
 
-`AssetSpecification` is a type alias for the currently supported typed specifications.
+Relationships have their own identities and reference assets through UUIDs.
 
-An Asset may have no specification when its technical characteristics are not yet established.
+The relationship rules check whether the source and target asset classifications are compatible.
 
-`AssetIdentifier` values are composed by Asset and may retain optional validity periods.
-
-`AssetLifecycle` represents the current lifecycle state and timestamps.
-
-`AssetRelationship` references independently identifiable assets and does not own them.
-
-## 4. Evidence and Collection
+## 5. Evidence and Collection
 
 ```mermaid
 classDiagram
@@ -148,8 +177,9 @@ classDiagram
         +EvidenceType evidence_type
         +str property
         +EvidenceValue value
-        +EvidenceLifecycleStatus lifecycle_status
+        +EvidenceProvenance provenance
         +datetime observed_at
+        +EvidenceLifecycleStatus lifecycle_status
     }
 
     class SubjectReference {
@@ -189,7 +219,6 @@ classDiagram
         +str protocol_version
         +str cipher_suite
         +str negotiated_group
-        +str peer_certificate_reference
     }
 
     class TLSCapabilityProbeResult {
@@ -199,22 +228,19 @@ classDiagram
         +ProbeOutcome outcome
     }
 
-    EvidenceRecord *-- SubjectReference : identifies
-    EvidenceRecord *-- EvidenceValue : contains
-    EvidenceRecord *-- EvidenceProvenance : contains
+    EvidenceRecord *-- SubjectReference
+    EvidenceRecord *-- EvidenceValue
+    EvidenceRecord *-- EvidenceProvenance
 
-    CollectionExecution "1" *-- "0..*" CollectionOperation : contains
-    CollectionOperation "1" --> "0..*" EvidenceRecord : produces
-
-    CollectionOperation *-- TLSHandshakeObservation : records
-    CollectionOperation *-- TLSCapabilityProbeResult : records
+    CollectionExecution "1" *-- "0..*" CollectionOperation
+    CollectionOperation --> EvidenceRecord : produces
+    CollectionOperation *-- TLSHandshakeObservation
+    CollectionOperation *-- TLSCapabilityProbeResult
 ```
 
-Evidence records remain independent of collection execution. Provenance connects collected, declared, imported and derived evidence to their origins.
+Collection operations may produce evidence. Evidence can also originate from imports, declarations or analysis without an internal collection operation.
 
-TLS handshake observations and capability probes represent distinct operations and must not be combined into one observation.
-
-## 5. Runtime Domain
+## 6. Runtime Domain
 
 ```mermaid
 classDiagram
@@ -238,12 +264,12 @@ classDiagram
     }
 
     RuntimeProfile *-- RuntimeCapabilities : describes
-    CollectionExecution "*" --> "1" RuntimeProfile : uses
+    RuntimeProfile "1" --> "0..*" CollectionExecution : supports
 ```
 
-Runtime profiles describe the collector environment, not the remote endpoint.
+The runtime describes the environment performing collection, not the remote endpoint.
 
-## 6. Standards Domain
+## 7. Standards Domain
 
 ```mermaid
 classDiagram
@@ -274,9 +300,9 @@ classDiagram
     StandardsEdition "1" *-- "0..*" StandardsProvision : contains
 ```
 
-Standards provisions are immutable value objects belonging to a specific edition.
+Each provision belongs to a particular publication edition.
 
-## 7. Assessment Domain
+## 8. Assessment Domain
 
 ```mermaid
 classDiagram
@@ -341,7 +367,7 @@ classDiagram
 
     PolicyRuleVersion "*" --> "0..*" StandardsProvision : references
 
-    AssessmentRun *-- AssessmentContext : captures
+    AssessmentRun *-- AssessmentContext
     AssessmentRun "1" *-- "0..*" PolicyResult : contains
     PolicyResult "*" --> "1" PolicyVersion : executes
     PolicyResult "1" *-- "0..*" AssessmentFinding : produces
@@ -351,11 +377,9 @@ classDiagram
     AssessmentFinding "*" --> "0..*" Asset : concerns
 ```
 
-Every rule version belongs to one policy version. Findings identify their exact originating rule version.
+Findings identify their originating rule version and reference the evidence and assets involved.
 
-A policy rule may have no external standards provision when it represents a documented organizational or project-specific requirement.
-
-## 8. Risk and Modernization
+## 9. Risk and Modernization
 
 ```mermaid
 classDiagram
@@ -385,37 +409,9 @@ classDiagram
 
     ModernizationPlan "1" *-- "0..*" ModernizationTask : contains
     ModernizationTask "*" --> "1" Asset : addresses
-    ModernizationTask "*" --> "0..*" AssessmentFinding : responds_to
+    ModernizationTask "*" --> "0..*" AssessmentFinding : responds to
 ```
 
-Risk assessments consume technical findings and organizational context. Modernization plans coordinate changes without modifying historical assessment results.
+Risk assessments evaluate findings. Modernization plans organize changes to affected assets.
 
-## 9. Interface Contracts
-
-The architecture uses Python structural typing through `Protocol` for independently implemented components.
-
-| Protocol | Responsibility |
-|---|---|
-| `Collector` | Produces collection results and evidence. |
-| `AssetRepository` | Manages asset persistence. |
-| `EvidenceRepository` | Retrieves and persists evidence. |
-| `InventoryRepository` | Manages inventory records. |
-| `AssessmentPolicy` | Evaluates an assessment context. |
-| `PolicyRegistry` | Resolves policy versions. |
-| `StandardsRepository` | Retrieves standards editions and provisions. |
-| `BOMImporter` | Imports external inventory documents. |
-| `BOMExporter` | Exports standardized inventory documents. |
-
-Interfaces belong to the application boundary requiring the capability. Implementations belong to their respective adapters or infrastructure packages.
-
-## 10. Implementation Constraints
-
-- Entities use stable internal identities.
-- Value objects are immutable.
-- Aggregate references use identifiers.
-- Historical evidence and findings remain immutable.
-- Domain objects do not depend on external serialization formats.
-- Collectors produce canonical evidence.
-- Assessment policies do not depend on collector implementations.
-
-**Guiding principle:** Class composition represents domain responsibilities; interfaces enable independent implementations; immutable records preserve historical meaning.
+**Guiding principle:** The diagrams show what the domain classes represent and how they connect. Detailed responsibilities and validation rules are defined in `domain-class-design.md`.

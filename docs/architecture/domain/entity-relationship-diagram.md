@@ -8,13 +8,11 @@
 
 ## 1. Purpose
 
-This document provides a visual representation of the framework's domain relationships, ownership and cardinalities.
+This document illustrates how the framework's main entities are connected.
 
-It complements `domain-model.md` and `entity-relationships.md`. It describes logical relationships rather than prescribing a database implementation.
+It shows their ownership, references and cardinalities. The diagrams describe the logical domain model, not a required database structure.
 
 ## 2. Organization and Inventory
-
-An organization maintains inventories. Assets participate in inventories through membership records.
 
 ```mermaid
 erDiagram
@@ -38,19 +36,16 @@ erDiagram
         UUID membership_id PK
         UUID inventory_id FK
         UUID asset_id FK
-        datetime valid_from
-        datetime valid_until
     }
 
     ASSET {
         UUID asset_id PK
         string asset_type
         string name
-        string lifecycle_status
     }
 ```
 
-An asset may participate in multiple inventories without duplicating its identity.
+An asset may belong to multiple inventories without creating duplicate asset records.
 
 ## 3. Assets and Relationships
 
@@ -76,13 +71,11 @@ erDiagram
     }
 ```
 
-Each relationship connects two assets and has its own identity and lifecycle.
+An Asset owns its identifiers, specification and lifecycle information.
 
-`AssetIdentifier`, `AssetSpecification` and `AssetLifecycle` are value objects composed by Asset. They are not independent domain entities.
+An AssetRelationship has its own identity and references two assets by UUID. It may also contain supporting evidence references.
 
-Asset identifiers may have validity periods. The Asset maintains a stable internal UUID independently of those external identifiers.
-
-Lifecycle information represents the current asset state. Historical lifecycle versions are maintained by the inventory persistence mechanism.
+Relationships are directed. The same two assets may have different relationships when they represent different facts.
 
 ## 4. Evidence and Collection
 
@@ -97,18 +90,17 @@ erDiagram
         string operating_system
         string architecture
         string python_version
-        string ssl_backend
         string openssl_version
     }
 
     COLLECTION_EXECUTION {
         UUID execution_id PK
+        UUID runtime_id FK
         string collector_id
         string collector_version
-        UUID runtime_id FK
+        string status
         datetime started_at
         datetime completed_at
-        string status
     }
 
     COLLECTION_OPERATION {
@@ -121,8 +113,8 @@ erDiagram
 
     EVIDENCE_RECORD {
         UUID evidence_id PK
-        string subject_reference
-        UUID collection_operation_id FK
+        string subject_type
+        UUID subject_id
         string evidence_type
         string property
         string lifecycle_status
@@ -130,13 +122,11 @@ erDiagram
     }
 ```
 
-An execution may contain zero or more operations. An operation may produce zero or more evidence records.
+An execution may contain multiple operations. An operation may produce zero or more evidence records.
 
-Evidence originating from declarations, imports or derivations may have no internal collection operation.
+An evidence record may have no internal collection operation when it originates from an external declaration, import or documented analysis.
 
-The `subject_reference` identifies the asset, organization or other subject described. It is a logical reference, not necessarily a direct foreign key to an asset.
-
-Evidence provenance identifies the source and collection history.
+Its subject reference identifies what the evidence describes. It is not necessarily a direct reference to an Asset.
 
 ## 5. Standards
 
@@ -163,17 +153,15 @@ erDiagram
     }
 
     STANDARDS_PROVISION {
-        UUID provision_id
-        UUID edition_id
         string section
         string title
         string provision_type
     }
 ```
 
-A standards reference identifies a publication, an edition identifies a specific revision, and provisions belong to that edition.
+A StandardsReference identifies a publication. Each edition represents a particular revision.
 
-`StandardsProvision` is logically represented here but is implemented as an immutable value object within a standards edition.
+`StandardsProvision` is an immutable value object contained within an edition, not an independently identified entity.
 
 ## 6. Assessment
 
@@ -185,8 +173,8 @@ erDiagram
     POLICY_VERSION ||--|{ POLICY_RULE_VERSION : contains
     POLICY_RULE_IDENTITY ||--o{ POLICY_RULE_VERSION : versions
 
-    POLICY_VERSION ||--o{ POLICY_RESULT : selected_for
-    ASSESSMENT_RUN ||--|{ POLICY_RESULT : contains
+    ASSESSMENT_RUN ||--o{ POLICY_RESULT : contains
+    POLICY_VERSION ||--o{ POLICY_RESULT : evaluates
     POLICY_RESULT ||--o{ ASSESSMENT_FINDING : produces
 
     POLICY_RULE_VERSION ||--o{ ASSESSMENT_FINDING : originates
@@ -194,62 +182,15 @@ erDiagram
     POLICY_RULE_VERSION }o--o{ STANDARDS_PROVISION : references
     ASSESSMENT_FINDING }o--o{ EVIDENCE_RECORD : supported_by
     ASSESSMENT_FINDING }o--o{ ASSET : concerns
-
-    POLICY_IDENTITY {
-        string policy_id PK
-        string policy_name
-    }
-
-    POLICY_VERSION {
-        UUID policy_version_id PK
-        string policy_id FK
-        string version
-        string status
-    }
-
-    POLICY_RULE_IDENTITY {
-        string rule_id PK
-        string policy_id FK
-        string name
-    }
-
-    POLICY_RULE_VERSION {
-        UUID rule_version_id PK
-        string rule_id FK
-        UUID policy_version_id FK
-        string version
-    }
-
-    ASSESSMENT_RUN {
-        UUID assessment_run_id PK
-        datetime created_at
-        string methodology_version
-    }
-
-    POLICY_RESULT {
-        UUID policy_result_id PK
-        UUID assessment_run_id FK
-        UUID policy_version_id FK
-        string execution_status
-    }
-
-    ASSESSMENT_FINDING {
-        UUID finding_id PK
-        UUID policy_result_id FK
-        UUID rule_version_id FK
-        string classification
-        string rationale
-    }
 ```
 
-Important constraints:
+Each rule version belongs to one policy version.
 
-- Every rule version belongs to exactly one policy version.
-- Every finding references its originating rule version.
-- The finding's rule version must belong to the policy version executed by its policy result.
-- Findings reference evidence and affected assets without owning them.
-- Policy execution status is independent of finding classification.
-- A rule may have no external standards references when it represents a documented organizational or project-specific requirement.
+An AssessmentRun contains its assessment context and policy results. A PolicyResult records the execution status and owns the findings it produces.
+
+Every finding references its originating rule version, supporting evidence and affected assets.
+
+A successfully executed policy may produce findings classified as unknown when the available evidence is insufficient.
 
 ## 7. Risk and Modernization
 
@@ -261,36 +202,13 @@ erDiagram
     MODERNIZATION_PLAN ||--o{ MODERNIZATION_TASK : contains
     ASSET ||--o{ MODERNIZATION_TASK : affected_by
     MODERNIZATION_TASK }o--o{ ASSESSMENT_FINDING : addresses
-
-    RISK_ASSESSMENT {
-        UUID risk_id PK
-        string exposure_rationale
-        string impact_basis
-        string likelihood_basis
-        string priority
-    }
-
-    MODERNIZATION_PLAN {
-        UUID plan_id PK
-        string objective
-        string status
-        datetime created_at
-    }
-
-    MODERNIZATION_TASK {
-        UUID task_id PK
-        UUID plan_id FK
-        UUID asset_id FK
-        string proposed_replacement
-        string status
-    }
 ```
 
-Risk assessments consume technical findings and organizational context.
+Risk assessments evaluate findings and affected assets.
 
-Modernization plans coordinate changes to affected assets and address identified findings.
+Modernization plans contain tasks that address affected assets and assessment findings.
 
-Neither modifies historical assessment records.
+Historical assessment results remain unchanged by subsequent modernization activities.
 
 ## 8. Relationship Summary
 
@@ -302,7 +220,7 @@ Neither modifies historical assessment records.
 | Asset → AssetRelationship | 1:N participation |
 | RuntimeProfile → CollectionExecution | 1:N |
 | CollectionExecution → CollectionOperation | 1:N |
-| CollectionOperation → EvidenceRecord | 1:N, operation optional |
+| CollectionOperation → EvidenceRecord | 1:N; operation optional |
 | StandardsReference → StandardsEdition | 1:N |
 | StandardsEdition → StandardsProvision | 1:N |
 | PolicyIdentity → PolicyVersion | 1:N |
@@ -315,17 +233,17 @@ Neither modifies historical assessment records.
 | RiskAssessment → AssessmentFinding | N:M |
 | ModernizationPlan → ModernizationTask | 1:N |
 
-## 9. Design Constraints
+## 9. Design Rules
 
-1. Internal asset identities must remain stable.
-2. Inventory membership must not duplicate assets.
-3. Asset relationships must reference existing assets.
-4. Evidence must preserve its subject and provenance.
-5. Failed collection operations must not create artificial evidence.
-6. Runtime capabilities must not be confused with remote capabilities.
-7. Historical evidence and assessment results must remain immutable.
-8. Findings must reference exact rule versions.
-9. Standards provisions must identify their originating editions.
-10. Private keys and secret material must not be stored as ordinary inventory data.
+1. Internal asset identities remain stable.
+2. Inventory membership does not duplicate assets.
+3. Relationships reference assets by UUID.
+4. Evidence preserves its subject and origin.
+5. Collection outcomes remain separate from evidence values.
+6. Historical evidence and assessment results are preserved.
+7. Every finding identifies its originating rule version.
+8. Standards provisions belong to a specific edition.
+9. Missing evidence does not establish security or insecurity.
+10. Private keys and secret material are not stored as ordinary inventory data.
 
-**Guiding principle:** The ERD represents domain relationships and ownership, independently of database and serialization technologies.
+**Guiding principle:** Entities maintain their own information, references connect independent entities, and historical records preserve previous decisions and observations.

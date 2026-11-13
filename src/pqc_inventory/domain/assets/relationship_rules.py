@@ -37,9 +37,11 @@ _RELATIONSHIP_RULES: Mapping[
             target_types=frozenset(
                 {
                     AssetType.APPLICATION,
+                    AssetType.NETWORK_SERVICE,
                     AssetType.SOFTWARE_COMPONENT,
                     AssetType.CRYPTOGRAPHIC_MODULE,
                     AssetType.RANDOMNESS_COMPONENT,
+                    AssetType.CRYPTOGRAPHIC_SERVICE,
                 }
             ),
         ),
@@ -47,14 +49,11 @@ _RELATIONSHIP_RULES: Mapping[
             source_types=frozenset(
                 {
                     AssetType.COMPUTING_SYSTEM,
-                    AssetType.APPLICATION,
                 }
             ),
             target_types=frozenset(
                 {
-                    AssetType.SOFTWARE_COMPONENT,
-                    AssetType.CRYPTOGRAPHIC_MODULE,
-                    AssetType.RANDOMNESS_COMPONENT,
+                    AssetType.APPLICATION,
                 }
             ),
         ),
@@ -85,15 +84,18 @@ _RELATIONSHIP_RULES: Mapping[
         RelationshipType.USES: _RelationshipRule(
             source_types=frozenset(
                 {
+                    AssetType.COMPUTING_SYSTEM,
                     AssetType.APPLICATION,
                     AssetType.NETWORK_SERVICE,
                     AssetType.SOFTWARE_COMPONENT,
                     AssetType.CRYPTOGRAPHIC_MODULE,
+                    AssetType.RANDOMNESS_COMPONENT,
                     AssetType.CRYPTOGRAPHIC_SERVICE,
                 }
             ),
             target_types=frozenset(
                 {
+                    AssetType.NETWORK_SERVICE,
                     AssetType.SOFTWARE_COMPONENT,
                     AssetType.CERTIFICATE,
                     AssetType.CRYPTOGRAPHIC_KEY_REFERENCE,
@@ -103,7 +105,7 @@ _RELATIONSHIP_RULES: Mapping[
                 }
             ),
         ),
-        RelationshipType.IMPLEMENTS: _RelationshipRule(
+        RelationshipType.PROVIDES: _RelationshipRule(
             source_types=frozenset(
                 {
                     AssetType.SOFTWARE_COMPONENT,
@@ -139,6 +141,7 @@ _RELATIONSHIP_RULES: Mapping[
                     AssetType.CERTIFICATE,
                     AssetType.CRYPTOGRAPHIC_MODULE,
                     AssetType.CRYPTOGRAPHIC_SERVICE,
+                    AssetType.RANDOMNESS_COMPONENT,
                 }
             ),
             target_types=frozenset(

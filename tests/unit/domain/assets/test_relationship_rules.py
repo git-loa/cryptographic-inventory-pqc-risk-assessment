@@ -72,12 +72,12 @@ def test_relationship_rules_mapping_is_immutable():
         ),
         (
             AssetType.COMPUTING_SYSTEM,
-            AssetType.SOFTWARE_COMPONENT,
+            AssetType.NETWORK_SERVICE,
             RelationshipType.HOSTS,
         ),
         (
             AssetType.COMPUTING_SYSTEM,
-            AssetType.SOFTWARE_COMPONENT,
+            AssetType.APPLICATION,
             RelationshipType.RUNS,
         ),
         (
@@ -98,7 +98,7 @@ def test_relationship_rules_mapping_is_immutable():
         (
             AssetType.SOFTWARE_COMPONENT,
             AssetType.CRYPTOGRAPHIC_SERVICE,
-            RelationshipType.IMPLEMENTS,
+            RelationshipType.PROVIDES,
         ),
         (
             AssetType.CRYPTOGRAPHIC_MODULE,
@@ -149,6 +149,11 @@ def test_valid_relationship_combinations_are_accepted(
             RelationshipType.HOSTS,
         ),
         (
+            AssetType.APPLICATION,
+            AssetType.SOFTWARE_COMPONENT,
+            RelationshipType.RUNS,
+        ),
+        (
             AssetType.NETWORK_SERVICE,
             AssetType.APPLICATION,
             RelationshipType.EXPOSES,
@@ -161,7 +166,7 @@ def test_valid_relationship_combinations_are_accepted(
         (
             AssetType.APPLICATION,
             AssetType.CRYPTOGRAPHIC_SERVICE,
-            RelationshipType.IMPLEMENTS,
+            RelationshipType.PROVIDES,
         ),
         (
             AssetType.RANDOMNESS_COMPONENT,
@@ -286,3 +291,38 @@ def test_relationship_validator_rejects_invalid_objects(
             source,
             target,
         )
+
+
+def test_relationship_validator_enforces_all_declared_rules():
+    """Enforce all declared source and target compatibility rules."""
+
+    for relationship_type, rule in _RELATIONSHIP_RULES.items():
+        for source_type in AssetType:
+            for target_type in AssetType:
+                source = _create_asset(source_type)
+                target = _create_asset(target_type)
+
+                relationship = _create_relationship(
+                    source,
+                    target,
+                    relationship_type,
+                )
+
+                is_compatible = (
+                    source_type in rule.source_types
+                    and target_type in rule.target_types
+                )
+
+                if is_compatible:
+                    validate_relationship_compatibility(
+                        relationship,
+                        source,
+                        target,
+                    )
+                else:
+                    with pytest.raises(ValueError):
+                        validate_relationship_compatibility(
+                            relationship,
+                            source,
+                            target,
+                        )

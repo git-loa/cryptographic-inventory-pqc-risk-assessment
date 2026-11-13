@@ -34,7 +34,7 @@ class RelationshipType(StrEnum):
     EXPOSES = "exposes"
     PRESENTS = "presents"
     USES = "uses"
-    IMPLEMENTS = "implements"
+    PROVIDES = "provides"
     DEPENDS_ON = "depends_on"
     MANAGED_BY = "managed_by"
     CONTAINS = "contains"

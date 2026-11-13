@@ -8,47 +8,41 @@
 
 ## 1. Purpose
 
-This document defines how the framework's domain concepts are represented as Python classes.
+This document describes the Python classes used to represent the framework's domain concepts.
 
-It specifies class responsibilities, attributes, composition, typing and immutability.
+It defines their responsibilities, important attributes and relationships.
 
-The design targets Python 3.12 and later and remains independent of persistence and external inventory formats.
+The design uses dataclasses, immutable value objects, enumerations and interfaces. Domain classes remain independent of databases, collection tools and external inventory formats.
 
-## 2. Implementation Principles
+## 2. Design Principles
 
-The implementation will use:
+The domain design follows these principles:
 
-- Dataclasses for domain entities and value objects.
-- Frozen dataclasses for immutable records and snapshots.
-- Enums for controlled domain values.
-- `typing.Protocol` for structural interfaces.
-- Pydantic for external input validation where appropriate.
-- Composition rather than unnecessary inheritance.
-- UUIDs for internal entity identities.
-- Timezone-aware UTC timestamps.
-
-Domain classes must not depend on OpenSSL, CycloneDX, database implementations or CLI components.
+- Entities have stable UUIDs.
+- Value objects are immutable.
+- Related objects are combined through composition rather than unnecessary inheritance.
+- External references use identifiers rather than complete object copies.
+- Shared validation rules are maintained in reusable helpers.
+- External data is validated before entering the domain.
+- Domain classes do not depend on infrastructure implementations.
 
 ## 3. Organization and Inventory
 
-| Class | Type | Responsibility |
-|---|---|---|
-| `Organization` | Entity | Maintains organizational identity and metadata. |
-| `Inventory` | Entity | Defines an organizational inventory scope. |
-| `InventoryMembership` | Entity | Records an asset's participation in an inventory. |
+| Class | Responsibility |
+|---|---|
+| `Organization` | Represents an organization responsible for inventories. |
+| `Inventory` | Defines an inventory and its organizational scope. |
+| `InventoryMembership` | Records an asset's membership in an inventory. |
 
-`InventoryMembership` references both `inventory_id` and `asset_id`.
+An asset may belong to multiple inventories without duplicating its identity.
 
-An asset may participate in multiple inventories without duplication.
-
-
-## 4. Asset Models
+## 4. Asset Domain
 
 ### Asset
 
 **Type:** Entity
 
-Represents an identifiable computing or cryptographic asset with stable internal identity.
+Represents an identifiable system, application, service, software component or cryptographic object.
 
 Attributes:
 
@@ -60,21 +54,17 @@ Attributes:
 - `specification: AssetSpecification | None`
 - `lifecycle: AssetLifecycle`
 
-The asset identifier is generated using UUID4 unless explicitly supplied.
+The asset receives a UUID4 by default.
 
-Asset identifiers and specifications are immutable value objects composed by the Asset entity.
+It validates its identity, classification, identifiers, specification and lifecycle.
 
-External identifiers are not substitutes for internal asset identity.
-
-The Asset entity validates identifier types, uniqueness and specification compatibility with its primary asset classification.
-
-An asset may have no specification when its technical characteristics are unavailable.
+A specification is optional because an asset may be discovered before its technical details are known.
 
 ### AssetIdentifier
 
-**Type:** Immutable value object.
+**Type:** Immutable value object
 
-Represents a namespaced external identifier associated with an asset.
+Represents an external identifier associated with an asset.
 
 Attributes:
 
@@ -84,70 +74,35 @@ Attributes:
 - `valid_from: datetime | None`
 - `valid_until: datetime | None`
 
-Validity timestamps must be timezone-aware when provided.
-
-When both timestamps exist, `valid_from` must not be later than `valid_until`.
-
-The validity period describes the association between the identifier and asset, not the time of evidence collection.
+The validity timestamps describe how long the identifier is associated with the asset.
 
 ### AssetSpecification
 
-**Type:** Union of typed immutable value objects.
+**Type:** Union of immutable value objects
 
-Represents attributes specific to an asset category.
+Describes technical properties specific to an asset category.
 
-Currently supported specifications:
+The currently supported specifications are:
 
-| Specification | Associated asset type |
+| Class | Asset category |
 |---|---|
-| `NetworkEndpointSpecification` | `NETWORK_SERVICE` |
-| `CertificateSpecification` | `CERTIFICATE` |
-| `SoftwareComponentSpecification` | `SOFTWARE_COMPONENT` |
-| `CryptographicKeyReferenceSpecification` | `CRYPTOGRAPHIC_KEY_REFERENCE` |
+| `NetworkEndpointSpecification` | Network service |
+| `CertificateSpecification` | Certificate |
+| `SoftwareComponentSpecification` | Software component |
+| `CryptographicKeyReferenceSpecification` | Cryptographic key reference |
 
-The `AssetSpecification` type alias defines the supported specification types.
+Additional value objects include:
 
-An Asset may contain a specification only when the specification is compatible with its asset classification.
+- `CertificateValidity`: Certificate validity dates.
+- `PublicKeyInfo`: Public-key algorithm, optional key size and curve.
 
-Additional specification types will be introduced when their domain attributes and collection requirements are established.
-
-#### CertificateSpecification
-
-Represents X.509 certificate metadata.
-
-Its attributes include:
-
-- `serial_number: str`
-- `subject: str | None`
-- `issuer: str | None`
-- `validity: CertificateValidity | None`
-- `signature_algorithm: str | None`
-- `public_key: PublicKeyInfo | None`
-
-`CertificateValidity` represents the certificate validity period.
-
-`PublicKeyInfo` represents public-key characteristics, including algorithm, optional key size and optional curve.
-
-#### CryptographicKeyReferenceSpecification
-
-Represents metadata associated with an identifiable cryptographic key reference without storing secret key material.
-
-Its attributes include:
-
-- `algorithm: str`
-- `key_size_bits: int | None`
-- `curve: str | None`
-- `key_usage: tuple[str, ...]`
-
-`PublicKeyInfo` and `CryptographicKeyReferenceSpecification` represent distinct concepts.
-
-The former describes public-key characteristics. The latter describes a cryptographic key reference.
+The Asset entity checks that a supplied specification matches its asset category.
 
 ### AssetLifecycle
 
-**Type:** Immutable value object.
+**Type:** Immutable value object
 
-Represents the current lifecycle state of an asset.
+Records the current lifecycle state of an asset.
 
 Attributes:
 
@@ -155,303 +110,167 @@ Attributes:
 - `created_at: datetime`
 - `updated_at: datetime`
 
-Both timestamps must be timezone-aware.
-
-`updated_at` must not precede `created_at`.
-
-The Asset entity exposes lifecycle information through read-only properties:
-
-- `lifecycle_status`
-- `created_at`
-- `updated_at`
-
-Lifecycle changes are performed through controlled methods that return a new Asset instance.
-
-The internal asset identifier and original creation timestamp remain unchanged.
-
-Historical persistence and retrieval are responsibilities of the inventory repository.
+Lifecycle changes return a new Asset instance while preserving its UUID and creation timestamp.
 
 ### AssetRelationship
 
-**Type:** Entity.
+**Type:** Immutable entity
 
-References source and target asset identifiers and records:
-
-- Relationship identifier.
-- Source asset identifier.
-- Target asset identifier.
-- Relationship type.
-- Validity period.
-- Supporting evidence references.
-
-Relationships are independently identifiable and do not own the referenced Asset entities.
-
-### Asset Identity Resolution
-
-**Type:** Application-level capability.
-
-Determines whether a discovered asset corresponds to an existing inventory asset.
-
-Identity resolution considers:
-
-- Identifier namespaces and values.
-- Identifier validity periods.
-- Asset classification.
-- Discovery context.
-- Supporting evidence.
-
-Uncertain identity matches must not automatically merge assets.
-
-Identity resolution is separate from Asset construction and will be implemented when inventory persistence and discovery integration are established.
-
-
-## 5. Evidence Models
-
-### EvidenceRecord
-
-**Type:** Immutable entity.
-
-Represents a finalized observation, demonstrated capability, external declaration or derived result.
+Represents a directed relationship between two assets.
 
 Attributes:
 
-- `evidence_id: UUID`
-- `subject: SubjectReference`
-- `evidence_type: EvidenceType`
-- `property: str`
-- `value: EvidenceValue`
-- `provenance: EvidenceProvenance`
-- `observed_at: datetime`
-- `lifecycle_status: EvidenceLifecycleStatus`
-- `limitations: tuple[str, ...]`
+- `relationship_id: UUID`
+- `source_asset_id: UUID`
+- `target_asset_id: UUID`
+- `relationship_type: RelationshipType`
+- `valid_from: datetime | None`
+- `valid_until: datetime | None`
+- `evidence_references: tuple[UUID, ...]`
 
-### SubjectReference
+It validates its identifiers, relationship type, evidence references and validity period.
 
-**Type:** Immutable value object.
+It does not contain complete Asset objects.
 
-Identifies the asset, organization, runtime or collection activity described by the evidence.
+### RelationshipType
 
-### EvidenceValue
+**Type:** String enumeration
 
-**Type:** Typed immutable value object.
+Defines the nine supported relationship types:
 
-Represents normalized evidence payloads, such as TLS observations, certificate metadata and software component information.
+- `HOSTS`
+- `RUNS`
+- `EXPOSES`
+- `PRESENTS`
+- `USES`
+- `PROVIDES`
+- `DEPENDS_ON`
+- `MANAGED_BY`
+- `CONTAINS`
 
-Arbitrary unvalidated dictionaries should not be the default representation.
+Each relationship has a defined direction.
 
-### EvidenceProvenance
+### Relationship Compatibility
 
-**Type:** Immutable value object.
+The `relationship_rules` module defines which asset categories can participate in each relationship.
 
-Identifies the evidence source, collection operation, runtime or external declaration source, where applicable.
+`validate_relationship_compatibility()` checks:
 
-Provenance must allow imported and derived evidence that has no internal collection operation.
+- Whether the supplied assets match the relationship's identifiers.
+- Whether the source asset category is permitted.
+- Whether the target asset category is permitted.
 
-## 6. Collection Models
+The compatibility rules are maintained internally. The validator is the public interface.
 
-### CollectionExecution
+Checking whether referenced assets exist in the inventory and preventing duplicate stored relationships are responsibilities of the inventory application and persistence layers.
 
-**Type:** Entity.
+### Asset Identity Resolution
 
-Records one collector execution.
+**Type:** Application-level capability
 
-Attributes include:
+Determines whether a discovered asset corresponds to an existing inventory asset.
 
-- `execution_id: UUID`
-- `collector_id: str`
-- `collector_version: str`
-- `runtime_id: UUID`
-- `started_at: datetime`
-- `completed_at: datetime | None`
-- `status: CollectionStatus`
-- `operations: tuple[CollectionOperation, ...]`
+It considers external identifiers, asset classification and supporting evidence.
 
-An execution may contain zero or more operations.
+Uncertain matches require review rather than automatic merging.
 
-### CollectionOperation
+## 5. Evidence Domain
 
-**Type:** Entity owned by a CollectionExecution.
+| Class | Responsibility |
+|---|---|
+| `EvidenceRecord` | Records an observation, demonstrated capability, declaration or derived result. |
+| `SubjectReference` | Identifies what the evidence describes. |
+| `EvidenceValue` | Holds the typed evidence information. |
+| `EvidenceProvenance` | Records where the evidence originated. |
 
-Records an individual activity, including its type, target, configuration, outcome and diagnostics.
+An EvidenceRecord includes its identifier, subject, type, property, value, provenance, observation timestamp, lifecycle status and known limitations.
+
+Evidence is immutable after finalization. New observations create new records.
+
+Evidence may describe assets, organizations, runtimes or collection activities.
+
+## 6. Collection Domain
+
+| Class | Responsibility |
+|---|---|
+| `CollectionExecution` | Records one collector execution. |
+| `CollectionOperation` | Records an individual collection activity. |
+| `TLSHandshakeObservation` | Records one actual negotiated TLS connection. |
+| `TLSCapabilityProbeResult` | Records the outcome of a controlled TLS capability test. |
+
+A CollectionExecution may contain multiple CollectionOperations.
 
 An operation may produce zero or more evidence records.
 
-### TLSHandshakeObservation
+TLS handshake observations and controlled capability probes remain separate records.
 
-**Type:** Immutable typed value object.
+## 7. Runtime Domain
 
-Represents one actual TLS connection.
+| Class | Responsibility |
+|---|---|
+| `RuntimeProfile` | Describes the environment performing collection. |
+| `RuntimeCapabilities` | Describes locally available collection and cryptographic capabilities. |
+| `LibraryVersion` | Records the version of a relevant library. |
 
-It records the negotiated protocol, cipher suite, key-establishment group, peer certificate reference and verification information.
+A runtime profile may include the operating system, architecture, Python version, SSL backend and OpenSSL version.
 
-All negotiated properties must originate from the same identified handshake.
+Local capabilities must not be interpreted as remote endpoint capabilities.
 
-### TLSCapabilityProbeResult
+## 8. Standards Domain
 
-**Type:** Immutable typed value object.
+| Class | Responsibility |
+|---|---|
+| `StandardsReference` | Identifies an authoritative publication. |
+| `StandardsEdition` | Represents a particular publication revision. |
+| `StandardsProvision` | Represents an individual requirement or recommendation. |
 
-Represents one controlled TLS capability probe.
+A StandardsReference may have multiple editions.
 
-It records the requested protocol or group, client configuration, outcome and diagnostics.
+Each provision belongs to a specific edition so that previous assessments can retain their original references.
 
-Probe results must remain distinct from observations obtained through another connection.
+## 9. Assessment Domain
 
-## 7. Runtime Models
+| Class | Responsibility |
+|---|---|
+| `PolicyIdentity` | Maintains a policy's identity. |
+| `PolicyVersion` | Defines a particular policy version. |
+| `PolicyRuleIdentity` | Maintains a rule's identity. |
+| `PolicyRuleVersion` | Defines a particular version of a rule. |
+| `AssessmentContext` | Supplies assets, evidence and assessment configuration. |
+| `AssessmentRun` | Records an assessment execution. |
+| `PolicyResult` | Records a policy execution result. |
+| `AssessmentFinding` | Records an assessment conclusion. |
 
-### RuntimeProfile
+Each rule version belongs to one policy version.
 
-**Type:** Immutable entity or snapshot.
+Every finding identifies its originating rule version, affected assets and supporting evidence.
 
-Identifies the collection environment.
+Assessment policies operate on canonical evidence rather than collector-specific models.
 
-Attributes include:
+## 10. Risk and Modernization Domain
 
-- `runtime_id: UUID`
-- `operating_system: str`
-- `architecture: str`
-- `python_implementation: str`
-- `python_version: str`
-- `ssl_backend: str`
-- `openssl_version: str | None`
-- `library_versions: tuple[LibraryVersion, ...]`
-- `captured_at: datetime`
+| Class | Responsibility |
+|---|---|
+| `RiskAssessment` | Evaluates technical findings against organizational context. |
+| `ModernizationPlan` | Coordinates cryptographic modernization activities. |
+| `ModernizationTask` | Tracks an individual migration or replacement activity. |
 
-### RuntimeCapabilities
+Risk assessments preserve their assumptions and rationale.
 
-**Type:** Immutable value object.
+Modernization tasks reference affected assets and related findings.
 
-Describes locally available APIs, cryptographic groups, TLS capabilities and supported collection methods.
+## 11. Shared Types and Validation
 
-It must not represent remote endpoint capabilities.
+### Enumerations
 
-## 8. Standards Models
-
-### StandardsReference
-
-**Type:** Entity.
-
-Maintains stable publication identity, publisher, document identifier and title.
-
-### StandardsEdition
-
-**Type:** Immutable entity.
-
-Represents a specific publication revision, including publication status, dates and official URL.
-
-### StandardsProvision
-
-**Type:** Immutable value object.
-
-Represents a specific requirement, recommendation or other provision within one standards edition.
-
-It contains the section, title, provision type, requirement summary and applicability.
-
-## 9. Assessment Models
-
-| Class | Type | Responsibility |
-|---|---|---|
-| `PolicyIdentity` | Entity | Maintains stable policy identity. |
-| `PolicyVersion` | Immutable entity | Defines one policy specification. |
-| `PolicyRuleIdentity` | Entity | Maintains stable rule identity. |
-| `PolicyRuleVersion` | Immutable entity | Defines one version of a rule. |
-| `AssessmentContext` | Immutable value object | Supplies canonical evidence and assessment configuration. |
-| `AssessmentRun` | Immutable entity | Records one assessment execution. |
-| `PolicyResult` | Immutable entity | Records one policy execution. |
-| `AssessmentFinding` | Immutable entity | Records an individual assessment conclusion. |
-
-Each `PolicyRuleVersion` belongs to exactly one `PolicyVersion`.
-
-Every finding identifies its originating rule version, affected assets, supporting evidence and applicable standards provisions.
-
-The assessment engine must not depend on collector-specific models such as `TLSScanResult`.
-
-## 10. Risk and Modernization Models
-
-| Class | Type | Responsibility |
-|---|---|---|
-| `RiskAssessment` | Entity | Evaluates findings against organizational context. |
-| `ModernizationPlan` | Entity | Coordinates cryptographic replacement activities. |
-| `ModernizationTask` | Entity | Tracks an individual modernization activity. |
-
-Risk assessments and modernization plans preserve their assumptions, affected assets, related findings and decision history.
-
-## 11. Class Relationships
-
-```mermaid
-classDiagram
-    class Organization
-    class Inventory
-    class InventoryMembership
-    class Asset
-    class AssetIdentifier
-    class AssetSpecification
-    class AssetRelationship
-    class EvidenceRecord
-    class EvidenceProvenance
-    class SubjectReference
-    class CollectionExecution
-    class CollectionOperation
-    class RuntimeProfile
-    class RuntimeCapabilities
-    class StandardsReference
-    class StandardsEdition
-    class StandardsProvision
-    class PolicyIdentity
-    class PolicyVersion
-    class PolicyRuleIdentity
-    class PolicyRuleVersion
-    class AssessmentRun
-    class PolicyResult
-    class AssessmentFinding
-    class RiskAssessment
-    class ModernizationPlan
-
-    Organization "1" --> "0..*" Inventory
-    Inventory "1" --> "0..*" InventoryMembership
-    InventoryMembership "*" --> "1" Asset
-
-    Asset *-- AssetIdentifier
-    Asset *-- AssetSpecification
-    AssetRelationship --> Asset : source and target
-
-    EvidenceRecord *-- EvidenceProvenance
-    EvidenceRecord *-- SubjectReference
-    EvidenceRecord --> Asset : optional subject
-
-    CollectionExecution *-- CollectionOperation
-    RuntimeProfile --> CollectionExecution : supports
-    CollectionOperation --> EvidenceRecord : produces
-
-    StandardsReference *-- StandardsEdition
-    StandardsEdition *-- StandardsProvision
-
-    PolicyIdentity *-- PolicyVersion
-    PolicyVersion *-- PolicyRuleVersion
-    PolicyRuleIdentity --> PolicyRuleVersion
-    PolicyRuleVersion --> StandardsProvision : references
-
-    AssessmentRun *-- PolicyResult
-    PolicyResult *-- AssessmentFinding
-    AssessmentFinding --> PolicyRuleVersion : identifies
-    AssessmentFinding --> EvidenceRecord : references
-    AssessmentFinding --> Asset : concerns
-
-    RiskAssessment --> AssessmentFinding : evaluates
-    ModernizationPlan --> Asset : addresses
-```
-
-The diagram represents logical composition and references. Detailed cardinalities and aggregate ownership are defined in `entity-relationships.md`.
-
-## 12. Enums and Controlled Types
-
-Initial domain enumerations include:
+The domain uses controlled enumerations, including:
 
 - `AssetType`
 - `AssetLifecycleStatus`
+- `RelationshipType`
 - `EvidenceType`
 - `EvidenceLifecycleStatus`
 - `CollectionStatus`
-- `RelationshipType`
 - `PublicationStatus`
 - `ProvisionType`
 - `PolicyStatus`
@@ -459,40 +278,42 @@ Initial domain enumerations include:
 - `PolicyExecutionStatus`
 - `ModernizationStatus`
 
-Values will be defined in the relevant domain specifications.
+Each enumeration is maintained in the module responsible for its domain.
 
-## 13. Interfaces and Protocols
+### Validation
 
-Use `Protocol` for contracts between independently implemented components.
+Shared validation functions are maintained in the relevant domain validation modules.
+
+They cover common requirements such as:
+
+- Required and optional text.
+- Positive integers.
+- UUID values.
+- Timezone-aware timestamps.
+- Valid datetime intervals.
+
+Classes also enforce their own rules, such as specification compatibility, unique identifiers and valid relationship classifications.
+
+## 12. Interfaces and External Data
+
+Application components communicate through defined interfaces, using Python `Protocol` where appropriate.
+
+Important interfaces include:
 
 | Protocol | Responsibility |
 |---|---|
-| `Collector` | Collects evidence through defined operations. |
-| `AssetRepository` | Retrieves and persists assets. |
-| `EvidenceRepository` | Retrieves and persists evidence. |
+| `Collector` | Performs collection activities. |
+| `AssetRepository` | Retrieves and stores assets. |
+| `EvidenceRepository` | Retrieves and stores evidence. |
 | `InventoryRepository` | Manages inventory records. |
-| `AssessmentPolicy` | Evaluates an AssessmentContext. |
-| `PolicyRegistry` | Resolves available policy versions. |
-| `StandardsRepository` | Retrieves publications and provisions. |
+| `AssessmentPolicy` | Evaluates assessment context. |
+| `PolicyRegistry` | Resolves policy versions. |
+| `StandardsRepository` | Retrieves standards and provisions. |
 | `BOMImporter` | Imports external inventory documents. |
-| `BOMExporter` | Exports standardized inventory documents. |
+| `BOMExporter` | Exports inventory documents. |
 
-Interfaces should be defined by the application boundary that requires their capabilities. Concrete implementations belong in adapters or infrastructure packages.
+External data is validated and converted into domain objects through the appropriate application or adapter boundary.
 
-## 14. Immutability and Validation
+Serialization and database-specific representations remain outside the domain classes.
 
-Finalized evidence, runtime profiles, standards editions, policy versions, rule versions, assessment runs and findings must be immutable.
-
-Python `frozen=True` does not provide deep immutability. Nested collections must therefore use immutable structures or validated immutable value objects.
-
-Pydantic should validate untrusted external data before it enters the domain. It should not be mandatory for every internal domain object.
-
-## 15. Serialization and Compatibility
-
-Dedicated serializers and adapters translate domain objects into native JSON, assessment records, CycloneDX documents and external API representations.
-
-Persisted records must carry explicit schema versions.
-
-The implementation must support Python 3.12 and 3.15.2 initially. Runtime capability detection, rather than version comparisons alone, determines available collection operations.
-
-**Guiding principle:** Domain classes represent stable concepts and responsibilities; collectors, storage implementations and external formats interact with them through explicit contracts.
+**Guiding principle:** Each class represents one clear responsibility. Related objects are composed, references use identifiers, and shared rules are implemented once.
