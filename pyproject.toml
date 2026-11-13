@@ -16,6 +16,7 @@ dependencies = [
     "cryptography",
     "pyOpenSSL",
     "requests",
+    "idna>=3.10,<4",
     "pydantic",
     "rich",
     "jinja2",
