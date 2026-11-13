@@ -118,10 +118,7 @@ classDiagram
     Asset "1" *-- "0..1" AssetSpecification : describes
     Asset "1" *-- "1" AssetLifecycle : maintains
 
-    AssetSpecification <|.. NetworkEndpointSpecification
-    AssetSpecification <|.. CertificateSpecification
-    AssetSpecification <|.. SoftwareComponentSpecification
-    AssetSpecification <|.. CryptographicKeyReferenceSpecification
+    note for AssetSpecification "Union of the four specification types shown below."
 
     CertificateSpecification *-- CertificateValidity
     CertificateSpecification *-- PublicKeyInfo
@@ -296,7 +293,7 @@ classDiagram
         +str requirement_summary
     }
 
-    StandardsReference "1" *-- "1..*" StandardsEdition : identifies
+    StandardsReference "1" *-- "0..*" StandardsEdition : identifies
     StandardsEdition "1" *-- "0..*" StandardsProvision : contains
 ```
 
