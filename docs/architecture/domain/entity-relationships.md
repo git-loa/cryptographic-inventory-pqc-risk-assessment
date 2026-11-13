@@ -53,7 +53,8 @@ flowchart LR
     ENDPOINT[TLS Endpoint]
     CERT[X.509 Certificate]
 
-    SERVER -->|HOSTS / RUNS| APP
+    SERVER -->|HOSTS| APP
+    SERVER -->|RUNS| APP
     APP -->|USES| LIB
     APP -->|EXPOSES| ENDPOINT
     ENDPOINT -->|PRESENTS| CERT
@@ -90,7 +91,7 @@ A publication may have multiple editions. Each edition contains its own requirem
 
 ```mermaid
 erDiagram
-    STANDARDS_REFERENCE ||--|{ STANDARDS_EDITION : identifies
+    STANDARDS_REFERENCE ||--o{ STANDARDS_EDITION : identifies
     STANDARDS_EDITION ||--o{ STANDARDS_PROVISION : contains
 ```
 
@@ -149,9 +150,10 @@ The following table summarizes the main ownership boundaries.
 |---|---|
 | Inventory | Membership records |
 | Asset | Identifiers, specification and lifecycle |
-| AssetRelationship | Relationship information |
+| AssetRelationship | Relationship attributes and evidence UUID references |
 | EvidenceRecord | Evidence value and provenance |
 | CollectionExecution | Collection operations |
+| RuntimeProfile | RuntimeCapabilities snapshot |
 | StandardsEdition | Standards provisions |
 | PolicyVersion | Policy rule versions |
 | AssessmentRun | Assessment context and policy results |
