@@ -2,13 +2,17 @@
 
 import ipaddress
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
 import idna
 
 from pqc_inventory.domain.assets.identifiers import AssetIdentifier
+
+# ---------------------------------------------------------
+# Identifier namespaces
+# ---------------------------------------------------------
 
 DNS_NAME_NAMESPACE = "dns-name"
 IP_ADDRESS_NAMESPACE = "ip-address"
@@ -21,6 +25,11 @@ X509_FINGERPRINT_SHA3_256_NAMESPACE = "x509-fingerprint-sha3-256"
 X509_FINGERPRINT_BLAKE2S_256_NAMESPACE = "x509-fingerprint-blake2s-256"
 X509_FINGERPRINT_BLAKE2B_512_NAMESPACE = "x509-fingerprint-blake2b-512"
 X509_FINGERPRINT_BLAKE3_256_NAMESPACE = "x509-fingerprint-blake3-256"
+
+
+# ---------------------------------------------------------
+# Shared validation
+# ---------------------------------------------------------
 
 
 def _require_identifier_text(value: str, field_name: str) -> str:
@@ -39,7 +48,7 @@ def _require_identifier_text(value: str, field_name: str) -> str:
 
 
 # ---------------------------------------------------------
-# DNS and IP address normalization
+# DNS and IP normalization
 # ---------------------------------------------------------
 
 
@@ -51,8 +60,8 @@ def normalize_dns_name(value: str) -> str:
     if any(character.isspace() for character in hostname):
         raise ValueError("DNS name cannot contain whitespace.")
 
-    if hostname.endswith("."):
-        hostname = hostname[:-1]
+    # Remove the optional trailing DNS root dot.
+    hostname = hostname.removesuffix(".")
 
     if not hostname or len(hostname) > 253:
         raise ValueError("DNS name must contain between 1 and 253 characters.")
@@ -72,11 +81,6 @@ def normalize_dns_name(value: str) -> str:
         )
     except idna.IDNAError as error:
         raise ValueError(f"Invalid DNS name: {value!r}.") from error
-
-    labels = normalized.split(".")
-
-    if any(not label for label in labels):
-        raise ValueError("DNS name cannot contain empty labels.")
 
     if len(normalized) > 253:
         raise ValueError("Normalized DNS name exceeds 253 characters.")
@@ -103,6 +107,10 @@ def normalize_ip_address(value: str) -> str:
 # ---------------------------------------------------------
 
 
+_HEX_PATTERN = re.compile(r"[0-9a-fA-F]+")
+_HEX_BYTE_PATTERN = re.compile(r"[0-9a-fA-F]{2}")
+
+
 def normalize_fingerprint(
     value: str,
     *,
@@ -110,10 +118,9 @@ def normalize_fingerprint(
 ) -> str:
     """Normalize a hexadecimal fingerprint.
 
-    Supports contiguous hexadecimal values and colon-separated
-    hexadecimal bytes.
+    Accepts contiguous hexadecimal characters or colon-separated bytes.
 
-    The returned fingerprint is lowercase hexadecimal without separators.
+    Returns lowercase hexadecimal without separators.
     """
 
     fingerprint = _require_identifier_text(value, "fingerprint")
@@ -128,7 +135,7 @@ def normalize_fingerprint(
     if ":" in fingerprint:
         octets = fingerprint.split(":")
 
-        if any(re.fullmatch(r"[0-9a-fA-F]{2}", octet) is None for octet in octets):
+        if any(_HEX_BYTE_PATTERN.fullmatch(octet) is None for octet in octets):
             raise ValueError(
                 "Colon-separated fingerprints must contain "
                 "two hexadecimal characters per byte."
@@ -137,7 +144,7 @@ def normalize_fingerprint(
         normalized = "".join(octets).lower()
 
     else:
-        if re.fullmatch(r"[0-9a-fA-F]+", fingerprint) is None:
+        if _HEX_PATTERN.fullmatch(fingerprint) is None:
             raise ValueError("Fingerprint must contain hexadecimal characters.")
 
         normalized = fingerprint.lower()
@@ -153,49 +160,58 @@ def normalize_fingerprint(
     return normalized
 
 
+# ---------------------------------------------------------
+# X.509 fingerprint profiles
+# ---------------------------------------------------------
+
+
 @dataclass(frozen=True, slots=True)
 class _FingerprintProfile:
-    """Define the digest algorithm and expected fingerprint length."""
+    """Define the length and legacy classification of a fingerprint."""
 
-    algorithm: str
     digest_bytes: int
+    legacy: bool = False
 
 
 _X509_FINGERPRINT_PROFILES: Mapping[str, _FingerprintProfile] = MappingProxyType(
     {
         X509_FINGERPRINT_SHA1_NAMESPACE: _FingerprintProfile(
-            algorithm="sha1",
             digest_bytes=20,
+            legacy=True,
         ),
         X509_FINGERPRINT_SHA256_NAMESPACE: _FingerprintProfile(
-            algorithm="sha256",
             digest_bytes=32,
         ),
         X509_FINGERPRINT_SHA384_NAMESPACE: _FingerprintProfile(
-            algorithm="sha384",
             digest_bytes=48,
         ),
         X509_FINGERPRINT_SHA512_NAMESPACE: _FingerprintProfile(
-            algorithm="sha512",
             digest_bytes=64,
         ),
         X509_FINGERPRINT_SHA3_256_NAMESPACE: _FingerprintProfile(
-            algorithm="sha3_256",
             digest_bytes=32,
         ),
         X509_FINGERPRINT_BLAKE2S_256_NAMESPACE: _FingerprintProfile(
-            algorithm="blake2s",
             digest_bytes=32,
         ),
         X509_FINGERPRINT_BLAKE2B_512_NAMESPACE: _FingerprintProfile(
-            algorithm="blake2b",
             digest_bytes=64,
         ),
         X509_FINGERPRINT_BLAKE3_256_NAMESPACE: _FingerprintProfile(
-            algorithm="blake3",
             digest_bytes=32,
         ),
     }
+)
+
+
+# Derived from the profile registry to avoid maintaining duplicate lists.
+
+X509_FINGERPRINT_NAMESPACES = frozenset(_X509_FINGERPRINT_PROFILES)
+
+X509_FINGERPRINT_LEGACY_NAMESPACES = frozenset(
+    namespace
+    for namespace, profile in _X509_FINGERPRINT_PROFILES.items()
+    if profile.legacy
 )
 
 
@@ -205,10 +221,17 @@ def normalize_x509_fingerprint(
 ) -> str:
     """Normalize an X.509 fingerprint using its registered profile."""
 
-    profile = _X509_FINGERPRINT_PROFILES.get(namespace)
+    fingerprint_namespace = _require_identifier_text(
+        namespace,
+        "fingerprint namespace",
+    )
+
+    profile = _X509_FINGERPRINT_PROFILES.get(fingerprint_namespace)
 
     if profile is None:
-        raise ValueError(f"Unsupported X.509 fingerprint namespace: {namespace!r}.")
+        raise ValueError(
+            f"Unsupported X.509 fingerprint namespace: " f"{fingerprint_namespace!r}."
+        )
 
     return normalize_fingerprint(
         value,
@@ -217,8 +240,19 @@ def normalize_x509_fingerprint(
 
 
 # ---------------------------------------------------------
-# Identifier dispatcher
+# Identifier dispatch
 # ---------------------------------------------------------
+
+
+IdentifierNormalizer = Callable[[str], str]
+
+
+_IDENTIFIER_NORMALIZERS: Mapping[str, IdentifierNormalizer] = MappingProxyType(
+    {
+        DNS_NAME_NAMESPACE: normalize_dns_name,
+        IP_ADDRESS_NAMESPACE: normalize_ip_address,
+    }
+)
 
 
 def normalize_identifier(identifier: AssetIdentifier) -> str:
@@ -230,13 +264,12 @@ def normalize_identifier(identifier: AssetIdentifier) -> str:
     if not isinstance(identifier, AssetIdentifier):
         raise TypeError("identifier must be an AssetIdentifier.")
 
-    if identifier.namespace == DNS_NAME_NAMESPACE:
-        return normalize_dns_name(identifier.value)
+    normalizer = _IDENTIFIER_NORMALIZERS.get(identifier.namespace)
 
-    if identifier.namespace == IP_ADDRESS_NAMESPACE:
-        return normalize_ip_address(identifier.value)
+    if normalizer is not None:
+        return normalizer(identifier.value)
 
-    if identifier.namespace in _X509_FINGERPRINT_PROFILES:
+    if identifier.namespace in X509_FINGERPRINT_NAMESPACES:
         return normalize_x509_fingerprint(
             identifier.value,
             identifier.namespace,
